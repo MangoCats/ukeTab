@@ -1,0 +1,215 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #090d16;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(168, 85, 247, 0.06) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Utility Flex & Layout classes */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+
+.gap-1 { gap: 0.25rem; }
+.gap-1\.5 { gap: 0.375rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.gap-6 { gap: 1.5rem; }
+
+.w-full { width: 100%; }
+.min-h-screen { min-height: 100vh; }
+.max-w-7xl { max-width: 80rem; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+.p-2 { padding: 0.5rem; }
+.p-2\.5 { padding: 0.625rem; }
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+.p-6 { padding: 1.5rem; }
+
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.px-3\.5 { padding-left: 0.875rem; padding-right: 0.875rem; }
+.px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.py-2\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+
+.space-y-4 > * + * { margin-top: 1rem; }
+.space-y-6 > * + * { margin-top: 1.5rem; }
+
+.rounded-xl { border-radius: 0.75rem; }
+.rounded-2xl { border-radius: 1rem; }
+.rounded-full { border-radius: 9999px; }
+
+.border { border-width: 1px; }
+.border-slate-800 { border-color: #1e293b; }
+.border-amber-500 { border-color: #f59e0b; }
+
+.bg-slate-900\/90 { background-color: rgba(15, 23, 42, 0.9); }
+.bg-slate-900\/80 { background-color: rgba(15, 23, 42, 0.8); }
+.bg-slate-900\/60 { background-color: rgba(15, 23, 42, 0.6); }
+
+.font-outfit { font-family: 'Outfit', sans-serif; }
+.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+/* Printable Title Header: Hidden in Web view, Visible ONLY in Print / PDF Mode */
+.print-title-header {
+  display: none;
+}
+
+/* Dedicated High-Quality Print & PDF Output Engine */
+@media print {
+  @page {
+    size: portrait;
+    margin: 1.2cm 1cm 1.2cm 1cm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Completely strip all editing controls, toolbars, inspector panels, popovers */
+  .no-print,
+  .EditorToolbar,
+  .InspectorPanel,
+  .ChordDiagram,
+  foreignObject,
+  .floating-popover,
+  .ghost-fret,
+  .delete-badge,
+  .selection-ring,
+  .playhead-highlight,
+  button {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+
+  /* Ensure red deletion badges and selection rings are strictly hidden in SVG */
+  g.delete-badge, g.delete-badge *, rect.selection-ring, rect.playhead-highlight, g.ghost-fret, g.ghost-fret * {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+
+  /* Large Printable Title Header */
+  .print-title-header {
+    display: block !important;
+    text-align: center !important;
+    margin-bottom: 1.5rem !important;
+    border-bottom: 2px solid #0f172a !important;
+    padding-bottom: 0.75rem !important;
+  }
+
+  .print-title-header h1 {
+    font-size: 28pt !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    margin: 0 0 4px 0 !important;
+    font-family: 'Outfit', sans-serif !important;
+    line-height: 1.2 !important;
+  }
+
+  .print-title-header p.artist {
+    font-size: 13pt !important;
+    color: #334155 !important;
+    font-style: italic !important;
+    margin: 0 0 6px 0 !important;
+  }
+
+  .print-title-header p.meta {
+    font-size: 9.5pt !important;
+    color: #64748b !important;
+    margin: 0 !important;
+    font-family: monospace !important;
+  }
+
+  /* Sheet Music System Rows */
+  .system-row {
+    display: block !important;
+    margin-bottom: 1.5rem !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* SVG Canvas Styling for Print */
+  svg {
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Line Masking Box: Pure white in print */
+  .fret-mask {
+    fill: #ffffff !important;
+  }
+
+  /* Crisp black staff lines and bar lines */
+  line {
+    stroke: #0f172a !important;
+  }
+
+  /* High contrast black text for digits, time signature & lyrics */
+  text:not(.no-print) {
+    fill: #000000 !important;
+  }
+
+  /* Black stems, flags & beams */
+  path:not(.no-print), circle:not(.no-print) {
+    stroke: #000000 !important;
+  }
+}
