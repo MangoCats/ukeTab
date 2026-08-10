@@ -2,23 +2,27 @@
 
 > **Interactive Ukulele Tab Chart Creator, Renderer, and Web Studio**
 
-UkeTab is a modern web application designed for Ukulele players, teachers, and arrangers. It enables seamless creation, editing, visualization, audio playback, and export of Ukulele tablature with traditional rhythm stems and synced lyrics.
+UkeTab is a modern web application designed for Ukulele players, teachers, and arrangers. It enables seamless creation, editing, visualization, audio playback, file import/export, and clean PDF print generation of Ukulele tablature with traditional rhythm stems and synced lyrics.
 
 ---
 
 ## ✨ Key Features
 
-- 🎼 **4-Line Ukulele Staff**: Specifically engineered for Ukulele with High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), and custom tunings.
-- ⏱️ **Traditional Rhythm Notation**: Rhythmic stems (whole, half, 1/4, 1/8, 1/16, triplets, dotted notes, rests) displayed directly below the 4-line staff.
+- 🎼 **4-Line Ukulele Staff**: Engineered specifically for Ukulele with High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), Soprano D ($aDF\#B$), and custom tunings.
+- 🎼 **Continuous System Engraving**: Staff lines run continuously across measures with 1 clef string header and 1 time signature per system row.
+- ⏱️ **Traditional Vertically Stacked Time Signatures**: Numerator stacked over denominator ($\mathbf{\frac{4}{4}}$) in bold classical serif engraving typography.
+- ⏱️ **Traditional Rhythm Stems & Flags**: Stem lines, single flags (`1/8`), double flags (`1/16`), horizontal beams, dotted notes, and rests displayed directly on the staff.
+- ➕ **In-Measure Beat Event Editing**: Insert new note events / beat columns anywhere inside a measure using **`+ Insert Beat`** or keyboard shortcut **`+`**.
 - 🎤 **Synchronized Lyrics**: Dedicated lyric track aligned column-by-column with note stems.
-- 🖥️ **WYSIWYG Web Editor**: Interactive point-and-click or keyboard-driven editing with real-time visual updates.
-- 🔊 **Audio Playback**: Built-in audio synthesizer with real-time playhead tracking across measures.
-- 💡 **Alternate Fret Helper**: Automatic candidate fret suggestion ("ghost frets") on unassigned strings for easy fingering choices.
+- 🖥️ **WYSIWYG Interactive Editor**: Floating context action bar directly over selected notes, touch inspector pad, and full keyboard shortcuts (`0-9`, `←/→/↑/↓`, `w/h/q/e/s`, `.`, `+`, `Backspace`).
+- 🔊 **Audio Playback & Metronome**: Built-in Web Audio synthesizer with real-time playhead tracking, metronome clicks, and speed multiplier (`0.5x`–`1.25x`).
+- 🪕 **Unified Max Fret Limit & Alternate Fret Helper**: Configurable limit (`maxFretLimit`, default 12, user selectable 7..20) applying to both the fret selection button list and equivalent pitch ghost notes `(3)`.
 - 🔄 **Key & Tuning Transposition**: 1-click transposition across keys (+/- semitones) and string tunings with automatic tab recalculation.
-- 📄 **Multi-Format Export & Zoom Control**:
-  - Compact digital storage (`.uketab` JSON).
-  - Scalable PDF output with **Zoom Levels** (Compact 75%, Standard 100%, Large/Distance 150%).
-  - Standard MIDI (`.mid`) export and **MIDI File Import** with automatic fret mapping.
+- 📄 **Clean PDF Print Export Engine**:
+  - Displays a large, bold `28pt` Song Title Caption, artist subtitle, and tuning/tempo metadata.
+  - Automatically strips all web UI controls, toolbars, selection rings, and red **✕** deletion badges in PDF mode.
+- 📂 **Digital Storage & File Import**:
+  - Save and Open `.uketab` JSON files.
 
 ---
 
@@ -32,8 +36,8 @@ UkeTab is a modern web application designed for Ukulele players, teachers, and a
 ## 🚀 Technology Stack
 
 - **Frontend**: React 18, TypeScript, HTML5 SVG Vector Engine
-- **Audio**: Web Audio API / Tone.js
-- **Export Engines**: `jsPDF` + `svg2pdf.js`, `@tonejs/midi`
+- **Audio**: Web Audio API Synthesizer & Metronome
+- **Print & PDF Engine**: Browser High-DPI Vector Printing Engine
 - **Build System**: Vite
 
 ---
@@ -41,7 +45,7 @@ UkeTab is a modern web application designed for Ukulele players, teachers, and a
 ## 🗺️ Project Roadmap
 
 - [x] Phase 1: Project Definition & Notation Specifications
-- [ ] Phase 2: Core Domain Model & SVG Vector Renderer Prototype
-- [ ] Phase 3: Interactive WYSIWYG Editor & Audio Playback Engine
-- [ ] Phase 4: Transposition Engine & Alternate Fret Helper
-- [ ] Phase 5: PDF Generator with Zoom Scaling & MIDI Import/Export
+- [x] Phase 2: Core Domain Model & SVG Vector Renderer Prototype
+- [x] Phase 3: Interactive WYSIWYG Editor & Audio Playback Engine
+- [x] Phase 4: Transposition Engine & Alternate Fret Helper
+- [x] Phase 5: PDF Generator with Zoom Scaling, Clean Headers & File Storage (.uketab)

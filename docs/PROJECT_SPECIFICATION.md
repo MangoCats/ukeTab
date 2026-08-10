@@ -2,33 +2,43 @@
 
 ## 1. Product Overview & Core Purpose
 **UkeTab** is a modern interactive web application for creating, editing, listening to, and exporting 4-line Ukulele tablature.
-It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, and configurable fingering aids.
+It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, and configurable fingering aids.
 
 ---
 
 ## 2. Visual Notation & Rendering Specs
 
-### Staff & Lines
+### Staff & Continuous System Layout
 - **Staff Lines**: Exactly 4 horizontal lines.
 - **Default High-G ($gCEA$) String Ordering**:
   - String 1 (Top Line): $A_4$ (440 Hz)
   - String 2 (2nd Line): $E_4$ (329.63 Hz)
   - String 3 (3rd Line): $C_4$ (261.63 Hz)
   - String 4 (Bottom Line): $g_4$ (392.00 Hz) High-G re-entrant tuning.
+- **Continuous System Staff Engraving**:
+  - String tuning labels (`A4`, `E4`, `C4`, `g4`) and time signatures are rendered **ONCE per system row** at the far-left clef header.
+  - Measures flow continuously across the system row separated by single vertical barlines without repeated string labels or whitespace gaps.
+- **Zoom-Proportional & Margin-Overrun Dynamic Row-Wrapping**:
+  - Automatically wraps measures onto a new system row when the row width exceeds the printable page boundary (`820px`).
+  - Adapts to active zoom presets (75% Compact, 100% Standard, 150% Large).
 
 ### Fret Number Representation
 - Fret numbers (`0` through `20`) are rendered directly on staff lines inside solid pitch-black line cutout boxes (`#020617`).
 - Fret digits are rendered in high-contrast white (`#ffffff`) or sky-blue when active.
 
-### Configurable Alternate Fret Helper
-- When a note is placed on a string, equivalent pitch frets on remaining unassigned strings are rendered in parenthesized ghost format `(3)`.
-- **User-Selectable Fret Suggestion Limit**:
+### Unified Max Fret Limit Control
+- **User-Selectable Fret Limit (`maxFretLimit`)**:
   - Default Limit: **Fret 12**
   - User Options: `Fret 7`, `Fret 10`, `Fret 12 (Default)`, `Fret 15`, `Fret 20`.
+  - Applies to **both**:
+    1. **Fret Selection Button List**: Inline popover toolbar and Inspector panel render fret buttons `0` through `maxFretLimit`.
+    2. **Alternate Fret Helper**: Equivalent pitch suggestions (parenthesized ghost frets `(3)`) are filtered up to `maxFretLimit`.
 
-### Rhythm Notation
-- Stems default to below staff lines, user-configurable to above staff.
-- Stems, flags, and horizontal beams visually distinguish:
+### Rhythm Notation & Time Signatures
+- **Traditional Vertically Stacked Time Signature ($\mathbf{\frac{4}{4}}$)**:
+  - Numerator sits centered over upper staff lines; denominator sits centered over lower staff lines in bold serif typography (`font-weight: 800`, `26px`).
+- **Rhythm Stems & Flags**:
+  - Default to below staff lines, user-configurable to above staff.
   - **Whole Note (`1/1`)**: Open ring
   - **Half Note (`1/2`)**: Open circle stem base
   - **Quarter Note (`1/4`)**: Plain vertical stem `|`
@@ -36,9 +46,19 @@ It features standard stringed instrument notation with fret numbers on staff lin
   - **Sixteenth Note (`1/16`)**: Double flag `|//` or double beam `||=||`
   - **Dotted Notes**: Amber dot attached to stem base.
 
+### In-Measure Beat Event Editing
+- Users can insert new note events / beat columns anywhere inside a measure via **`+ Insert Beat`** button or keyboard shortcut **`+`** / `Shift+Enter`.
+- Unwanted beat columns can be removed via **`Delete Beat`**.
+
 ---
 
-## 3. Data Storage & Schema (.uketab)
+## 3. High-Contrast PDF Print Engine
+- **Large Song Title Header**: Displays a prominent `28pt` title caption (**"Aloha Ukulele Groove"**), italicized artist subtitle, and tuning/tempo metadata centered at the top of the PDF.
+- **Strict UI Stripping**: All web editing controls, popovers, selection highlight rings, and red **✕** deletion badges are 100% hidden in print mode (`no-print`).
+
+---
+
+## 4. Data Storage & Schema (.uketab)
 
 Tabs are stored as JSON files (`.uketab`):
 ```json
@@ -58,7 +78,7 @@ Tabs are stored as JSON files (`.uketab`):
     "stemsPlacement": "below",
     "zoomScale": 1.0,
     "measuresPerSystem": 4,
-    "maxFretSuggestion": 12
+    "maxFretLimit": 12
   },
   "measures": []
 }
