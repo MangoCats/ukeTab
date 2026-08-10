@@ -11,6 +11,9 @@ interface InspectorPanelProps {
   onSetFret: (beatId: string, stringIndex: 1 | 2 | 3 | 4, fret: number) => void;
   onDeleteNote: (beatId: string, stringIndex: 1 | 2 | 3 | 4) => void;
   onInsertBeat: (afterBeatId: string) => void;
+  onInsertRest?: (afterBeatId: string) => void;
+  onToggleRest?: (beatId: string) => void;
+  onToggleTriplet?: (beatId: string) => void;
   onDeleteBeatColumn: (beatId: string) => void;
 }
 
@@ -22,6 +25,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onSetFret,
   onDeleteNote,
   onInsertBeat,
+  onInsertRest,
+  onToggleRest,
+  onToggleTriplet,
   onDeleteBeatColumn
 }) => {
   const { tuning, measures, layout } = document;
@@ -64,7 +70,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         <div className="flex items-center gap-2">
           <Music className="w-4 h-4 text-amber-400" />
           <span className="font-bold text-sm text-slate-200 font-outfit">
-            Inspector &bull; Measure {activeMeasureIndex} &bull; {selectedBeat.duration} Note Event
+            Inspector &bull; Measure {activeMeasureIndex} &bull; {selectedBeat.duration} {selectedBeat.isRest ? 'Rest Event' : 'Note Event'}
           </span>
         </div>
 
@@ -73,16 +79,56 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           <button
             onClick={() => onInsertBeat(selectedBeat.id)}
             className="flex items-center gap-1 px-2.5 py-1 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 rounded-lg text-xs font-semibold transition"
-            title="Insert a new note event / beat column into this measure"
+            title="Insert a new note event into this measure"
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            <span>+ Insert Beat</span>
+            <span>+ Beat</span>
           </button>
+
+          {onInsertRest && (
+            <button
+              onClick={() => onInsertRest(selectedBeat.id)}
+              className="flex items-center gap-1 px-2.5 py-1 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 rounded-lg text-xs font-semibold transition"
+              title="Insert a new rest event into this measure"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <span>+ Rest</span>
+            </button>
+          )}
+
+          {onToggleRest && (
+            <button
+              onClick={() => onToggleRest(selectedBeat.id)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                selectedBeat.isRest
+                  ? 'bg-purple-500 text-slate-950 font-bold'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+              }`}
+              title="Toggle rest symbol for this beat (Press R)"
+            >
+              <span>𝄽 {selectedBeat.isRest ? 'Rest Active' : 'Toggle Rest'}</span>
+            </button>
+          )}
+
+          {onToggleTriplet && (
+            <button
+              onClick={() => onToggleTriplet(selectedBeat.id)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                selectedBeat.isTriplet
+                  ? 'bg-indigo-500 text-slate-950 font-bold shadow-sm'
+                  : 'bg-slate-800 text-indigo-300 hover:bg-slate-700 border border-slate-700'
+              }`}
+              title="Toggle triplet (3:2 duration ratio) for this beat (Press T)"
+            >
+              <span className="font-mono font-bold border border-current rounded-full w-3.5 h-3.5 flex items-center justify-center text-[9px]">3</span>
+              <span>{selectedBeat.isTriplet ? 'Triplet (3:2) Active' : 'Triplet (3:2)'}</span>
+            </button>
+          )}
 
           <button
             onClick={() => onDeleteBeatColumn(selectedBeat.id)}
             className="flex items-center gap-1 px-2.5 py-1 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 rounded-lg text-xs font-semibold transition"
-            title="Remove this beat column from measure"
+            title="Remove this beat column from measure (Deleting last beat deletes measure)"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Delete Beat</span>

@@ -46,6 +46,26 @@ export function calculatePitch(stringIndex: 1 | 2 | 3 | 4, fret: number, tuning:
   return tuning.pitches[stringIndex - 1] + fret;
 }
 
+export function getBeatDurationMs(beat: { duration: string; isDotted?: boolean; isTriplet?: boolean }, tempo: number, playbackSpeed: number = 1.0): number {
+  const quarterMs = 60000 / tempo;
+  let multiplier = 1.0;
+  switch (beat.duration) {
+    case '1/1': multiplier = 4.0; break;
+    case '1/2': multiplier = 2.0; break;
+    case '1/4': multiplier = 1.0; break;
+    case '1/8': multiplier = 0.5; break;
+    case '1/16': multiplier = 0.25; break;
+    case '1/32': multiplier = 0.125; break;
+  }
+  if (beat.isDotted) {
+    multiplier *= 1.5;
+  }
+  if (beat.isTriplet) {
+    multiplier *= (2 / 3);
+  }
+  return (quarterMs * multiplier) / playbackSpeed;
+}
+
 /**
  * Calculates alternate fret suggestions on unassigned strings for a given set of notes in a beat.
  * Capped by user-configured maxFretLimit (default 12).

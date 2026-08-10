@@ -1,0 +1,348 @@
+{
+  "id": "tab-three-is-a-magic-number-001",
+  "title": "Three Is a Magic Number",
+  "artist": "Bob Dorough (Schoolhouse Rock!)",
+  "tempo": 112,
+  "keySignature": "G",
+  "tuning": {
+    "key": "gCEA",
+    "name": "Standard High-G (gCEA)",
+    "pitches": [69, 64, 60, 67],
+    "stringsDisplay": ["A4", "E4", "C4", "g4"]
+  },
+  "layout": {
+    "stemsPlacement": "below",
+    "zoomScale": 1,
+    "measuresPerSystem": 4,
+    "maxFretLimit": 12
+  },
+  "measures": [
+    {
+      "id": "m1",
+      "index": 1,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b1-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n1-1", "string": 4, "fret": 0 },
+            { "id": "n1-2", "string": 3, "fret": 2 },
+            { "id": "n1-3", "string": 2, "fret": 3 },
+            { "id": "n1-4", "string": 1, "fret": 2 }
+          ],
+          "lyric": "Three..."
+        },
+        {
+          "id": "b1-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n1-5", "string": 3, "fret": 2 }]
+        },
+        {
+          "id": "b1-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n1-6", "string": 2, "fret": 3 }]
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "index": 2,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b2-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n2-1", "string": 4, "fret": 0 },
+            { "id": "n2-2", "string": 3, "fret": 2 },
+            { "id": "n2-3", "string": 2, "fret": 3 },
+            { "id": "n2-4", "string": 1, "fret": 2 }
+          ],
+          "lyric": "is"
+        },
+        {
+          "id": "b2-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n2-5", "string": 1, "fret": 2 }],
+          "lyric": "a"
+        },
+        {
+          "id": "b2-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n2-6", "string": 1, "fret": 5 }],
+          "lyric": "ma-"
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "index": 3,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b3-1",
+          "duration": "1/2",
+          "notes": [
+            { "id": "n3-1", "string": 4, "fret": 0 },
+            { "id": "n3-2", "string": 3, "fret": 0 },
+            { "id": "n3-3", "string": 2, "fret": 0 },
+            { "id": "n3-4", "string": 1, "fret": 3 }
+          ],
+          "lyric": "gic"
+        },
+        {
+          "id": "b3-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n3-5", "string": 1, "fret": 2 }],
+          "lyric": "num-"
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "index": 4,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b4-1",
+          "duration": "1/2",
+          "isDotted": true,
+          "notes": [
+            { "id": "n4-1", "string": 4, "fret": 0 },
+            { "id": "n4-2", "string": 3, "fret": 2 },
+            { "id": "n4-3", "string": 2, "fret": 3 },
+            { "id": "n4-4", "string": 1, "fret": 2 }
+          ],
+          "lyric": "ber."
+        }
+      ]
+    },
+    {
+      "id": "m5",
+      "index": 5,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b5-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n5-1", "string": 4, "fret": 2 },
+            { "id": "n5-2", "string": 3, "fret": 0 },
+            { "id": "n5-3", "string": 2, "fret": 2 },
+            { "id": "n5-4", "string": 1, "fret": 0 }
+          ],
+          "lyric": "Yes"
+        },
+        {
+          "id": "b5-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n5-5", "string": 2, "fret": 2 }],
+          "lyric": "it"
+        },
+        {
+          "id": "b5-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n5-6", "string": 1, "fret": 3 }],
+          "lyric": "is,"
+        }
+      ]
+    },
+    {
+      "id": "m6",
+      "index": 6,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b6-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n6-1", "string": 4, "fret": 2 },
+            { "id": "n6-2", "string": 3, "fret": 0 },
+            { "id": "n6-3", "string": 2, "fret": 2 },
+            { "id": "n6-4", "string": 1, "fret": 0 }
+          ],
+          "lyric": "it's"
+        },
+        {
+          "id": "b6-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n6-5", "string": 1, "fret": 2 }],
+          "lyric": "a"
+        },
+        {
+          "id": "b6-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n6-6", "string": 1, "fret": 0 }],
+          "lyric": "ma-"
+        }
+      ]
+    },
+    {
+      "id": "m7",
+      "index": 7,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b7-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n7-1", "string": 4, "fret": 0 },
+            { "id": "n7-2", "string": 3, "fret": 2 },
+            { "id": "n7-3", "string": 2, "fret": 3 },
+            { "id": "n7-4", "string": 1, "fret": 2 }
+          ],
+          "lyric": "gic"
+        },
+        {
+          "id": "b7-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n7-5", "string": 1, "fret": 2 }],
+          "lyric": "num-"
+        },
+        {
+          "id": "b7-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n7-6", "string": 2, "fret": 3 }],
+          "lyric": "ber!"
+        }
+      ]
+    },
+    {
+      "id": "m8",
+      "index": 8,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b8-1",
+          "duration": "1/4",
+          "notes": [{ "id": "n8-1", "string": 1, "fret": 2 }]
+        },
+        {
+          "id": "b8-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n8-2", "string": 1, "fret": 5 }]
+        },
+        {
+          "id": "b8-3",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n8-3", "string": 4, "fret": 0 },
+            { "id": "n8-4", "string": 3, "fret": 2 },
+            { "id": "n8-5", "string": 2, "fret": 3 },
+            { "id": "n8-6", "string": 1, "fret": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m9",
+      "index": 9,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b9-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n9-1", "string": 4, "fret": 0 },
+            { "id": "n9-2", "string": 3, "fret": 0 },
+            { "id": "n9-3", "string": 2, "fret": 0 },
+            { "id": "n9-4", "string": 1, "fret": 3 }
+          ],
+          "lyric": "Some-"
+        },
+        {
+          "id": "b9-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n9-5", "string": 1, "fret": 3 }],
+          "lyric": "where"
+        },
+        {
+          "id": "b9-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n9-6", "string": 1, "fret": 5 }],
+          "lyric": "in"
+        }
+      ]
+    },
+    {
+      "id": "m10",
+      "index": 10,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b10-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n10-1", "string": 4, "fret": 0 },
+            { "id": "n10-2", "string": 3, "fret": 2 },
+            { "id": "n10-3", "string": 2, "fret": 3 },
+            { "id": "n10-4", "string": 1, "fret": 2 }
+          ],
+          "lyric": "that"
+        },
+        {
+          "id": "b10-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n10-5", "string": 1, "fret": 2 }],
+          "lyric": "mys-"
+        },
+        {
+          "id": "b10-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n10-6", "string": 2, "fret": 3 }],
+          "lyric": "tic"
+        }
+      ]
+    },
+    {
+      "id": "m11",
+      "index": 11,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b11-1",
+          "duration": "1/4",
+          "notes": [
+            { "id": "n11-1", "string": 4, "fret": 2 },
+            { "id": "n11-2", "string": 3, "fret": 0 },
+            { "id": "n11-3", "string": 2, "fret": 2 },
+            { "id": "n11-4", "string": 1, "fret": 0 }
+          ],
+          "lyric": "num-"
+        },
+        {
+          "id": "b11-2",
+          "duration": "1/4",
+          "notes": [{ "id": "n11-5", "string": 1, "fret": 0 }],
+          "lyric": "ber"
+        },
+        {
+          "id": "b11-3",
+          "duration": "1/4",
+          "notes": [{ "id": "n11-6", "string": 1, "fret": 2 }],
+          "lyric": "three!"
+        }
+      ]
+    },
+    {
+      "id": "m12",
+      "index": 12,
+      "timeSignature": [3, 4],
+      "beats": [
+        {
+          "id": "b12-1",
+          "duration": "1/2",
+          "isDotted": true,
+          "notes": [
+            { "id": "n12-1", "string": 4, "fret": 0 },
+            { "id": "n12-2", "string": 3, "fret": 2 },
+            { "id": "n12-3", "string": 2, "fret": 3 },
+            { "id": "n12-4", "string": 1, "fret": 2 }
+          ],
+          "lyric": "(3x3=9)"
+        }
+      ]
+    }
+  ]
+}

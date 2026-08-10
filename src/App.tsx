@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn } from './types/ukulele';
-import { SAMPLE_TAB_DOCUMENT } from './utils/sampleData';
-import { transposePitches } from './utils/musicTheory';
+import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
+import { transposePitches, getBeatDurationMs } from './utils/musicTheory';
 import { playBeatChord } from './utils/audioSynth';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
@@ -19,14 +19,14 @@ export const App: React.FC = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
 
-  const playbackTimerRef = useRef<number | null>(null);
+  const playbackTimeoutRef = useRef<number | null>(null);
   const lastKeyTimeRef = useRef<number>(0);
   const lastDigitRef = useRef<string>('');
 
-  // Playback Loop Controller with Speed & Metronome Support
+  // Playback Loop Controller with Speed & Triplet/Dotted Dynamic Timing
   useEffect(() => {
     if (!isPlaying) {
-      if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
       setPlayingBeatId(null);
       return;
     }
@@ -38,9 +38,8 @@ export const App: React.FC = () => {
     }
 
     let currentIndex = 0;
-    const intervalMs = (60 / (document.tempo * playbackSpeed)) * 1000;
 
-    const tick = () => {
+    const playNextStep = () => {
       if (currentIndex >= allBeats.length) {
         setIsPlaying(false);
         setPlayingBeatId(null);
@@ -51,14 +50,16 @@ export const App: React.FC = () => {
 
       const isFirstBeatInMeasure = (currentIndex === 0) || (allBeats[currentIndex - 1].measureIndex !== beatInfo.measureIndex);
       playBeatChord(beatInfo, document.tuning, enableMetronome, isFirstBeatInMeasure);
+
+      const delayMs = getBeatDurationMs(beatInfo, document.tempo, playbackSpeed);
       currentIndex++;
+      playbackTimeoutRef.current = window.setTimeout(playNextStep, delayMs);
     };
 
-    tick();
-    playbackTimerRef.current = window.setInterval(tick, intervalMs);
+    playNextStep();
 
     return () => {
-      if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
     };
   }, [isPlaying, document, enableMetronome, playbackSpeed]);
 
@@ -114,6 +115,20 @@ export const App: React.FC = () => {
       if ((e.key === '+' || (e.shiftKey && e.key === 'Enter')) && selectedBeatId) {
         e.preventDefault();
         handleInsertBeat(selectedBeatId);
+        return;
+      }
+
+      // 'r' or 'R': Toggle Rest for selected beat
+      if ((e.key === 'r' || e.key === 'R') && selectedBeatId) {
+        e.preventDefault();
+        handleToggleRest(selectedBeatId);
+        return;
+      }
+
+      // 't' or 'T': Toggle Triplet (3:2) designation for selected beat
+      if ((e.key === 't' || e.key === 'T') && selectedBeatId) {
+        e.preventDefault();
+        handleToggleTriplet(selectedBeatId);
         return;
       }
 
@@ -200,6 +215,7 @@ export const App: React.FC = () => {
           };
           return {
             ...b,
+            isRest: false,
             duration: activeDuration,
             notes: [...existingFiltered, newNote]
           };
@@ -250,19 +266,115 @@ export const App: React.FC = () => {
     setSelectedBeatId(newId);
   };
 
-  const handleDeleteBeatColumn = (beatId: string) => {
+  const handleInsertRest = (afterBeatId: string) => {
+    const newId = `b-${Date.now()}`;
     setDocument(prev => ({
       ...prev,
       measures: prev.measures.map(m => {
-        if (m.beats.length <= 1) return m;
-        const updatedBeats = m.beats.filter(b => b.id !== beatId);
+        const beatIdx = m.beats.findIndex(b => b.id === afterBeatId);
+        if (beatIdx === -1) return m;
+
+        const newRestBeat: BeatColumn = {
+          id: newId,
+          duration: activeDuration,
+          isRest: true,
+          notes: []
+        };
+
+        const updatedBeats = [...m.beats];
+        updatedBeats.splice(beatIdx + 1, 0, newRestBeat);
         return { ...m, beats: updatedBeats };
       })
     }));
+    setSelectedBeatId(newId);
+  };
+
+  const handleToggleRest = (beatId: string) => {
+    setDocument(prev => ({
+      ...prev,
+      measures: prev.measures.map(m => ({
+        ...m,
+        beats: m.beats.map(b => {
+          if (b.id !== beatId) return b;
+          return {
+            ...b,
+            isRest: !b.isRest,
+            notes: !b.isRest ? [] : b.notes
+          };
+        })
+      }))
+    }));
+  };
+
+  const handleToggleTriplet = (beatId: string) => {
+    setDocument(prev => ({
+      ...prev,
+      measures: prev.measures.map(m => ({
+        ...m,
+        beats: m.beats.map(b => {
+          if (b.id !== beatId) return b;
+          return {
+            ...b,
+            isTriplet: !b.isTriplet
+          };
+        })
+      }))
+    }));
+  };
+
+  const handleDeleteBeatColumn = (beatId: string) => {
+    setDocument(prev => {
+      const targetMeasure = prev.measures.find(m => m.beats.some(b => b.id === beatId));
+      if (!targetMeasure) return prev;
+
+      // Deleting the last beat in a measure deletes the measure!
+      if (targetMeasure.beats.length <= 1) {
+        if (prev.measures.length <= 1) {
+          const newMId = `m-${Date.now()}`;
+          return {
+            ...prev,
+            measures: [
+              {
+                id: newMId,
+                index: 1,
+                timeSignature: targetMeasure.timeSignature || [4, 4],
+                beats: [
+                  {
+                    id: `b-${newMId}-1`,
+                    duration: '1/4',
+                    notes: []
+                  }
+                ]
+              }
+            ]
+          };
+        }
+
+        const updatedMeasures = prev.measures
+          .filter(m => m.id !== targetMeasure.id)
+          .map((m, idx) => ({ ...m, index: idx + 1 }));
+
+        return {
+          ...prev,
+          measures: updatedMeasures
+        };
+      }
+
+      return {
+        ...prev,
+        measures: prev.measures.map(m => {
+          if (m.id !== targetMeasure.id) return m;
+          return {
+            ...m,
+            beats: m.beats.filter(b => b.id !== beatId)
+          };
+        })
+      };
+    });
     setSelectedBeatId(null);
   };
 
-  const handleUpdateBeatDuration = (beatId: string, duration: DurationType, isDotted?: boolean) => {
+  const handleUpdateBeatDuration = (beatId: string, duration: DurationType, isDotted?: boolean, isTriplet?: boolean) => {
     setDocument(prev => ({
       ...prev,
       measures: prev.measures.map(m => ({
@@ -272,7 +384,8 @@ export const App: React.FC = () => {
           return {
             ...b,
             duration,
-            isDotted: isDotted !== undefined ? isDotted : b.isDotted
+            isDotted: isDotted !== undefined ? isDotted : b.isDotted,
+            isTriplet: isTriplet !== undefined ? isTriplet : b.isTriplet
           };
         })
       }))
@@ -342,6 +455,14 @@ export const App: React.FC = () => {
     setSelectedBeatId(firstBeat);
   };
 
+  const handleNewSong = () => {
+    if (window.confirm('Clear all measures and start a new blank song? Unsaved changes will be cleared.')) {
+      const blankDoc = createBlankTabDocument();
+      setDocument(blankDoc);
+      setSelectedBeatId(blankDoc.measures[0]?.beats[0]?.id || null);
+    }
+  };
+
   const handleExportPdf = () => {
     window.print();
   };
@@ -398,19 +519,19 @@ export const App: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-amber-400">1. Setting Fret Notes:</span>
-              <p className="text-slate-300">Click any string on a beat, then type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or use the floating popover bar on the staff.</p>
+              <p className="text-slate-300">Click any string on a beat, then type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or use floating popover bar.</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-sky-400">2. Note Value (Rhythm):</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-sky-300 font-mono">w, h, q, e, s</code> for Whole, Half, 1/4, 1/8, 1/16, or click rhythm buttons on floating bar.</p>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-sky-300 font-mono">w, h, q, e, s</code> for Whole, Half, 1/4, 1/8, 1/16.</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-indigo-400">3. Insert Beat in Measure:</span>
-              <p className="text-slate-300">Click <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300 font-mono">+ Insert Beat</code> on toolbar or press <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300 font-mono">+</code> to add a new note event in time sequence.</p>
+              <span className="font-bold text-purple-400">3. Insert / Toggle Rest:</span>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">r</code> to toggle Rest, or click <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">+ Rest</code> on toolbar.</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-rose-400">4. Delete & Playback:</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> / <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Delete</code> or click <span className="text-rose-400 font-bold">🗑️</span>. Press <code className="bg-slate-800 px-1 py-0.5 rounded text-emerald-300 font-mono">Spacebar</code> to Play/Pause.</p>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> / <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Delete</code>. (Deleting last beat deletes measure).</p>
             </div>
           </div>
         </div>
@@ -433,7 +554,10 @@ export const App: React.FC = () => {
             onSelectDuration={setActiveDuration}
             onAddMeasure={handleAddMeasure}
             onInsertBeat={selectedBeatId ? () => handleInsertBeat(selectedBeatId) : undefined}
+            onInsertRest={selectedBeatId ? () => handleInsertRest(selectedBeatId) : undefined}
+            onToggleTriplet={selectedBeatId ? () => handleToggleTriplet(selectedBeatId) : undefined}
             onTranspose={handleTranspose}
+            onNewSong={handleNewSong}
             onExportJson={handleExportJson}
             onImportJson={handleImportJson}
             onExportPdf={handleExportPdf}
@@ -459,6 +583,9 @@ export const App: React.FC = () => {
           onAddNote={handleAddNote}
           onRemoveNote={handleRemoveNote}
           onInsertBeat={handleInsertBeat}
+          onInsertRest={handleInsertRest}
+          onToggleRest={handleToggleRest}
+          onToggleTriplet={handleToggleTriplet}
           onDeleteBeatColumn={handleDeleteBeatColumn}
           onUpdateBeatDuration={handleUpdateBeatDuration}
           onUpdateBeatLyric={handleUpdateBeatLyric}
@@ -474,6 +601,9 @@ export const App: React.FC = () => {
             onSetFret={handleSetFret}
             onDeleteNote={handleRemoveNote}
             onInsertBeat={handleInsertBeat}
+            onInsertRest={handleInsertRest}
+            onToggleRest={handleToggleRest}
+            onToggleTriplet={handleToggleTriplet}
             onDeleteBeatColumn={handleDeleteBeatColumn}
           />
         </div>

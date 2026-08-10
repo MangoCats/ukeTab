@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { UkuleleTabDocument, DurationType, TuningPresetKey } from '../types/ukulele';
 import { TUNING_PRESETS } from '../utils/musicTheory';
+import { THREE_IS_A_MAGIC_NUMBER_TAB, ALOHA_GROOVE_TAB, CONJUNCTION_JUNCTION_TAB, createBlankTabDocument } from '../utils/sampleData';
 import {
   Play,
   Pause,
@@ -8,13 +9,15 @@ import {
   Download,
   Upload,
   FileText,
+  FilePlus,
   Volume2,
   VolumeX,
   Gauge,
   ZoomIn,
   ArrowUpDown,
   Sparkles,
-  PlusCircle
+  PlusCircle,
+  Music2
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -30,7 +33,10 @@ interface EditorToolbarProps {
   onSelectDuration: (duration: DurationType) => void;
   onAddMeasure: () => void;
   onInsertBeat?: () => void;
+  onInsertRest?: () => void;
+  onToggleTriplet?: () => void;
   onTranspose: (semitones: number) => void;
+  onNewSong?: () => void;
   onExportJson: () => void;
   onImportJson: (doc: UkuleleTabDocument) => void;
   onExportPdf: () => void;
@@ -47,7 +53,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onChangeSpeed,
   onAddMeasure,
   onInsertBeat,
+  onInsertRest,
+  onToggleTriplet,
   onTranspose,
+  onNewSong,
   onExportJson,
   onImportJson,
   onExportPdf
@@ -60,6 +69,22 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       ...prev,
       tuning: TUNING_PRESETS[key]
     }));
+  };
+
+  const handleSampleTabChange = (sampleKey: string) => {
+    if (sampleKey === 'blank') {
+      if (onNewSong) {
+        onNewSong();
+      } else {
+        onImportJson(createBlankTabDocument());
+      }
+    } else if (sampleKey === 'conjunction') {
+      onImportJson(CONJUNCTION_JUNCTION_TAB);
+    } else if (sampleKey === 'three') {
+      onImportJson(THREE_IS_A_MAGIC_NUMBER_TAB);
+    } else if (sampleKey === 'aloha') {
+      onImportJson(ALOHA_GROOVE_TAB);
+    }
   };
 
   const handleStemsToggle = () => {
@@ -166,6 +191,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
           <div className="h-5 w-px bg-slate-800 mx-1 hidden sm:block" />
 
+          {/* New Song / Clear All Button */}
+          {onNewSong && (
+            <button
+              onClick={onNewSong}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-300 hover:text-rose-200 rounded-xl text-xs font-semibold transition"
+              title="Clear all measures and start a fresh new song"
+            >
+              <FilePlus className="w-4 h-4 text-rose-400" />
+              <span>New Song</span>
+            </button>
+          )}
+
           {/* Open / Import .uketab Document */}
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -200,10 +237,34 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <button
               onClick={onInsertBeat}
               className="flex items-center gap-1.5 px-3 py-2 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 rounded-xl text-xs font-semibold transition"
-              title="Insert a new note event / beat column into the current measure"
+              title="Insert a new note event into the current measure"
             >
               <PlusCircle className="w-4 h-4 text-sky-400" />
               <span>+ Beat</span>
+            </button>
+          )}
+
+          {/* Insert Rest in Measure Button */}
+          {onInsertRest && (
+            <button
+              onClick={onInsertRest}
+              className="flex items-center gap-1.5 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 rounded-xl text-xs font-semibold transition"
+              title="Insert a new rest event into the current measure (Press R)"
+            >
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span>+ Rest</span>
+            </button>
+          )}
+
+          {/* Triplet Designation Button */}
+          {onToggleTriplet && (
+            <button
+              onClick={onToggleTriplet}
+              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 rounded-xl text-xs font-semibold transition"
+              title="Toggle triplet (3:2) designation for selected beat (Press T)"
+            >
+              <span className="font-mono font-bold text-indigo-400 border border-indigo-400/50 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">3</span>
+              <span>Triplet</span>
             </button>
           )}
 
@@ -218,9 +279,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </div>
       </div>
 
-      {/* Secondary Settings Row: Tuning, Stems, Zoom, Metronome, Transposition, Max Fret Limit */}
+      {/* Secondary Settings Row: Sample Tabs, Tuning, Stems, Zoom, Metronome, Transposition, Max Fret Limit */}
       <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-4">
+          {/* Preset Sample Tab Selector */}
+          <div className="flex items-center gap-2">
+            <Music2 className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-slate-400 font-medium">Song Preset:</span>
+            <select
+              value={document.title === 'Conjunction Junction' ? 'conjunction' : document.title === 'Three Is a Magic Number' ? 'three' : document.title === 'Aloha Ukulele Groove' ? 'aloha' : 'custom'}
+              onChange={(e) => handleSampleTabChange(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-emerald-400 font-semibold rounded-lg px-2.5 py-1 focus:border-emerald-500 outline-none cursor-pointer"
+            >
+              <option value="conjunction">Conjunction Junction (Schoolhouse Rock!)</option>
+              <option value="three">Three Is a Magic Number (Schoolhouse Rock!)</option>
+              <option value="aloha">Aloha Ukulele Groove</option>
+              <option value="blank">✨ New Blank Song (Clear All)</option>
+              {document.title !== 'Conjunction Junction' && document.title !== 'Three Is a Magic Number' && document.title !== 'Aloha Ukulele Groove' && (
+                <option value="custom">{document.title || 'Custom Tab'}</option>
+              )}
+            </select>
+          </div>
+
           {/* Tuning Preset Selector */}
           <div className="flex items-center gap-2">
             <span className="text-slate-400 font-medium">Tuning:</span>

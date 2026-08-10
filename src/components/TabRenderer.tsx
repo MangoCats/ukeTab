@@ -13,6 +13,9 @@ interface TabRendererProps {
   onAddNote: (beatId: string, stringIndex: 1 | 2 | 3 | 4, fret: number) => void;
   onRemoveNote: (beatId: string, stringIndex: 1 | 2 | 3 | 4) => void;
   onInsertBeat: (afterBeatId: string) => void;
+  onInsertRest?: (afterBeatId: string) => void;
+  onToggleRest?: (beatId: string) => void;
+  onToggleTriplet?: (beatId: string) => void;
   onDeleteBeatColumn: (beatId: string) => void;
   onUpdateBeatDuration: (beatId: string, duration: DurationType, isDotted?: boolean) => void;
   onUpdateBeatLyric: (beatId: string, lyric: string) => void;
@@ -27,6 +30,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onAddNote,
   onRemoveNote,
   onInsertBeat,
+  onInsertRest,
+  onToggleRest,
+  onToggleTriplet,
   onDeleteBeatColumn,
   onUpdateBeatDuration,
   onUpdateBeatLyric
@@ -40,8 +46,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
   // Base layout dimensions
   const lineSpacing = 20 * zoom;
-  const topMargin = stemsBelow ? 115 * zoom : 135 * zoom;
-  const bottomMargin = stemsBelow ? 85 * zoom : 50 * zoom;
+  const topMargin = stemsBelow ? 45 * zoom : 55 * zoom;
+  const bottomMargin = stemsBelow ? 55 * zoom : 30 * zoom;
   const stringHeaderWidth = 65 * zoom;
   const measurePadding = 18 * zoom;
   const beatWidth = 68 * zoom;
@@ -123,7 +129,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
       {/* Main Tablature Canvas: Continuous Staff System Rows */}
       <div className="w-full overflow-x-auto bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-6 shadow-2xl relative border-none shadow-none bg-transparent">
-        <div className="tab-canvas-wrapper flex flex-col space-y-6">
+        <div className="tab-canvas-wrapper flex flex-col space-y-3 print:space-y-1">
           {systems.map((systemMeasures, sysIdx) => {
             let systemContentWidth = 0;
             const measureOffsets: number[] = [];
@@ -139,7 +145,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             const systemSvgHeight = topMargin + staffHeight + bottomMargin;
 
             return (
-              <div key={`system-${sysIdx}`} className="system-row block mb-4 relative">
+              <div key={`system-${sysIdx}`} className="system-row block mb-2 print:mb-1 relative">
                 <svg
                   width={systemSvgWidth}
                   height={systemSvgHeight}
@@ -211,14 +217,61 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     const timeSigWidth = isFirstInSystem ? 32 * zoom : 0;
                     const beatsStartX = mX + measurePadding + timeSigWidth;
 
-                    // Compute Rhythm Beams for 8th / 16th notes in measure
+                    // Compute Rhythm Beams and Triplet Groups for measure
                     const beamedBeatIndices = new Set<number>();
                     const beams: { startX: number; endX: number; level: number; y: number }[] = [];
+                    const tripletGroupBrackets: { startX: number; endX: number; middleX: number; bracketY: number; digitY: number }[] = [];
 
+                    // 1. Detect Triplet Groups (3 consecutive triplet beats)
+                    let bIdxCheck = 0;
+                    while (bIdxCheck <= measure.beats.length - 3) {
+                      const b1 = measure.beats[bIdxCheck];
+                      const b2 = measure.beats[bIdxCheck + 1];
+                      const b3 = measure.beats[bIdxCheck + 2];
+
+                      if (b1?.isTriplet && b2?.isTriplet && b3?.isTriplet) {
+                        const x1 = beatsStartX + bIdxCheck * beatWidth;
+                        const x2 = beatsStartX + (bIdxCheck + 1) * beatWidth;
+                        const x3 = beatsStartX + (bIdxCheck + 2) * beatWidth;
+
+                        const beamY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
+
+                        // Connect note stems across the 3 triplet notes with a beam line
+                        beamedBeatIndices.add(bIdxCheck);
+                        beamedBeatIndices.add(bIdxCheck + 1);
+                        beamedBeatIndices.add(bIdxCheck + 2);
+
+                        beams.push({ startX: x1, endX: x3, level: 1, y: beamY });
+
+                        if (b1.duration === '1/16' || b2.duration === '1/16' || b3.duration === '1/16') {
+                          const level2Y = stemsBelow ? beamY - 6 * zoom : beamY + 6 * zoom;
+                          beams.push({ startX: x1, endX: x3, level: 2, y: level2Y });
+                        }
+
+                        // Position bracket line and "3" digit beneath/above the connected note stems
+                        const bracketY = stemsBelow ? beamY + 11 * zoom : beamY - 11 * zoom;
+                        const digitY = stemsBelow ? beamY + 22 * zoom : beamY - 14 * zoom;
+
+                        tripletGroupBrackets.push({
+                          startX: x1 - 3 * zoom,
+                          endX: x3 + 3 * zoom,
+                          middleX: x2,
+                          bracketY,
+                          digitY
+                        });
+
+                        bIdxCheck += 3;
+                      } else {
+                        bIdxCheck++;
+                      }
+                    }
+
+                    // 2. Standard Beaming for non-triplet pairs
                     measure.beats.forEach((b, bIdx) => {
+                      if (beamedBeatIndices.has(bIdx)) return;
                       if (b.duration === '1/8' || b.duration === '1/16') {
                         const nextBeat = measure.beats[bIdx + 1];
-                        if (nextBeat && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16')) {
+                        if (nextBeat && !beamedBeatIndices.has(bIdx + 1) && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16')) {
                           const x1 = beatsStartX + bIdx * beatWidth;
                           const x2 = beatsStartX + (bIdx + 1) * beatWidth;
                           const beamY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
@@ -296,6 +349,32 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                             stroke="#38bdf8"
                             strokeWidth={3.5 * zoom}
                           />
+                        ))}
+
+                        {/* Triplet Group Notation (Standard Notation: Connected note stems with a 3 beneath them) */}
+                        {tripletGroupBrackets.map((bracket, bktIdx) => (
+                          <g key={`tgr-${measure.id}-${bktIdx}`} className="triplet-group-engraving">
+                            {/* Horizontal bracket line with small vertical end ticks */}
+                            <path
+                              d={`M ${bracket.startX} ${bracket.bracketY - (stemsBelow ? 3 : -3) * zoom} L ${bracket.startX} ${bracket.bracketY} L ${bracket.middleX - 8 * zoom} ${bracket.bracketY} M ${bracket.middleX + 8 * zoom} ${bracket.bracketY} L ${bracket.endX} ${bracket.bracketY} L ${bracket.endX} ${bracket.bracketY - (stemsBelow ? 3 : -3) * zoom}`}
+                              stroke="#818cf8"
+                              strokeWidth={1.5 * zoom}
+                              fill="none"
+                            />
+                            {/* Bold 3 digit centered beneath the connected notes */}
+                            <text
+                              x={bracket.middleX}
+                              y={bracket.digitY}
+                              textAnchor="middle"
+                              fill="#818cf8"
+                              fontFamily="'Outfit', 'Inter', 'Times New Roman', sans-serif"
+                              fontSize={`${13 * zoom}px`}
+                              fontWeight="800"
+                              style={{ pointerEvents: 'none' }}
+                            >
+                              3
+                            </text>
+                          </g>
                         ))}
 
                         {/* Measure Beats & Fret Notes */}
@@ -442,7 +521,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                     )}
 
                                     {/* Alternate Fret Suggestion (Ghost Note) */}
-                                    {!noteOnString && ghostOnString && (
+                                    {!beat.isRest && !noteOnString && ghostOnString && (
                                       <g
                                         className="ghost-fret no-print opacity-80 hover:opacity-100 transition-opacity"
                                         onClick={(e) => {
@@ -477,6 +556,44 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                   </g>
                                 );
                               })}
+
+                              {/* Musical Rest Symbol (Rendered at center of 4-line staff when beat.isRest is true) */}
+                              {beat.isRest && (
+                                <g className="rest-symbol-group pointer-events-none">
+                                  {beat.duration === '1/1' ? (
+                                    <rect
+                                      x={beatX - 7 * zoom}
+                                      y={getStringY(2)}
+                                      width={14 * zoom}
+                                      height={6 * zoom}
+                                      fill={isPlaying ? '#f59e0b' : isSelected ? '#38bdf8' : '#e2e8f0'}
+                                      rx={1}
+                                    />
+                                  ) : beat.duration === '1/2' ? (
+                                    <rect
+                                      x={beatX - 7 * zoom}
+                                      y={getStringY(3) - 6 * zoom}
+                                      width={14 * zoom}
+                                      height={6 * zoom}
+                                      fill={isPlaying ? '#f59e0b' : isSelected ? '#38bdf8' : '#e2e8f0'}
+                                      rx={1}
+                                    />
+                                  ) : (
+                                    <text
+                                      x={beatX}
+                                      y={topMargin + 2.1 * lineSpacing}
+                                      textAnchor="middle"
+                                      fill={isPlaying ? '#f59e0b' : isSelected ? '#38bdf8' : '#e2e8f0'}
+                                      fontSize={`${22 * zoom}px`}
+                                      fontFamily="serif, 'Times New Roman', Georgia"
+                                      fontWeight="bold"
+                                      style={{ pointerEvents: 'none' }}
+                                    >
+                                      {beat.duration === '1/4' ? '𝄽' : beat.duration === '1/8' ? '𝄾' : beat.duration === '1/16' ? '𝄿' : '𝄽'}
+                                    </text>
+                                  )}
+                                </g>
+                              )}
 
                               {/* Inline Floating Context Action Toolbar */}
                               {isSelected && (
@@ -525,6 +642,42 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
                                       <div className="h-4 w-px bg-slate-800 mx-1" />
 
+                                      {/* Rest Toggle */}
+                                      {onToggleRest && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleRest(beat.id);
+                                          }}
+                                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
+                                            beat.isRest
+                                              ? 'bg-purple-500 text-slate-950 shadow-sm'
+                                              : 'bg-slate-800 text-purple-300 hover:bg-slate-700'
+                                          }`}
+                                          title="Toggle rest symbol for this beat (Press R)"
+                                        >
+                                          𝄽 Rest
+                                        </button>
+                                      )}
+
+                                      {/* Triplet Toggle */}
+                                      {onToggleTriplet && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleTriplet(beat.id);
+                                          }}
+                                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
+                                            beat.isTriplet
+                                              ? 'bg-indigo-500 text-slate-950 shadow-sm'
+                                              : 'bg-slate-800 text-indigo-300 hover:bg-slate-700'
+                                          }`}
+                                          title="Toggle triplet (3:2) designation for this beat (Press T)"
+                                        >
+                                          3 Triplet
+                                        </button>
+                                      )}
+
                                       {/* Insert Beat Event in Measure */}
                                       <button
                                         onClick={(e) => {
@@ -537,6 +690,20 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                         <PlusCircle className="w-3 h-3" />
                                         <span>+ Beat</span>
                                       </button>
+
+                                      {/* Insert Rest Event in Measure */}
+                                      {onInsertRest && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onInsertRest(beat.id);
+                                          }}
+                                          className="px-2 py-0.5 rounded-md bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 font-bold text-[11px] transition flex items-center gap-1"
+                                          title="Insert a new rest event into this measure"
+                                        >
+                                          <span>+ Rest</span>
+                                        </button>
+                                      )}
                                     </div>
 
                                     {/* Row 2: Dynamic Fret Selection Buttons (0 to maxFretLimit) + Trashcan */}
@@ -616,27 +783,45 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                 {beat.isDotted && (
                                   <circle cx={stemX + 8 * zoom} cy={stemEndY} r={2.5 * zoom} fill="#f59e0b" stroke="none" />
                                 )}
+
+                                {/* Isolated Triplet Indicator: Clean single '3' text on background when not in a 3-note group */}
+                                {beat.isTriplet && !isBeamed && (
+                                  <text
+                                    x={stemX}
+                                    y={stemEndY + (stemsBelow ? 16 * zoom : -10 * zoom)}
+                                    textAnchor="middle"
+                                    fill="#818cf8"
+                                    fontFamily="sans-serif, ui-sans-serif"
+                                    fontSize={`${12 * zoom}px`}
+                                    fontWeight="800"
+                                    style={{ pointerEvents: 'none' }}
+                                  >
+                                    3
+                                  </text>
+                                )}
                               </g>
 
                               {/* Duration Label Badge (Hidden in Print) */}
                               <g className="no-print">
                                 <rect
                                   x={stemX - 14 * zoom}
-                                  y={stemsBelow ? stemEndY + 4 * zoom : stemEndY - 16 * zoom}
+                                  y={stemsBelow ? stemEndY + (beat.isTriplet ? 28 * zoom : 4 * zoom) : stemEndY - (beat.isTriplet ? 28 * zoom : 16 * zoom)}
                                   width={28 * zoom}
                                   height={12 * zoom}
                                   fill="#0f172a"
-                                  stroke="#334155"
+                                  stroke={beat.isTriplet ? '#6366f1' : '#334155'}
                                   strokeWidth={1}
                                   rx={3}
                                   className="no-print"
                                 />
                                 <text
                                   x={stemX}
-                                  y={stemsBelow ? stemEndY + 13 * zoom : stemEndY - 7 * zoom}
+                                  y={stemsBelow ? stemEndY + (beat.isTriplet ? 37 * zoom : 13 * zoom) : stemEndY - (beat.isTriplet ? 19 * zoom : 7 * zoom)}
                                   textAnchor="middle"
                                   fill={
-                                    beat.duration === '1/4'
+                                    beat.isTriplet
+                                      ? '#818cf8'
+                                      : beat.duration === '1/4'
                                       ? '#94a3b8'
                                       : beat.duration === '1/8'
                                       ? '#38bdf8'
