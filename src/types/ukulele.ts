@@ -13,6 +13,7 @@ export interface BeatColumn {
   isDotted?: boolean;
   isTriplet?: boolean;
   isRest?: boolean;
+  isTied?: boolean; // When true, sustains into the next beat without re-strumming
   notes: UkuleleNote[];
   lyric?: string;
 }

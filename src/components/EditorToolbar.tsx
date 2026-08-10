@@ -35,6 +35,7 @@ interface EditorToolbarProps {
   onInsertBeat?: () => void;
   onInsertRest?: () => void;
   onToggleTriplet?: () => void;
+  onToggleTie?: () => void;
   onTranspose: (semitones: number) => void;
   onNewSong?: () => void;
   onExportJson: () => void;
@@ -55,6 +56,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onInsertBeat,
   onInsertRest,
   onToggleTriplet,
+  onToggleTie,
   onTranspose,
   onNewSong,
   onExportJson,
@@ -265,6 +267,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             >
               <span className="font-mono font-bold text-indigo-400 border border-indigo-400/50 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">3</span>
               <span>Triplet</span>
+            </button>
+          )}
+
+          {/* Tie (Sustain into next beat) Button */}
+          {onToggleTie && (
+            <button
+              onClick={onToggleTie}
+              className="flex items-center gap-1.5 px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 rounded-xl text-xs font-semibold transition"
+              title="Tie selected beat into the next beat (sustains without re-strumming) (Press L)"
+            >
+              <span className="font-bold text-cyan-400 text-sm leading-none">⁀</span>
+              <span>Tie</span>
             </button>
           )}
 

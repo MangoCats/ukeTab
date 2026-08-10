@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn } from './types/ukulele';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
 import { transposePitches, getBeatDurationMs } from './utils/musicTheory';
-import { playBeatChord } from './utils/audioSynth';
+import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
 import { InspectorPanel } from './components/InspectorPanel';
@@ -49,7 +49,18 @@ export const App: React.FC = () => {
       setPlayingBeatId(beatInfo.id);
 
       const isFirstBeatInMeasure = (currentIndex === 0) || (allBeats[currentIndex - 1].measureIndex !== beatInfo.measureIndex);
-      playBeatChord(beatInfo, document.tuning, enableMetronome, isFirstBeatInMeasure);
+
+      const prevBeat = currentIndex > 0 ? allBeats[currentIndex - 1] : null;
+      const isTiedFromPrev = prevBeat && prevBeat.isTied;
+
+      if (isTiedFromPrev) {
+        // Tied note from previous beat: do NOT re-strum, only click metronome if enabled
+        if (enableMetronome) {
+          playMetronomeClick(isFirstBeatInMeasure);
+        }
+      } else {
+        playBeatChord(beatInfo, document.tuning, enableMetronome, isFirstBeatInMeasure);
+      }
 
       const delayMs = getBeatDurationMs(beatInfo, document.tempo, playbackSpeed);
       currentIndex++;
@@ -129,6 +140,13 @@ export const App: React.FC = () => {
       if ((e.key === 't' || e.key === 'T') && selectedBeatId) {
         e.preventDefault();
         handleToggleTriplet(selectedBeatId);
+        return;
+      }
+
+      // 'l' or 'L': Toggle Tie (Sustain beat into next beat) for selected beat
+      if ((e.key === 'l' || e.key === 'L') && selectedBeatId) {
+        e.preventDefault();
+        handleToggleTie(selectedBeatId);
         return;
       }
 
@@ -316,6 +334,22 @@ export const App: React.FC = () => {
           return {
             ...b,
             isTriplet: !b.isTriplet
+          };
+        })
+      }))
+    }));
+  };
+
+  const handleToggleTie = (beatId: string) => {
+    setDocument(prev => ({
+      ...prev,
+      measures: prev.measures.map(m => ({
+        ...m,
+        beats: m.beats.map(b => {
+          if (b.id !== beatId) return b;
+          return {
+            ...b,
+            isTied: !b.isTied
           };
         })
       }))
@@ -556,6 +590,7 @@ export const App: React.FC = () => {
             onInsertBeat={selectedBeatId ? () => handleInsertBeat(selectedBeatId) : undefined}
             onInsertRest={selectedBeatId ? () => handleInsertRest(selectedBeatId) : undefined}
             onToggleTriplet={selectedBeatId ? () => handleToggleTriplet(selectedBeatId) : undefined}
+            onToggleTie={selectedBeatId ? () => handleToggleTie(selectedBeatId) : undefined}
             onTranspose={handleTranspose}
             onNewSong={handleNewSong}
             onExportJson={handleExportJson}
@@ -586,6 +621,7 @@ export const App: React.FC = () => {
           onInsertRest={handleInsertRest}
           onToggleRest={handleToggleRest}
           onToggleTriplet={handleToggleTriplet}
+          onToggleTie={handleToggleTie}
           onDeleteBeatColumn={handleDeleteBeatColumn}
           onUpdateBeatDuration={handleUpdateBeatDuration}
           onUpdateBeatLyric={handleUpdateBeatLyric}
@@ -604,6 +640,7 @@ export const App: React.FC = () => {
             onInsertRest={handleInsertRest}
             onToggleRest={handleToggleRest}
             onToggleTriplet={handleToggleTriplet}
+            onToggleTie={handleToggleTie}
             onDeleteBeatColumn={handleDeleteBeatColumn}
           />
         </div>

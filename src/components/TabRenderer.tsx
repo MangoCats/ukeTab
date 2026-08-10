@@ -16,6 +16,7 @@ interface TabRendererProps {
   onInsertRest?: (afterBeatId: string) => void;
   onToggleRest?: (beatId: string) => void;
   onToggleTriplet?: (beatId: string) => void;
+  onToggleTie?: (beatId: string) => void;
   onDeleteBeatColumn: (beatId: string) => void;
   onUpdateBeatDuration: (beatId: string, duration: DurationType, isDotted?: boolean) => void;
   onUpdateBeatLyric: (beatId: string, lyric: string) => void;
@@ -33,6 +34,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onInsertRest,
   onToggleRest,
   onToggleTriplet,
+  onToggleTie,
   onDeleteBeatColumn,
   onUpdateBeatDuration,
   onUpdateBeatLyric
@@ -288,6 +290,41 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                       }
                     });
 
+                    // 3. Compute Tie Arcs for beats sustained into the next beat
+                    const tieArcs: { startX: number; endX: number; y: number; isStringTie: boolean }[] = [];
+
+                    measure.beats.forEach((b, bIdx) => {
+                      if (b.isTied) {
+                        const x1 = beatsStartX + bIdx * beatWidth;
+                        const nextBeat = measure.beats[bIdx + 1];
+                        const x2 = nextBeat ? beatsStartX + (bIdx + 1) * beatWidth : x1 + beatWidth * 0.85;
+
+                        if (nextBeat) {
+                          const stringMatches: number[] = [];
+                          [1, 2, 3, 4].forEach(s => {
+                            const hasN1 = b.notes.some(n => n.string === s && !n.isGhost);
+                            const hasN2 = nextBeat.notes.some(n => n.string === s && !n.isGhost);
+                            if (hasN1 && hasN2) {
+                              stringMatches.push(s);
+                            }
+                          });
+
+                          if (stringMatches.length > 0) {
+                            stringMatches.forEach(s => {
+                              const stringY = getStringY(s as 1 | 2 | 3 | 4);
+                              tieArcs.push({ startX: x1, endX: x2, y: stringY, isStringTie: true });
+                            });
+                          } else {
+                            const stemEndY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
+                            tieArcs.push({ startX: x1, endX: x2, y: stemEndY, isStringTie: false });
+                          }
+                        } else {
+                          const stemEndY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
+                          tieArcs.push({ startX: x1, endX: x2, y: stemEndY, isStringTie: false });
+                        }
+                      }
+                    });
+
                     // Measure End Barline
                     const measureEndX = mX + (measure.beats.length * beatWidth) + (measurePadding * 2) + timeSigWidth;
 
@@ -350,6 +387,23 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                             strokeWidth={3.5 * zoom}
                           />
                         ))}
+
+                        {/* Tie Arcs (Curved Legato Slur Lines connecting sustained beats) */}
+                        {tieArcs.map((arc, arcIdx) => {
+                          const curveY = arc.isStringTie
+                            ? arc.y + (stemsBelow ? 10 : -10) * zoom
+                            : arc.y + (stemsBelow ? 14 : -14) * zoom;
+                          return (
+                            <path
+                              key={`tie-${measure.id}-${arcIdx}`}
+                              d={`M ${arc.startX + 6 * zoom} ${arc.y} Q ${(arc.startX + arc.endX) / 2} ${curveY} ${arc.endX - 6 * zoom} ${arc.y}`}
+                              stroke="#38bdf8"
+                              strokeWidth={2.2 * zoom}
+                              fill="none"
+                              className="tie-arc-engraving"
+                            />
+                          );
+                        })}
 
                         {/* Triplet Group Notation (Standard Notation: Connected note stems with a 3 beneath them) */}
                         {tripletGroupBrackets.map((bracket, bktIdx) => (
@@ -675,6 +729,24 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                           title="Toggle triplet (3:2) designation for this beat (Press T)"
                                         >
                                           3 Triplet
+                                        </button>
+                                      )}
+
+                                      {/* Tie Toggle */}
+                                      {onToggleTie && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleTie(beat.id);
+                                          }}
+                                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
+                                            beat.isTied
+                                              ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                                              : 'bg-slate-800 text-cyan-300 hover:bg-slate-700'
+                                          }`}
+                                          title="Tie beat into next beat (sustains without re-strumming) (Press L)"
+                                        >
+                                          ⁀ Tie
                                         </button>
                                       )}
 

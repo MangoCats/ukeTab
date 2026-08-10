@@ -14,6 +14,7 @@ interface InspectorPanelProps {
   onInsertRest?: (afterBeatId: string) => void;
   onToggleRest?: (beatId: string) => void;
   onToggleTriplet?: (beatId: string) => void;
+  onToggleTie?: (beatId: string) => void;
   onDeleteBeatColumn: (beatId: string) => void;
 }
 
@@ -28,6 +29,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onInsertRest,
   onToggleRest,
   onToggleTriplet,
+  onToggleTie,
   onDeleteBeatColumn
 }) => {
   const { tuning, measures, layout } = document;
@@ -122,6 +124,21 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             >
               <span className="font-mono font-bold border border-current rounded-full w-3.5 h-3.5 flex items-center justify-center text-[9px]">3</span>
               <span>{selectedBeat.isTriplet ? 'Triplet (3:2) Active' : 'Triplet (3:2)'}</span>
+            </button>
+          )}
+
+          {onToggleTie && (
+            <button
+              onClick={() => onToggleTie(selectedBeat.id)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                selectedBeat.isTied
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                  : 'bg-slate-800 text-cyan-300 hover:bg-slate-700 border border-slate-700'
+              }`}
+              title="Tie beat into the next beat (sustains duration without re-strumming) (Press L)"
+            >
+              <span className="font-bold text-sm leading-none">⁀</span>
+              <span>{selectedBeat.isTied ? 'Tie Active' : 'Tie (Sustain)'}</span>
             </button>
           )}
 
