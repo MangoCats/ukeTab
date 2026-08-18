@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, ChordMarker } from './types/ukulele';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
-import { transposePitches, getBeatDurationMs, DEFAULT_COMPOSITION_CHORD_NAMES, getChordPreset, createChordMarker } from './utils/musicTheory';
+import { transposePitches, getBeatDurationMs, DEFAULT_COMPOSITION_CHORD_NAMES, getChordPreset, createChordMarker, autoDetectChordFromBeatNotes } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
@@ -238,11 +238,15 @@ export const App: React.FC = () => {
             string: stringIndex,
             fret: fret
           };
+          const updatedNotes = [...existingFiltered, newNote];
+          const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
+
           return {
             ...b,
             isRest: false,
             duration: activeDuration,
-            notes: [...existingFiltered, newNote]
+            notes: updatedNotes,
+            chord: autoChord || b.chord
           };
         })
       }))
@@ -260,9 +264,13 @@ export const App: React.FC = () => {
         ...m,
         beats: m.beats.map(b => {
           if (b.id !== beatId) return b;
+          const updatedNotes = b.notes.filter(n => n.string !== stringIndex);
+          const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
+
           return {
             ...b,
-            notes: b.notes.filter(n => n.string !== stringIndex)
+            notes: updatedNotes,
+            chord: autoChord || (updatedNotes.length < 4 ? undefined : b.chord)
           };
         })
       }))
@@ -532,6 +540,25 @@ export const App: React.FC = () => {
     window.print();
   };
 
+  // Calculate initial 4-string frets for selected beat if all 4 strings are defined
+  let selectedBeatInitialFrets: [number, number, number, number] | null = null;
+  if (selectedBeatId) {
+    for (const m of document.measures) {
+      const b = m.beats.find(beat => beat.id === selectedBeatId);
+      if (b) {
+        const activeNotes = b.notes.filter(n => !n.isGhost);
+        const s1 = activeNotes.find(n => n.string === 1);
+        const s2 = activeNotes.find(n => n.string === 2);
+        const s3 = activeNotes.find(n => n.string === 3);
+        const s4 = activeNotes.find(n => n.string === 4);
+        if (s1 && s2 && s3 && s4) {
+          selectedBeatInitialFrets = [s4.fret, s3.fret, s2.fret, s1.fret];
+        }
+        break;
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen text-slate-100 flex flex-col justify-between p-4 md:p-8 max-w-7xl mx-auto">
       {/* Chord Palette & Custom Chord Creator Modal */}
@@ -540,6 +567,7 @@ export const App: React.FC = () => {
         onClose={() => setShowChordPaletteModal(false)}
         activePalette={document.chordPalette || []}
         onUpdatePalette={handleUpdateChordPalette}
+        initialFrets={selectedBeatInitialFrets}
       />
 
       {/* Top Banner & App Header (Hidden in Print) */}

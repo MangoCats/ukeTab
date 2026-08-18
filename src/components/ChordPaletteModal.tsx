@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChordMarker } from '../types/ukulele';
 import { UKULELE_CHORD_LIBRARY, getChordPreset, createChordMarker, findExistingChordsByFrets } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
@@ -9,16 +9,16 @@ interface ChordPaletteModalProps {
   onClose: () => void;
   activePalette: ChordMarker[];
   onUpdatePalette: (newPalette: ChordMarker[]) => void;
+  initialFrets?: [number, number, number, number] | null;
 }
 
 export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
   isOpen,
   onClose,
   activePalette,
-  onUpdatePalette
+  onUpdatePalette,
+  initialFrets
 }) => {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState<'select' | 'create'>('select');
 
   // Creator state
@@ -27,6 +27,31 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
   const [s3Fret, setS3Fret] = useState<number>(0);
   const [s2Fret, setS2Fret] = useState<number>(0);
   const [s1Fret, setS1Fret] = useState<number>(0);
+
+  // Sync initialFrets whenever the modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      if (initialFrets) {
+        setS4Fret(initialFrets[0]);
+        setS3Fret(initialFrets[1]);
+        setS2Fret(initialFrets[2]);
+        setS1Fret(initialFrets[3]);
+
+        // Check if this pattern is already defined in library
+        const matches = findExistingChordsByFrets(initialFrets);
+        if (matches.length === 0) {
+          // Undefined chord pattern: jump directly to Create tab
+          setActiveTab('create');
+        } else {
+          setActiveTab('select');
+        }
+      } else {
+        setActiveTab('select');
+      }
+    }
+  }, [isOpen, initialFrets]);
+
+  if (!isOpen) return null;
 
   const currentFrets: [number, number, number, number] = [s4Fret, s3Fret, s2Fret, s1Fret];
   const duplicateMatches = findExistingChordsByFrets(currentFrets);
@@ -57,7 +82,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
     onUpdatePalette(updatedPalette);
 
     setNewChordName('');
-    setActiveTab('select');
+    onClose();
   };
 
   return (
