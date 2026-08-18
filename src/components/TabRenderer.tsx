@@ -471,6 +471,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                             fontFamily="monospace, ui-monospace, sans-serif"
                                             fontSize={`${15 * zoom}px`}
                                             fontWeight="bold"
+                                            className="fret-number-text"
                                             style={{ pointerEvents: 'none' }}
                                           >
                                             {isNoteTied ? `(${noteOnString.fret})` : noteOnString.fret}
@@ -778,6 +779,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                   fontFamily="sans-serif"
                                   fontSize={`${13 * zoom}px`}
                                   fontWeight="600"
+                                  className="tab-lyric-text"
                                   style={{ pointerEvents: 'none' }}
                                 >
                                   {beat.lyric}

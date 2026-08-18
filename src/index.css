@@ -374,9 +374,27 @@ body {
     page-break-inside: avoid !important;
   }
 
-  /* Line Masking Box: Pure white in print */
+  /* Line Masking Box: Pure white in print expanded for 3x fret number */
   .fret-mask {
     fill: #ffffff !important;
+    transform-box: fill-box !important;
+    transform-origin: center !important;
+    transform: scale(2.2) !important;
+  }
+
+  /* Triple Size Note on Tab Number Font in PDF / Print Export (3x) */
+  .fret-number-text {
+    font-size: 32pt !important;
+    font-weight: 800 !important;
+    fill: #000000 !important;
+    dominant-baseline: central !important;
+  }
+
+  /* Double Size Lyric Font in PDF / Print Export (2x) */
+  .tab-lyric-text {
+    font-size: 20pt !important;
+    font-weight: 700 !important;
+    fill: #000000 !important;
   }
 
   /* Crisp black staff lines and bar lines */
