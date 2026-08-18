@@ -586,7 +586,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col justify-between p-4 md:p-8 max-w-7xl mx-auto">
+    <div className="min-h-screen text-slate-100 flex flex-col justify-between p-4 md:p-8 max-w-7xl mx-auto pb-44">
       {/* Chord Palette & Custom Chord Creator Modal */}
       <ChordPaletteModal
         isOpen={showChordPaletteModal}
@@ -725,24 +725,26 @@ export const App: React.FC = () => {
           onSetBeatChord={handleSetBeatChord}
         />
 
-        {/* Sticky Pinned Bottom Edit Controls (Hidden in Print) */}
-        <div className="no-print sticky bottom-0 z-40 pt-3 pb-2 bg-slate-950/95 backdrop-blur-md border-t border-slate-800/80 rounded-t-2xl shadow-2xl">
-          <InspectorPanel
-            document={document}
-            selectedBeatId={selectedBeatId}
-            selectedString={selectedString}
-            onUpdateBeatLyric={handleUpdateBeatLyric}
-            onSetFret={handleSetFret}
-            onDeleteNote={handleRemoveNote}
-            onInsertBeat={handleInsertBeat}
-            onInsertRest={handleInsertRest}
-            onToggleRest={handleToggleRest}
-            onToggleTriplet={handleToggleTriplet}
-            onToggleTie={handleToggleTie}
-            onDeleteBeatColumn={handleDeleteBeatColumn}
-            onSetBeatChord={handleSetBeatChord}
-            onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
-          />
+        {/* Fixed Viewport Bottom Edit Dock (Hidden in Print) */}
+        <div className="no-print fixed bottom-0 left-0 right-0 z-50 p-3 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 shadow-2xl">
+          <div className="max-w-7xl mx-auto">
+            <InspectorPanel
+              document={document}
+              selectedBeatId={selectedBeatId}
+              selectedString={selectedString}
+              onUpdateBeatLyric={handleUpdateBeatLyric}
+              onSetFret={handleSetFret}
+              onDeleteNote={handleRemoveNote}
+              onInsertBeat={handleInsertBeat}
+              onInsertRest={handleInsertRest}
+              onToggleRest={handleToggleRest}
+              onToggleTriplet={handleToggleTriplet}
+              onToggleTie={handleToggleTie}
+              onDeleteBeatColumn={handleDeleteBeatColumn}
+              onSetBeatChord={handleSetBeatChord}
+              onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
+            />
+          </div>
         </div>
       </main>
 
