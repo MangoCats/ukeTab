@@ -2,7 +2,7 @@
 
 ## 1. Product Overview & Core Purpose
 **UkeTab** is a modern interactive web application for creating, editing, listening to, and exporting 4-line Ukulele tablature.
-It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, and configurable fingering aids.
+It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, MIDI file import (`.mid`), and configurable fingering aids.
 
 ---
 
@@ -32,6 +32,7 @@ It features standard stringed instrument notation with fret numbers on staff lin
   - **✕**: Muted / unplayed strings (-1).
   - **Chord Title**: Prominently rendered above diagram (e.g. `Am`, `E7`, `G`, `D`, `F`, `C`, `Dm`).
 - **Chord Library & Custom Editor**: Built-in library of standard Ukulele chords + custom chord name and 4-string fret assignment.
+- **1-Click Auto-Assignment**: Selecting any 4-string beat automatically detects and assigns the matching chord from the defined library.
 - **Print & PDF Support**: Renders in high-contrast crisp black lines, text, and dots in PDF export.
 
 ### Fret Number Representation
@@ -58,9 +59,10 @@ It features standard stringed instrument notation with fret numbers on staff lin
   - **Sixteenth Note (`1/16`)**: Double flag `|//` or double beam `||=||`
   - **Dotted Notes**: Amber dot attached to stem base.
 
-### In-Measure Beat Event Editing
-- Users can insert new note events / beat columns anywhere inside a measure via **`+ Insert Beat`** button or keyboard shortcut **`+`** / `Shift+Enter`.
-- Unwanted beat columns can be removed via **`Delete Beat`**.
+### MIDI Import Engine (`.mid` / `.midi`)
+- **Automated Import**: Imports MIDI files, parses header tempo/time signatures, and automatically converts note pitch streams into draft Ukulele tab charts.
+- **High-G Pitch Solver**: Automatically transposes pitches outside High-G range ($C_4$ to $A_5$) and solves optimal string $s \in \{1..4\}$ and fret $f \in [0..15]$ assignments.
+- **Auto-Chord Attachment**: Detects matching 4-string fingerings and automatically attaches UkuTabs-style chord diagrams.
 
 ---
 

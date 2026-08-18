@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { UkuleleTabDocument, DurationType, TuningPresetKey } from '../types/ukulele';
 import { TUNING_PRESETS } from '../utils/musicTheory';
+import { parseMidiToUkuleleTab } from '../utils/midiImporter';
 import {
   Play,
   Pause,
@@ -65,7 +66,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenChordPaletteModal
 }) => {
   const { tuning, layout, tempo } = document;
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+  const midiFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTuningChange = (key: TuningPresetKey) => {
     onUpdateDocument(prev => ({
@@ -98,7 +100,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleJsonFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -120,14 +122,39 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     e.target.value = '';
   };
 
+  const handleMidiFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const buffer = event.target?.result as ArrayBuffer;
+        const parsedDoc = parseMidiToUkuleleTab(buffer, file.name);
+        onImportJson(parsedDoc);
+      } catch (err: any) {
+        alert(`Could not parse MIDI file: ${err?.message || err}`);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="no-print EditorToolbar bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-4">
-      {/* Hidden File Input for .uketab imports */}
+      {/* Hidden File Inputs for .uketab and .mid imports */}
       <input
         type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
+        ref={jsonFileInputRef}
+        onChange={handleJsonFileChange}
         accept=".uketab,.json"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={midiFileInputRef}
+        onChange={handleMidiFileChange}
+        accept=".mid,.midi"
         className="hidden"
       />
 
@@ -204,12 +231,22 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
           {/* Open / Import .uketab Document */}
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => jsonFileInputRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
             title="Open a saved .uketab JSON file from your computer"
           >
             <Upload className="w-4 h-4 text-emerald-400" />
             <span>Open .uketab</span>
+          </button>
+
+          {/* Open / Import MIDI (.mid) File */}
+          <button
+            onClick={() => midiFileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+            title="Import a MIDI (.mid/.midi) file to auto-generate a Ukulele tab chart"
+          >
+            <Upload className="w-4 h-4 text-purple-400" />
+            <span>Open MIDI</span>
           </button>
 
           {/* Save .uketab Document */}

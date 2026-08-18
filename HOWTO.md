@@ -69,6 +69,7 @@ npm run preview
 - **WYSIWYG 4-Line Ukulele Staff**: Edit tab fret numbers, traditional rhythm stems/flags, and lyrics.
 - **Ukulele Chord Diagram Charts**: Assign 4-line fingering grids with filled dots (frets), open circles (`○`), muted markers (`✕`), and chord titles above tabs.
 - **Composition Chord Palette Manager**: Limit chord dropdowns to relevant song chords or define custom chord fingerings.
-- **Auto Chord Recognition**: Pre-selects matching chord definitions when all 4 strings have fingerings defined.
+- **Auto Chord Recognition**: Auto-populates matching chord definitions when 4-string beats are selected.
+- **MIDI File Importer (`.mid` / `.midi`)**: Import `.mid` files to auto-generate draft Ukulele tab charts with High-G string/fret solver.
 - **PDF Print Export Engine**: Export clean, high-contrast sheet music without web editing controls.
 - **Save & Open `.uketab` JSON Files**: Store and reload tab documents locally.
