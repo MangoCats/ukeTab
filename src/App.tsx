@@ -586,7 +586,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans">
+    <div className="min-h-screen text-slate-100 flex flex-col justify-between p-4 md:p-8 max-w-7xl mx-auto">
       {/* Chord Palette & Custom Chord Creator Modal */}
       <ChordPaletteModal
         isOpen={showChordPaletteModal}
@@ -596,70 +596,44 @@ export const App: React.FC = () => {
         initialFrets={selectedBeatInitialFrets}
       />
 
-      {/* Top Banner & Editor Toolbar (Fixed Header, Hidden in Print) */}
-      <header className="no-print shrink-0 border-b border-slate-800/80 bg-slate-900/90 p-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 font-bold text-lg">
-              🪕
-            </div>
-            <div>
-              <h1 className="text-xl font-bold font-outfit tracking-tight bg-gradient-to-r from-amber-400 via-orange-300 to-amber-200 bg-clip-text text-transparent">
-                UkeTab Studio
-              </h1>
-              <p className="text-[11px] text-slate-400 font-medium">
-                Interactive 4-Line Ukulele Tab Chart Creator & Synthesizer
-              </p>
-            </div>
+      {/* Top Banner & App Header (Hidden in Print) */}
+      <header className="no-print mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 font-bold text-xl">
+            🪕
           </div>
-
-          <div className="flex items-center gap-3 text-xs font-semibold">
-            <button
-              onClick={() => setShowChordPaletteModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl transition shadow-md"
-            >
-              <Music2 className="w-4 h-4" />
-              <span>Manage Chord Palette</span>
-            </button>
-            <button
-              onClick={() => setShowHelpModal(!showHelpModal)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl transition shadow-md"
-            >
-              <Keyboard className="w-4 h-4" />
-              <span>Shortcuts & Guide</span>
-            </button>
+          <div>
+            <h1 className="text-2xl font-bold font-outfit tracking-tight bg-gradient-to-r from-amber-400 via-orange-300 to-amber-200 bg-clip-text text-transparent">
+              UkeTab Studio
+            </h1>
+            <p className="text-xs text-slate-400 font-medium">
+              Interactive 4-Line Ukulele Tab Chart Creator & Synthesizer
+            </p>
           </div>
         </div>
 
-        {/* Web Editor Toolbar */}
-        <EditorToolbar
-          document={document}
-          isPlaying={isPlaying}
-          activeDuration={activeDuration}
-          enableMetronome={enableMetronome}
-          playbackSpeed={playbackSpeed}
-          onUpdateDocument={setDocument}
-          onTogglePlayback={() => setIsPlaying(!isPlaying)}
-          onToggleMetronome={() => setEnableMetronome(!enableMetronome)}
-          onChangeSpeed={setPlaybackSpeed}
-          onSelectDuration={setActiveDuration}
-          onAddMeasure={handleAddMeasure}
-          onInsertBeat={selectedBeatId ? () => handleInsertBeat(selectedBeatId) : undefined}
-          onInsertRest={selectedBeatId ? () => handleInsertRest(selectedBeatId) : undefined}
-          onToggleTriplet={selectedBeatId ? () => handleToggleTriplet(selectedBeatId) : undefined}
-          onToggleTie={selectedBeatId ? () => handleToggleTie(selectedBeatId) : undefined}
-          onTranspose={handleTranspose}
-          onNewSong={handleNewSong}
-          onExportJson={handleExportJson}
-          onImportJson={handleImportJson}
-          onExportPdf={handleExportPdf}
-          onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
-        />
+        {/* Feature Badges & Shortcuts Help Button */}
+        <div className="flex items-center gap-3 text-xs font-semibold">
+          <button
+            onClick={() => setShowChordPaletteModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl transition shadow-md"
+          >
+            <Music2 className="w-4 h-4" />
+            <span>Manage Chord Palette</span>
+          </button>
+          <button
+            onClick={() => setShowHelpModal(!showHelpModal)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl transition shadow-md"
+          >
+            <Keyboard className="w-4 h-4" />
+            <span>Shortcuts & Guide</span>
+          </button>
+        </div>
       </header>
 
       {/* Editing Shortcuts Quick Guide Banner / Modal (Hidden in Print) */}
       {showHelpModal && (
-        <div className="no-print bg-slate-900/95 border border-amber-500/40 rounded-2xl p-4 m-3 shadow-2xl space-y-3 absolute top-16 right-6 z-50 max-w-2xl">
+        <div className="no-print bg-slate-900/90 border border-amber-500/40 rounded-2xl p-5 mb-6 shadow-2xl space-y-3">
           <div className="flex justify-between items-center border-b border-slate-800 pb-2">
             <h3 className="text-sm font-bold font-outfit text-amber-400 flex items-center gap-2">
               <Keyboard className="w-4 h-4" />
@@ -672,20 +646,20 @@ export const App: React.FC = () => {
               ✕ Close
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-amber-400">1. Fret Notes & Chords:</span>
               <p className="text-slate-300">Click string on staff, type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or assign a Ukulele Chord (G, C, F, Dm, E7, E7m).</p>
             </div>
-            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-sky-400">2. Note Value (Rhythm):</span>
               <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-sky-300 font-mono">w, h, q, e, s</code> for Whole, Half, 1/4, 1/8, 1/16 rhythm values.</p>
             </div>
-            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-indigo-400">3. Rests, Triplets & Ties:</span>
               <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">R</code> for Rest, <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300 font-mono">T</code> for Triplet, <code className="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">L</code> for Tie (Sustain).</p>
             </div>
-            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-rose-400">4. Delete & Playback:</span>
               <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> to delete. Press <code className="bg-slate-800 px-1 py-0.5 rounded text-emerald-300 font-mono">Spacebar</code> to Play/Pause.</p>
             </div>
@@ -693,8 +667,35 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Main Viewport Pane: Dedicated Vertical Scroll Area for Tab Staff Canvas */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 tab-scroll-pane">
+      {/* Main Workspace */}
+      <main className="space-y-6 flex-1">
+        {/* Web Editor Toolbar (Hidden in Print) */}
+        <div className="no-print">
+          <EditorToolbar
+            document={document}
+            isPlaying={isPlaying}
+            activeDuration={activeDuration}
+            enableMetronome={enableMetronome}
+            playbackSpeed={playbackSpeed}
+            onUpdateDocument={setDocument}
+            onTogglePlayback={() => setIsPlaying(!isPlaying)}
+            onToggleMetronome={() => setEnableMetronome(!enableMetronome)}
+            onChangeSpeed={setPlaybackSpeed}
+            onSelectDuration={setActiveDuration}
+            onAddMeasure={handleAddMeasure}
+            onInsertBeat={selectedBeatId ? () => handleInsertBeat(selectedBeatId) : undefined}
+            onInsertRest={selectedBeatId ? () => handleInsertRest(selectedBeatId) : undefined}
+            onToggleTriplet={selectedBeatId ? () => handleToggleTriplet(selectedBeatId) : undefined}
+            onToggleTie={selectedBeatId ? () => handleToggleTie(selectedBeatId) : undefined}
+            onTranspose={handleTranspose}
+            onNewSong={handleNewSong}
+            onExportJson={handleExportJson}
+            onImportJson={handleImportJson}
+            onExportPdf={handleExportPdf}
+            onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
+          />
+        </div>
+
         {/* Dedicated Printable Title Header (Visible ONLY in Print / PDF Mode) */}
         <div className="print-title-header">
           <h1>{document.title || 'Untitled Ukulele Tab'}</h1>
@@ -723,26 +724,37 @@ export const App: React.FC = () => {
           onUpdateBeatLyric={handleUpdateBeatLyric}
           onSetBeatChord={handleSetBeatChord}
         />
+
+        {/* Sticky Pinned Bottom Edit Controls (Hidden in Print) */}
+        <div className="no-print sticky bottom-0 z-40 pt-3 pb-2 bg-slate-950/95 backdrop-blur-md border-t border-slate-800/80 rounded-t-2xl shadow-2xl">
+          <InspectorPanel
+            document={document}
+            selectedBeatId={selectedBeatId}
+            selectedString={selectedString}
+            onUpdateBeatLyric={handleUpdateBeatLyric}
+            onSetFret={handleSetFret}
+            onDeleteNote={handleRemoveNote}
+            onInsertBeat={handleInsertBeat}
+            onInsertRest={handleInsertRest}
+            onToggleRest={handleToggleRest}
+            onToggleTriplet={handleToggleTriplet}
+            onToggleTie={handleToggleTie}
+            onDeleteBeatColumn={handleDeleteBeatColumn}
+            onSetBeatChord={handleSetBeatChord}
+            onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
+          />
+        </div>
       </main>
 
-      {/* Dedicated Fixed Bottom Viewport Dock for Inspector Edit Panel (Hidden in Print) */}
-      <footer className="no-print shrink-0 border-t border-slate-800/80 bg-slate-900/95 backdrop-blur-md p-3">
-        <InspectorPanel
-          document={document}
-          selectedBeatId={selectedBeatId}
-          selectedString={selectedString}
-          onUpdateBeatLyric={handleUpdateBeatLyric}
-          onSetFret={handleSetFret}
-          onDeleteNote={handleRemoveNote}
-          onInsertBeat={handleInsertBeat}
-          onInsertRest={handleInsertRest}
-          onToggleRest={handleToggleRest}
-          onToggleTriplet={handleToggleTriplet}
-          onToggleTie={handleToggleTie}
-          onDeleteBeatColumn={handleDeleteBeatColumn}
-          onSetBeatChord={handleSetBeatChord}
-          onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
-        />
+      {/* Footer (Hidden in Print) */}
+      <footer className="no-print mt-8 pt-6 border-t border-slate-800/80 text-center text-xs text-slate-500 flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <span className="font-semibold text-slate-400">UkeTab Engine v1.0.0</span> &bull; Ukulele Tab Creator with Traditional Rhythm Notation
+        </div>
+        <div className="flex items-center gap-4 font-medium text-slate-400">
+          <a href="/docs/PROJECT_SPECIFICATION.md" className="hover:text-amber-400 transition">Project Spec</a>
+          <a href="/docs/SOFTWARE_ARCHITECTURE.md" className="hover:text-amber-400 transition">Architecture</a>
+        </div>
       </footer>
     </div>
   );
