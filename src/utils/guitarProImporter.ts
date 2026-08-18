@@ -27,7 +27,7 @@ function cleanGpLyric(lyrics: string[] | null | undefined): string | undefined {
 }
 
 /**
- * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied Notes & Perfectly Synchronized Lyrics.
+ * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied Notes & Precision Tick-Synchronized Lyrics.
  */
 export function parseGuitarProToUkuleleTab(
   arrayBuffer: ArrayBuffer,
@@ -47,21 +47,21 @@ export function parseGuitarProToUkuleleTab(
     throw new Error('Guitar Pro file contains no tracks.');
   }
 
-  // 1. Build a global measure-indexed & beat-indexed Lyrics Map across all tracks in the song
-  // Key format: `${mIdx}-${bIdx}` -> lyric syllable string
-  const globalLyricsMap = new Map<string, string>();
+  // 1. Build a precision tick-timestamp Lyric Map across all tracks in the song
+  // Key format: `${mIdx}-${beat.playbackStart}` -> lyric syllable string
+  const timeLyricMap = new Map<string, string>();
 
   score.tracks.forEach((t) => {
     t.staves.forEach((st) => {
       st.bars.forEach((bar, mIdx) => {
         bar.voices.forEach((voice) => {
-          voice.beats.forEach((bt, bIdx) => {
+          voice.beats.forEach((bt) => {
             if (bt.lyrics && bt.lyrics.length > 0) {
               const cleaned = cleanGpLyric(bt.lyrics);
               if (cleaned) {
-                const key = `${mIdx}-${bIdx}`;
-                if (!globalLyricsMap.has(key)) {
-                  globalLyricsMap.set(key, cleaned);
+                const key = `${mIdx}-${bt.playbackStart}`;
+                if (!timeLyricMap.has(key)) {
+                  timeLyricMap.set(key, cleaned);
                 }
               }
             }
@@ -161,8 +161,9 @@ export function parseGuitarProToUkuleleTab(
 
         const autoChord = autoDetectChordFromBeatNotes(ukeNotes, chordPalette);
 
-        // Synchronize lyric syllable using global measure & beat index map
-        const beatLyric = globalLyricsMap.get(`${mIdx}-${bIdx}`) || cleanGpLyric(gpBeat.lyrics);
+        // Synchronize lyric syllable using exact measure index + playbackStart tick timestamp
+        const tickKey = `${mIdx}-${gpBeat.playbackStart}`;
+        const beatLyric = timeLyricMap.get(tickKey) || cleanGpLyric(gpBeat.lyrics);
 
         beatsInBar.push({
           id: `b-gp-${mIdx + 1}-${bIdx + 1}`,
