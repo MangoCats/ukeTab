@@ -43,8 +43,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   if (!selectedBeatId) {
     return (
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 text-center text-slate-400 text-xs shadow-xl backdrop-blur-md flex items-center justify-between">
-        <span>Click any beat or string on the staff to inspect and edit fret notes, lyrics, or chord diagrams.</span>
+      <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between gap-4 InspectorPanel">
+        <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+          <Music className="w-4 h-4 text-amber-400" />
+          <span>Click any beat or string on the staff to inspect and edit fret notes, lyrics, or chord diagrams.</span>
+        </div>
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition border border-slate-700"
+          title={isCollapsed ? "Expand Inspector" : "Minimize Inspector"}
+        >
+          {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
       </div>
     );
   }
@@ -84,18 +94,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   }
 
   return (
-    <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-2xl backdrop-blur-lg space-y-4 InspectorPanel">
-      {/* Top Header & Collapse/Expand Toggle */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-3">
+    <div className="bg-slate-900/95 border border-slate-800 rounded-2xl p-3.5 shadow-2xl backdrop-blur-lg space-y-3.5 InspectorPanel">
+      {/* Viewport Fixed Header Row: Beat Details, Lyric Input & Expand/Collapse Chevron */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-2.5">
         <div className="flex items-center gap-2">
           <Music className="w-4 h-4 text-amber-400" />
-          <span className="font-bold text-sm text-slate-200 font-outfit">
+          <span className="font-bold text-xs text-slate-200 font-outfit">
             Inspector &bull; Measure {activeMeasureIndex} &bull; {selectedBeat.duration} {selectedBeat.isRest ? 'Rest Event' : 'Note Event'}
           </span>
         </div>
 
         {/* Action Controls & Minimize/Expand Button */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => onInsertBeat(selectedBeat.id)}
             className="flex items-center gap-1 px-2.5 py-1 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 rounded-lg text-xs font-semibold transition"
@@ -171,6 +181,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
           <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
 
+          {/* Synchronized Lyric Editor */}
           <div className="flex items-center gap-1.5">
             <AlignLeft className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-xs text-slate-400 font-medium">Lyric:</span>
@@ -193,12 +204,12 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </div>
       </div>
 
-      {/* Expandable Editing Sections */}
+      {/* Expandable Editing Sections (Chord Diagrams, Fret Selection Pad, Alternate Frets) */}
       {!isCollapsed && (
-        <div className="space-y-4 pt-1">
+        <div className="space-y-3.5 pt-1">
           {/* Ukulele Chord Diagram Chart Inspector Section */}
-          <div className="border-b border-slate-800/80 pb-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="border-b border-slate-800/80 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-2.5">
               <div className="flex items-center gap-2">
                 <Music className="w-4 h-4 text-amber-400" />
                 <span className="font-bold text-xs text-amber-400 uppercase tracking-wide font-outfit">
@@ -231,7 +242,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             </div>
 
             {/* Composition Active Chords Selector */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 mb-2.5">
               <span className="text-xs text-slate-400 font-medium">Composition Chords:</span>
               {displayChordsList.map(chordObj => (
                 <button
@@ -252,7 +263,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
             {/* Custom Chord Editor Inputs */}
             {effectiveChord && (
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-wrap items-center gap-4 text-xs">
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-wrap items-center gap-4 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="text-slate-400 font-medium">Chord Name:</span>
                   <input
@@ -304,9 +315,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-0.5">
             {/* Selected String & Fret Selection Pad */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                   <Hash className="w-3.5 h-3.5 text-amber-400" />
@@ -328,7 +339,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         <button
                           key={f}
                           onClick={() => onSetFret(selectedBeat.id, selectedString, f)}
-                          className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition shadow-sm ${
+                          className={`px-3 py-1 rounded-xl font-mono text-xs font-bold transition shadow-sm ${
                             isActive
                               ? 'bg-amber-500 text-slate-950 shadow-amber-500/20'
                               : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
@@ -342,7 +353,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     {activeNote && (
                       <button
                         onClick={() => onDeleteNote(selectedBeat.id, selectedString)}
-                        className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition flex items-center gap-1"
+                        className="px-3 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition flex items-center gap-1"
                         title="Delete Note"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -357,14 +368,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             </div>
 
             {/* Alternate Fret Suggestions (Up to Max Fret Limit) */}
-            <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800/80">
+            <div className="space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-800/80">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-300">
                 <Sparkles className="w-4 h-4 text-purple-400" />
                 <span>Alternate Frets (Max Fret {maxFretLimit}):</span>
               </div>
 
               {ghostNotes.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {ghostNotes.map(g => (
                     <div
                       key={g.id}
