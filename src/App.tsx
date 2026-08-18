@@ -224,14 +224,14 @@ export const App: React.FC = () => {
       setSelectedString(stringIndex);
     }
 
-    // Auto-assign matching chord if 4 strings are defined on beat and no chord was previously assigned
+    // Auto-assign matching chord ONLY if beat.chord is undefined (never set and not explicitly cleared with null)
     setDocument(prev => ({
       ...prev,
       measures: prev.measures.map(m => ({
         ...m,
         beats: m.beats.map(b => {
           if (b.id !== beatId) return b;
-          if (!b.chord) {
+          if (b.chord === undefined) {
             const autoChord = autoDetectChordFromBeatNotes(b.notes, prev.chordPalette);
             if (autoChord) {
               return { ...b, chord: autoChord };
@@ -257,14 +257,22 @@ export const App: React.FC = () => {
             fret: fret
           };
           const updatedNotes = [...existingFiltered, newNote];
-          const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
+
+          let updatedChord = b.chord;
+          if (b.chord === undefined) {
+            const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
+            if (autoChord) updatedChord = autoChord;
+          } else if (b.chord && typeof b.chord === 'object') {
+            const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
+            if (autoChord) updatedChord = autoChord;
+          }
 
           return {
             ...b,
             isRest: false,
             duration: activeDuration,
             notes: updatedNotes,
-            chord: autoChord || b.chord
+            chord: updatedChord
           };
         })
       }))
@@ -398,7 +406,7 @@ export const App: React.FC = () => {
           if (b.id !== beatId) return b;
           return {
             ...b,
-            chord: chord || undefined
+            chord: chord // null explicitly clears the chord
           };
         })
       }))

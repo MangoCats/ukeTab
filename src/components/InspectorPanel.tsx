@@ -75,9 +75,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     ? chordPalette
     : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
 
-  // Auto-detect chord when beat has fingerings defined on all 4 strings (including 0 for open)
-  const autoDetectedChord = autoDetectChordFromBeatNotes(currentNotes, activeChordsList);
-  const effectiveChord = selectedBeat.chord || autoDetectedChord || undefined;
+  const effectiveChord = (selectedBeat.chord && typeof selectedBeat.chord === 'object') ? selectedBeat.chord : undefined;
 
   const displayChordsList = [...activeChordsList];
   if (effectiveChord && !displayChordsList.some(c => c.name.toLowerCase() === effectiveChord.name.toLowerCase())) {
@@ -207,7 +205,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               </button>
             )}
 
-            {selectedBeat.chord && (
+            {effectiveChord && (
               <button
                 onClick={() => onSetBeatChord && onSetBeatChord(selectedBeat.id, null)}
                 className="text-xs text-rose-400 hover:text-rose-300 font-semibold transition flex items-center gap-1"

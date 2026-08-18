@@ -58,7 +58,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   let activeChordNotes: UkuleleNote[] = [];
   let currentBeatDuration: DurationType = '1/4';
   let currentBeatDotted: boolean = false;
-  let currentBeatChord: ChordMarker | undefined = undefined;
+  let currentBeatChord: ChordMarker | null | undefined = undefined;
 
   if (selectedBeatId) {
     for (const m of measures) {
@@ -86,11 +86,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     ? chordPalette
     : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
 
-  // Auto-detect chord when beat has all 4 string fingerings defined (including 0 for open)
-  const autoDetectedChord = selectedBeatId ? autoDetectChordFromBeatNotes(activeChordNotes, activeChordsList) : null;
-  const effectiveChord = currentBeatChord || autoDetectedChord || undefined;
+  const effectiveChord = (currentBeatChord && typeof currentBeatChord === 'object') ? currentBeatChord : undefined;
 
-  // Pre-select dropdown options list: include auto-detected chord if defined in library even if not in composition palette
+  // Pre-select dropdown options list: include effective chord if defined in library even if not in composition palette
   const dropdownChordOptions = [...activeChordsList];
   if (effectiveChord && !dropdownChordOptions.some(c => c.name.toLowerCase() === effectiveChord.name.toLowerCase())) {
     dropdownChordOptions.push(effectiveChord);
@@ -142,7 +140,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
       <div className="w-full overflow-x-auto bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-6 shadow-2xl relative border-none shadow-none bg-transparent">
         <div className="tab-canvas-wrapper flex flex-col space-y-6">
           {systems.map((systemMeasures, sysIdx) => {
-            const hasChordsInSystem = systemMeasures.some(m => m.beats.some(b => b.chord || autoDetectChordFromBeatNotes(b.notes, activeChordsList)));
+            const hasChordsInSystem = systemMeasures.some(m => m.beats.some(b => b.chord && typeof b.chord === 'object'));
             const chordSpace = hasChordsInSystem ? 85 * zoom : 0;
             const topMargin = (stemsBelow ? 45 * zoom : 65 * zoom) + chordSpace;
             const bottomMargin = stemsBelow ? 55 * zoom : 30 * zoom;
@@ -337,8 +335,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                           const activeNotes = beat.notes.filter(n => !n.isGhost);
                           const ghostNotes = isSelected ? getAlternateFretSuggestions(activeNotes, tuning, maxFretLimit) : [];
 
-                          const autoBeatChord = autoDetectChordFromBeatNotes(activeNotes, activeChordsList);
-                          const displayChord = beat.chord || autoBeatChord || undefined;
+                          const displayChord = (beat.chord && typeof beat.chord === 'object') ? beat.chord : undefined;
 
                           const stemX = beatX;
                           const stemStartY = stemsBelow ? string4Y + 6 * zoom : string1Y - 6 * zoom;

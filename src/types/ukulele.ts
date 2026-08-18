@@ -21,7 +21,7 @@ export interface BeatColumn {
   isRest?: boolean;
   isTied?: boolean; // When true, sustains into the next beat without re-strumming
   notes: UkuleleNote[];
-  chord?: ChordMarker; // Optional Ukulele Chord Diagram attached above beat
+  chord?: ChordMarker | null; // Optional Ukulele Chord Diagram attached above beat (null = explicitly cleared None)
   lyric?: string;
 }
 
