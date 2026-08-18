@@ -48,8 +48,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const fretButtonList = Array.from({ length: maxFretLimit + 1 }, (_, i) => i);
   const popoverWidth = Math.max(520, (maxFretLimit + 1) * 24 + 130);
 
-  // Layout metrics (Relaxed halfway between previous 68px and compact 56px)
-  const lineSpacing = 19 * zoom;
+  // Layout metrics (Widen string grid vertically so vertically stacked frets don't overwrite)
+  const lineSpacing = 24 * zoom;
   const stringHeaderWidth = 60 * zoom;
   const measurePadding = 15 * zoom;
   const beatWidth = 62 * zoom;

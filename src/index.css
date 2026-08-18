@@ -391,12 +391,12 @@ body {
     break-inside: avoid !important;
   }
 
-  /* Line Masking Box: Pure white in print scaled for 18pt fret number */
+  /* Line Masking Box: Pure white in print scaled for 18pt fret number without adjacent string overlap */
   .fret-mask {
     fill: #ffffff !important;
     transform-box: fill-box !important;
     transform-origin: center !important;
-    transform: scale(1.35) !important;
+    transform: scale(1.2, 1.15) !important;
   }
 
   /* 18pt Note on Tab Number Font in PDF / Print Export */
