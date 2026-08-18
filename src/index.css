@@ -284,7 +284,7 @@ body {
     margin-right: 0.5in !important;
   }
 
-  html, body, #root, main, .min-h-screen, .TabContainer, div.tab-canvas-wrapper, div.w-full {
+  html, body, #root, main, .min-h-screen, .TabContainer, div.w-full {
     background: #ffffff !important;
     background-image: none !important;
     color: #000000 !important;
@@ -329,9 +329,9 @@ body {
   .print-title-header {
     display: block !important;
     text-align: center !important;
-    margin: 0 0 0.25rem 0 !important;
+    margin: 0 0 0.25rem 0.5in !important;
     padding: 0 0 0.2rem 0 !important;
-    padding-left: 0.5in !important;
+    width: calc(100% - 0.5in) !important;
     border-bottom: 1.5px solid #0f172a !important;
   }
 
@@ -363,12 +363,11 @@ body {
     display: flex !important;
     flex-wrap: wrap !important;
     align-items: flex-start !important;
-    width: 100% !important;
+    width: calc(100% - 0.5in) !important;
     row-gap: 0.15in !important;
     column-gap: 0px !important;
     padding: 0 !important;
-    padding-left: 0.5in !important;
-    margin: 0 !important;
+    margin: 0 0 0 0.5in !important;
     overflow: visible !important;
   }
 
