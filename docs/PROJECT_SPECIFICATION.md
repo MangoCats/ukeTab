@@ -2,7 +2,7 @@
 
 ## 1. Product Overview & Core Purpose
 **UkeTab** is a modern interactive web application for creating, editing, listening to, and exporting 4-line Ukulele tablature.
-It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, and configurable fingering aids.
+It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, and configurable fingering aids.
 
 ---
 
@@ -21,6 +21,18 @@ It features standard stringed instrument notation with fret numbers on staff lin
 - **Zoom-Proportional & Margin-Overrun Dynamic Row-Wrapping**:
   - Automatically wraps measures onto a new system row when the row width exceeds the printable page boundary (`820px`).
   - Adapts to active zoom presets (75% Compact, 100% Standard, 150% Large).
+
+### Ukulele Chord Diagram Charts Above Tabs
+- **Independent Placement**: Ukulele chord diagrams (chord name label + 4-string fingering grid) can be assigned to any beat column directly above String 1 ($A_4$). They operate independently of tab fret numbers underneath (can sit above single notes, full chords, rests, or lyrics).
+- **Standard Fingering Chart Format**:
+  - **4 Vertical String Lines**: Strings 4, 3, 2, 1 (left-to-right).
+  - **Nut Line & Frets**: Thick nut line for `baseFret = 1`; base fret offset text (e.g. `3fr`) for higher positions.
+  - **Filled Circles (●)**: Finger placement on frets.
+  - **Open Circles (○)**: Played open strings (fret 0).
+  - **✕**: Muted / unplayed strings (-1).
+  - **Chord Title**: Prominently rendered above diagram (e.g. `Am`, `E7`, `G`, `D`, `F`, `C`, `Dm`).
+- **Chord Library & Custom Editor**: Built-in library of standard Ukulele chords + custom chord name and 4-string fret assignment.
+- **Print & PDF Support**: Renders in high-contrast crisp black lines, text, and dots in PDF export.
 
 ### Fret Number Representation
 - Fret numbers (`0` through `20`) are rendered directly on staff lines inside solid pitch-black line cutout boxes (`#020617`).

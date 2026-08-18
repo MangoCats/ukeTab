@@ -1,6 +1,6 @@
 import React from 'react';
-import { UkuleleTabDocument, UkuleleNote } from '../types/ukulele';
-import { calculatePitch, midiToNoteName, getAlternateFretSuggestions } from '../utils/musicTheory';
+import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
+import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, getChordPreset, createChordMarker } from '../utils/musicTheory';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle } from 'lucide-react';
 
 interface InspectorPanelProps {
@@ -16,6 +16,7 @@ interface InspectorPanelProps {
   onToggleTriplet?: (beatId: string) => void;
   onToggleTie?: (beatId: string) => void;
   onDeleteBeatColumn: (beatId: string) => void;
+  onSetBeatChord?: (beatId: string, chord: ChordMarker | null) => void;
 }
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
@@ -30,7 +31,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onToggleRest,
   onToggleTriplet,
   onToggleTie,
-  onDeleteBeatColumn
+  onDeleteBeatColumn,
+  onSetBeatChord
 }) => {
   const { tuning, measures, layout } = document;
   const maxFretLimit = layout.maxFretLimit ?? 12;
@@ -39,7 +41,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   if (!selectedBeatId) {
     return (
       <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 text-center text-slate-400 text-xs">
-        Click any beat or string on the staff to inspect and edit fret notes or lyrics.
+        Click any beat or string on the staff to inspect and edit fret notes, lyrics, or chord diagrams.
       </div>
     );
   }
@@ -65,6 +67,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const stringName = selectedString ? tuning.stringsDisplay[selectedString - 1] : null;
   const pitchMidi = selectedString && activeNote ? calculatePitch(selectedString, activeNote.fret, tuning) : null;
   const pitchName = pitchMidi ? midiToNoteName(pitchMidi) : null;
+
+  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'G7', 'C7', 'A7', 'Bm', 'Bb', 'D7', 'E', 'B'];
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-md space-y-5 InspectorPanel">
@@ -167,7 +171,101 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Ukulele Chord Diagram Chart Inspector Section */}
+      <div className="border-t border-slate-800/80 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <Music className="w-4 h-4 text-amber-400" />
+            <span className="font-bold text-xs text-amber-400 uppercase tracking-wide font-outfit">
+              Ukulele Chord Diagram (Rendered Above Staff)
+            </span>
+          </div>
+          {selectedBeat.chord && (
+            <button
+              onClick={() => onSetBeatChord && onSetBeatChord(selectedBeat.id, null)}
+              className="text-xs text-rose-400 hover:text-rose-300 font-semibold transition flex items-center gap-1"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Clear Chord</span>
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="text-xs text-slate-400 font-medium">Preset Chords:</span>
+          {quickChordPresets.map(chordName => (
+            <button
+              key={chordName}
+              onClick={() => {
+                const preset = getChordPreset(chordName);
+                if (preset && onSetBeatChord) onSetBeatChord(selectedBeat.id, preset);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition ${
+                selectedBeat.chord?.name === chordName
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+              }`}
+            >
+              {chordName}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom Chord Editor Inputs */}
+        {selectedBeat.chord && (
+          <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-wrap items-center gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-medium">Chord Name:</span>
+              <input
+                type="text"
+                value={selectedBeat.chord.name}
+                onChange={(e) => {
+                  if (onSetBeatChord) {
+                    onSetBeatChord(selectedBeat.id, {
+                      ...selectedBeat.chord,
+                      name: e.target.value
+                    });
+                  }
+                }}
+                className="w-20 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2 py-1 text-amber-400 font-bold outline-none"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-slate-400 font-medium">Strings [S4, S3, S2, S1]:</span>
+              {([0, 1, 2, 3] as const).map(strIdx => {
+                const strNum = (4 - strIdx) as 1 | 2 | 3 | 4;
+                const currentFret = selectedBeat.chord ? selectedBeat.chord.frets[strIdx] : 0;
+
+                return (
+                  <div key={`c-str-${strNum}`} className="flex items-center gap-1">
+                    <span className="text-[10px] text-slate-500 font-mono">S{strNum}:</span>
+                    <select
+                      value={currentFret}
+                      onChange={(e) => {
+                        if (onSetBeatChord && selectedBeat.chord) {
+                          const newFrets = [...selectedBeat.chord.frets] as [number, number, number, number];
+                          newFrets[strIdx] = parseInt(e.target.value, 10);
+                          onSetBeatChord(selectedBeat.id, createChordMarker(selectedBeat.chord.name, newFrets));
+                        }
+                      }}
+                      className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono font-bold rounded px-1.5 py-0.5 outline-none"
+                    >
+                      <option value={-1}>X (Muted)</option>
+                      <option value={0}>0 (Open)</option>
+                      {Array.from({ length: 15 }, (_, i) => i + 1).map(f => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
         {/* Selected String & Fret Selection Pad */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">

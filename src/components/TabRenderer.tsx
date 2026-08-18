@@ -1,8 +1,8 @@
 import React from 'react';
-import { UkuleleTabDocument, UkuleleNote, DurationType, Measure } from '../types/ukulele';
-import { getAlternateFretSuggestions } from '../utils/musicTheory';
+import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker } from '../types/ukulele';
+import { getAlternateFretSuggestions, UKULELE_CHORD_LIBRARY, getChordPreset } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
-import { Trash2, PlusCircle } from 'lucide-react';
+import { Trash2, PlusCircle, Music } from 'lucide-react';
 
 interface TabRendererProps {
   document: UkuleleTabDocument;
@@ -20,6 +20,7 @@ interface TabRendererProps {
   onDeleteBeatColumn: (beatId: string) => void;
   onUpdateBeatDuration: (beatId: string, duration: DurationType, isDotted?: boolean) => void;
   onUpdateBeatLyric: (beatId: string, lyric: string) => void;
+  onSetBeatChord?: (beatId: string, chord: ChordMarker | null) => void;
 }
 
 export const TabRenderer: React.FC<TabRendererProps> = ({
@@ -37,35 +38,27 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onToggleTie,
   onDeleteBeatColumn,
   onUpdateBeatDuration,
-  onUpdateBeatLyric
+  onUpdateBeatLyric,
+  onSetBeatChord
 }) => {
   const { tuning, layout, measures } = document;
   const zoom = layout.zoomScale;
   const stemsBelow = layout.stemsPlacement === 'below';
   const maxFretLimit = layout.maxFretLimit ?? 12;
   const fretButtonList = Array.from({ length: maxFretLimit + 1 }, (_, i) => i);
-  const popoverWidth = Math.max(410, (maxFretLimit + 1) * 24 + 110);
+  const popoverWidth = Math.max(440, (maxFretLimit + 1) * 24 + 110);
 
-  // Base layout dimensions
+  // Layout metrics
   const lineSpacing = 20 * zoom;
-  const topMargin = stemsBelow ? 45 * zoom : 55 * zoom;
-  const bottomMargin = stemsBelow ? 55 * zoom : 30 * zoom;
   const stringHeaderWidth = 65 * zoom;
   const measurePadding = 18 * zoom;
   const beatWidth = 68 * zoom;
 
-  const getStringY = (stringIndex: 1 | 2 | 3 | 4) => {
-    return topMargin + (stringIndex - 1) * lineSpacing;
-  };
-
-  const string1Y = getStringY(1);
-  const string4Y = getStringY(4);
-  const staffHeight = string4Y - string1Y;
-
-  // Selected beat notes for Chord Diagram preview
+  // Selected beat info for Chord Diagram & Inspector
   let activeChordNotes: UkuleleNote[] = [];
   let currentBeatDuration: DurationType = '1/4';
   let currentBeatDotted: boolean = false;
+  let currentBeatChord: ChordMarker | undefined = undefined;
 
   if (selectedBeatId) {
     for (const m of measures) {
@@ -74,6 +67,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
         activeChordNotes = b.notes.filter(n => !n.isGhost);
         currentBeatDuration = b.duration;
         currentBeatDotted = !!b.isDotted;
+        currentBeatChord = b.chord;
         break;
       }
     }
@@ -86,6 +80,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     { label: '1/8', value: '1/8' },
     { label: '1/16', value: '1/16' }
   ];
+
+  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'G7', 'C7', 'A7', 'Bm', 'Bb'];
 
   // Zoom-Aware Dynamic Row-Wrapping Engine
   const pagePrintWidth = 820; 
@@ -121,18 +117,31 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
         <div className="no-print flex items-center justify-between gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-3 shadow-md">
           <div className="flex items-center gap-3">
             <div className="text-xs font-semibold text-slate-400">Selected Beat Shape:</div>
-            <ChordDiagram notes={activeChordNotes} tuning={tuning} />
+            <ChordDiagram notes={activeChordNotes} tuning={tuning} chordName={currentBeatChord?.name} />
           </div>
           <div className="text-xs text-slate-400 font-mono hidden md:block">
-            Tip: Press <code className="bg-slate-800 px-1.5 py-0.5 rounded text-indigo-300">+</code> or click <span className="text-sky-400 font-semibold">+ Insert Beat</span> to add a new note event to this measure.
+            Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">Ukulele Chord Diagram</span> (e.g. Am, G, F, C) rendered above the staff lines.
           </div>
         </div>
       )}
 
       {/* Main Tablature Canvas: Continuous Staff System Rows */}
       <div className="w-full overflow-x-auto bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-6 shadow-2xl relative border-none shadow-none bg-transparent">
-        <div className="tab-canvas-wrapper flex flex-col space-y-3 print:space-y-1">
+        <div className="tab-canvas-wrapper flex flex-col space-y-6">
           {systems.map((systemMeasures, sysIdx) => {
+            const hasChordsInSystem = systemMeasures.some(m => m.beats.some(b => b.chord));
+            const chordSpace = hasChordsInSystem ? 75 * zoom : 0;
+            const topMargin = (stemsBelow ? 45 * zoom : 65 * zoom) + chordSpace;
+            const bottomMargin = stemsBelow ? 55 * zoom : 30 * zoom;
+
+            const getStringY = (stringIndex: 1 | 2 | 3 | 4) => {
+              return topMargin + (stringIndex - 1) * lineSpacing;
+            };
+
+            const string1Y = getStringY(1);
+            const string4Y = getStringY(4);
+            const staffHeight = string4Y - string1Y;
+
             let systemContentWidth = 0;
             const measureOffsets: number[] = [];
 
@@ -147,7 +156,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             const systemSvgHeight = topMargin + staffHeight + bottomMargin;
 
             return (
-              <div key={`system-${sysIdx}`} className="system-row block mb-2 print:mb-1 relative">
+              <div key={`system-${sysIdx}`} className="system-row block mb-4 relative">
                 <svg
                   width={systemSvgWidth}
                   height={systemSvgHeight}
@@ -219,61 +228,14 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     const timeSigWidth = isFirstInSystem ? 32 * zoom : 0;
                     const beatsStartX = mX + measurePadding + timeSigWidth;
 
-                    // Compute Rhythm Beams and Triplet Groups for measure
+                    // Compute Rhythm Beams for 8th / 16th notes in measure
                     const beamedBeatIndices = new Set<number>();
                     const beams: { startX: number; endX: number; level: number; y: number }[] = [];
-                    const tripletGroupBrackets: { startX: number; endX: number; middleX: number; bracketY: number; digitY: number }[] = [];
 
-                    // 1. Detect Triplet Groups (3 consecutive triplet beats)
-                    let bIdxCheck = 0;
-                    while (bIdxCheck <= measure.beats.length - 3) {
-                      const b1 = measure.beats[bIdxCheck];
-                      const b2 = measure.beats[bIdxCheck + 1];
-                      const b3 = measure.beats[bIdxCheck + 2];
-
-                      if (b1?.isTriplet && b2?.isTriplet && b3?.isTriplet) {
-                        const x1 = beatsStartX + bIdxCheck * beatWidth;
-                        const x2 = beatsStartX + (bIdxCheck + 1) * beatWidth;
-                        const x3 = beatsStartX + (bIdxCheck + 2) * beatWidth;
-
-                        const beamY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
-
-                        // Connect note stems across the 3 triplet notes with a beam line
-                        beamedBeatIndices.add(bIdxCheck);
-                        beamedBeatIndices.add(bIdxCheck + 1);
-                        beamedBeatIndices.add(bIdxCheck + 2);
-
-                        beams.push({ startX: x1, endX: x3, level: 1, y: beamY });
-
-                        if (b1.duration === '1/16' || b2.duration === '1/16' || b3.duration === '1/16') {
-                          const level2Y = stemsBelow ? beamY - 6 * zoom : beamY + 6 * zoom;
-                          beams.push({ startX: x1, endX: x3, level: 2, y: level2Y });
-                        }
-
-                        // Position bracket line and "3" digit beneath/above the connected note stems
-                        const bracketY = stemsBelow ? beamY + 11 * zoom : beamY - 11 * zoom;
-                        const digitY = stemsBelow ? beamY + 22 * zoom : beamY - 14 * zoom;
-
-                        tripletGroupBrackets.push({
-                          startX: x1 - 3 * zoom,
-                          endX: x3 + 3 * zoom,
-                          middleX: x2,
-                          bracketY,
-                          digitY
-                        });
-
-                        bIdxCheck += 3;
-                      } else {
-                        bIdxCheck++;
-                      }
-                    }
-
-                    // 2. Standard Beaming for non-triplet pairs
                     measure.beats.forEach((b, bIdx) => {
-                      if (beamedBeatIndices.has(bIdx)) return;
                       if (b.duration === '1/8' || b.duration === '1/16') {
                         const nextBeat = measure.beats[bIdx + 1];
-                        if (nextBeat && !beamedBeatIndices.has(bIdx + 1) && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16')) {
+                        if (nextBeat && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16')) {
                           const x1 = beatsStartX + bIdx * beatWidth;
                           const x2 = beatsStartX + (bIdx + 1) * beatWidth;
                           const beamY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
@@ -286,41 +248,6 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                             const level2Y = stemsBelow ? beamY - 6 * zoom : beamY + 6 * zoom;
                             beams.push({ startX: x1, endX: x2, level: 2, y: level2Y });
                           }
-                        }
-                      }
-                    });
-
-                    // 3. Compute Tie Arcs for beats sustained into the next beat
-                    const tieArcs: { startX: number; endX: number; y: number; isStringTie: boolean }[] = [];
-
-                    measure.beats.forEach((b, bIdx) => {
-                      if (b.isTied) {
-                        const x1 = beatsStartX + bIdx * beatWidth;
-                        const nextBeat = measure.beats[bIdx + 1];
-                        const x2 = nextBeat ? beatsStartX + (bIdx + 1) * beatWidth : x1 + beatWidth * 0.85;
-
-                        if (nextBeat) {
-                          const stringMatches: number[] = [];
-                          [1, 2, 3, 4].forEach(s => {
-                            const hasN1 = b.notes.some(n => n.string === s && !n.isGhost);
-                            const hasN2 = nextBeat.notes.some(n => n.string === s && !n.isGhost);
-                            if (hasN1 && hasN2) {
-                              stringMatches.push(s);
-                            }
-                          });
-
-                          if (stringMatches.length > 0) {
-                            stringMatches.forEach(s => {
-                              const stringY = getStringY(s as 1 | 2 | 3 | 4);
-                              tieArcs.push({ startX: x1, endX: x2, y: stringY, isStringTie: true });
-                            });
-                          } else {
-                            const stemEndY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
-                            tieArcs.push({ startX: x1, endX: x2, y: stemEndY, isStringTie: false });
-                          }
-                        } else {
-                          const stemEndY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
-                          tieArcs.push({ startX: x1, endX: x2, y: stemEndY, isStringTie: false });
                         }
                       }
                     });
@@ -388,49 +315,6 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                           />
                         ))}
 
-                        {/* Tie Arcs (Curved Legato Slur Lines connecting sustained beats) */}
-                        {tieArcs.map((arc, arcIdx) => {
-                          const curveY = arc.isStringTie
-                            ? arc.y + (stemsBelow ? 10 : -10) * zoom
-                            : arc.y + (stemsBelow ? 14 : -14) * zoom;
-                          return (
-                            <path
-                              key={`tie-${measure.id}-${arcIdx}`}
-                              d={`M ${arc.startX + 6 * zoom} ${arc.y} Q ${(arc.startX + arc.endX) / 2} ${curveY} ${arc.endX - 6 * zoom} ${arc.y}`}
-                              stroke="#38bdf8"
-                              strokeWidth={2.2 * zoom}
-                              fill="none"
-                              className="tie-arc-engraving"
-                            />
-                          );
-                        })}
-
-                        {/* Triplet Group Notation (Standard Notation: Connected note stems with a 3 beneath them) */}
-                        {tripletGroupBrackets.map((bracket, bktIdx) => (
-                          <g key={`tgr-${measure.id}-${bktIdx}`} className="triplet-group-engraving">
-                            {/* Horizontal bracket line with small vertical end ticks */}
-                            <path
-                              d={`M ${bracket.startX} ${bracket.bracketY - (stemsBelow ? 3 : -3) * zoom} L ${bracket.startX} ${bracket.bracketY} L ${bracket.middleX - 8 * zoom} ${bracket.bracketY} M ${bracket.middleX + 8 * zoom} ${bracket.bracketY} L ${bracket.endX} ${bracket.bracketY} L ${bracket.endX} ${bracket.bracketY - (stemsBelow ? 3 : -3) * zoom}`}
-                              stroke="#818cf8"
-                              strokeWidth={1.5 * zoom}
-                              fill="none"
-                            />
-                            {/* Bold 3 digit centered beneath the connected notes */}
-                            <text
-                              x={bracket.middleX}
-                              y={bracket.digitY}
-                              textAnchor="middle"
-                              fill="#818cf8"
-                              fontFamily="'Outfit', 'Inter', 'Times New Roman', sans-serif"
-                              fontSize={`${13 * zoom}px`}
-                              fontWeight="800"
-                              style={{ pointerEvents: 'none' }}
-                            >
-                              3
-                            </text>
-                          </g>
-                        ))}
-
                         {/* Measure Beats & Fret Notes */}
                         {measure.beats.map((beat, bIdx) => {
                           const beatX = beatsStartX + bIdx * beatWidth;
@@ -463,204 +347,192 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                 className="playhead-highlight no-print transition-colors duration-150 group-hover:fill-slate-800/40"
                               />
 
-                              {/* Standard Fret Numbers & Line Cutouts */}
-                              {([1, 2, 3, 4] as const).map(s => {
-                                const noteOnString = activeNotes.find(n => n.string === s);
-                                const ghostOnString = ghostNotes.find(n => n.string === s);
-                                const stringY = getStringY(s);
-                                const isTargetStringSelected = isSelected && selectedString === s;
+                              {/* Ukulele Chord Diagram Chart Rendered Above Staff */}
+                              {beat.chord && (
+                                <g
+                                  transform={`translate(${beatX - 27 * zoom}, ${string1Y - 76 * zoom}) scale(${zoom})`}
+                                  className="chord-chart-rendering"
+                                >
+                                  <ChordDiagram
+                                    chord={beat.chord}
+                                    width={54}
+                                    height={68}
+                                    textColor="#f59e0b"
+                                    dotColor="#f59e0b"
+                                    gridColor="#94a3b8"
+                                    isSvgInline={true}
+                                  />
+                                </g>
+                              )}
 
-                                return (
-                                  <g key={`cell-${beat.id}-s${s}`}>
-                                    {/* Hit Target Area */}
-                                    <rect
-                                      x={beatX - 12 * zoom}
-                                      y={stringY - 8 * zoom}
-                                      width={24 * zoom}
-                                      height={16 * zoom}
-                                      fill="transparent"
-                                      className="no-print"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onSelectBeat(measure.index - 1, beat.id, s);
-                                        if (!noteOnString) {
-                                          onAddNote(beat.id, s, ghostOnString ? ghostOnString.fret : 0);
-                                        }
-                                      }}
-                                    />
+                              {/* Rest Symbol */}
+                              {beat.isRest ? (
+                                <g transform={`translate(${beatX}, ${string1Y + staffHeight / 2})`}>
+                                  <rect x={-8 * zoom} y={-4 * zoom} width={16 * zoom} height={8 * zoom} fill="#38bdf8" rx={2} />
+                                  <text x={0} y={12 * zoom} textAnchor="middle" fill="#38bdf8" fontSize={`${10 * zoom}px`} fontWeight="bold" fontFamily="monospace">Rest</text>
+                                </g>
+                              ) : (
+                                /* Standard Fret Numbers & Line Cutouts */
+                                ([1, 2, 3, 4] as const).map(s => {
+                                  const noteOnString = activeNotes.find(n => n.string === s);
+                                  const ghostOnString = ghostNotes.find(n => n.string === s);
+                                  const stringY = getStringY(s);
+                                  const isTargetStringSelected = isSelected && selectedString === s;
 
-                                    {/* Selection Ring */}
-                                    {isTargetStringSelected && (
+                                  return (
+                                    <g key={`cell-${beat.id}-s${s}`}>
+                                      {/* Hit Target Area */}
                                       <rect
-                                        x={beatX - 14 * zoom}
-                                        y={stringY - 10 * zoom}
-                                        width={28 * zoom}
-                                        height={20 * zoom}
-                                        fill="none"
-                                        stroke="#38bdf8"
-                                        strokeWidth={1.5 * zoom}
-                                        strokeDasharray="2 2"
-                                        rx={4}
-                                        className="selection-ring no-print"
-                                      />
-                                    )}
-
-                                    {/* Fret Number */}
-                                    {noteOnString && (
-                                      <g
+                                        x={beatX - 12 * zoom}
+                                        y={stringY - 8 * zoom}
+                                        width={24 * zoom}
+                                        height={16 * zoom}
+                                        fill="transparent"
+                                        className="no-print"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onSelectBeat(measure.index - 1, beat.id, s);
-                                        }}
-                                      >
-                                        <rect
-                                          x={beatX - (noteOnString.fret >= 10 ? 11 : 8) * zoom}
-                                          y={stringY - 9 * zoom}
-                                          width={(noteOnString.fret >= 10 ? 22 : 16) * zoom}
-                                          height={18 * zoom}
-                                          fill="#020617"
-                                          rx={2}
-                                          className="fret-mask"
-                                        />
-                                        <text
-                                          x={beatX}
-                                          y={stringY + 4 * zoom}
-                                          textAnchor="middle"
-                                          fill={
-                                            isTargetStringSelected
-                                              ? '#38bdf8'
-                                              : isPlaying
-                                              ? '#fbbf24'
-                                              : '#ffffff'
+                                          if (!noteOnString) {
+                                            onAddNote(beat.id, s, ghostOnString ? ghostOnString.fret : 0);
                                           }
-                                          fontFamily="monospace, ui-monospace, sans-serif"
-                                          fontSize={`${15 * zoom}px`}
-                                          fontWeight="bold"
-                                          style={{ pointerEvents: 'none' }}
-                                        >
-                                          {noteOnString.fret}
-                                        </text>
-
-                                        {/* Direct Red Trashcan Badge */}
-                                        {isTargetStringSelected && (
-                                          <g
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              onRemoveNote(beat.id, s);
-                                            }}
-                                            className="delete-badge no-print cursor-pointer hover:scale-125 transition-transform"
-                                          >
-                                            <title>Delete note on string</title>
-                                            <circle
-                                              cx={beatX + 16 * zoom}
-                                              cy={stringY - 10 * zoom}
-                                              r={7.5 * zoom}
-                                              fill="#ef4444"
-                                              className="no-print"
-                                            />
-                                            <text
-                                              x={beatX + 16 * zoom}
-                                              y={stringY - 7 * zoom}
-                                              textAnchor="middle"
-                                              fill="#ffffff"
-                                              fontSize={`${9.5 * zoom}px`}
-                                              fontWeight="bold"
-                                              className="pointer-events-none font-mono no-print"
-                                            >
-                                              ✕
-                                            </text>
-                                          </g>
-                                        )}
-                                      </g>
-                                    )}
-
-                                    {/* Alternate Fret Suggestion (Ghost Note) */}
-                                    {!beat.isRest && !noteOnString && ghostOnString && (
-                                      <g
-                                        className="ghost-fret no-print opacity-80 hover:opacity-100 transition-opacity"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onAddNote(beat.id, s, ghostOnString.fret);
                                         }}
-                                      >
-                                        <rect
-                                          x={beatX - 12 * zoom}
-                                          y={stringY - 8 * zoom}
-                                          width={24 * zoom}
-                                          height={16 * zoom}
-                                          fill="#020617"
-                                          rx={2}
-                                          className="fret-mask no-print"
-                                        />
-                                        <text
-                                          x={beatX}
-                                          y={stringY + 4 * zoom}
-                                          textAnchor="middle"
-                                          fill="#c084fc"
-                                          fontFamily="monospace, ui-monospace, sans-serif"
-                                          fontSize={`${13 * zoom}px`}
-                                          fontWeight="bold"
-                                          className="no-print"
-                                          style={{ pointerEvents: 'none' }}
-                                        >
-                                          ({ghostOnString.fret})
-                                        </text>
-                                      </g>
-                                    )}
-                                  </g>
-                                );
-                              })}
+                                      />
 
-                              {/* Musical Rest Symbol (Rendered at center of 4-line staff when beat.isRest is true) */}
-                              {beat.isRest && (
-                                <g className="rest-symbol-group pointer-events-none">
-                                  {beat.duration === '1/1' ? (
-                                    <rect
-                                      x={beatX - 7 * zoom}
-                                      y={getStringY(2)}
-                                      width={14 * zoom}
-                                      height={6 * zoom}
-                                      fill={isPlaying ? '#f59e0b' : isSelected ? '#38bdf8' : '#e2e8f0'}
-                                      rx={1}
-                                    />
-                                  ) : beat.duration === '1/2' ? (
-                                    <rect
-                                      x={beatX - 7 * zoom}
-                                      y={getStringY(3) - 6 * zoom}
-                                      width={14 * zoom}
-                                      height={6 * zoom}
-                                      fill={isPlaying ? '#f59e0b' : isSelected ? '#38bdf8' : '#e2e8f0'}
-                                      rx={1}
-                                    />
-                                  ) : (
-                                    <text
-                                      x={beatX}
-                                      y={topMargin + 2.1 * lineSpacing}
-                                      textAnchor="middle"
-                                      fill={isPlaying ? '#f59e0b' : isSelected ? '#38bdf8' : '#e2e8f0'}
-                                      fontSize={`${22 * zoom}px`}
-                                      fontFamily="serif, 'Times New Roman', Georgia"
-                                      fontWeight="bold"
-                                      style={{ pointerEvents: 'none' }}
-                                    >
-                                      {beat.duration === '1/4' ? '𝄽' : beat.duration === '1/8' ? '𝄾' : beat.duration === '1/16' ? '𝄿' : '𝄽'}
-                                    </text>
-                                  )}
-                                </g>
+                                      {/* Selection Ring */}
+                                      {isTargetStringSelected && (
+                                        <rect
+                                          x={beatX - 14 * zoom}
+                                          y={stringY - 10 * zoom}
+                                          width={28 * zoom}
+                                          height={20 * zoom}
+                                          fill="none"
+                                          stroke="#38bdf8"
+                                          strokeWidth={1.5 * zoom}
+                                          strokeDasharray="2 2"
+                                          rx={4}
+                                          className="selection-ring no-print"
+                                        />
+                                      )}
+
+                                      {/* Fret Number */}
+                                      {noteOnString && (
+                                        <g
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onSelectBeat(measure.index - 1, beat.id, s);
+                                          }}
+                                        >
+                                          <rect
+                                            x={beatX - (noteOnString.fret >= 10 ? 11 : 8) * zoom}
+                                            y={stringY - 9 * zoom}
+                                            width={(noteOnString.fret >= 10 ? 22 : 16) * zoom}
+                                            height={18 * zoom}
+                                            fill="#020617"
+                                            rx={2}
+                                            className="fret-mask"
+                                          />
+                                          <text
+                                            x={beatX}
+                                            y={stringY + 4 * zoom}
+                                            textAnchor="middle"
+                                            fill={
+                                              isTargetStringSelected
+                                                ? '#38bdf8'
+                                                : isPlaying
+                                                ? '#fbbf24'
+                                                : '#ffffff'
+                                            }
+                                            fontFamily="monospace, ui-monospace, sans-serif"
+                                            fontSize={`${15 * zoom}px`}
+                                            fontWeight="bold"
+                                            style={{ pointerEvents: 'none' }}
+                                          >
+                                            {noteOnString.fret}
+                                          </text>
+
+                                          {/* Direct Red Trashcan Badge */}
+                                          {isTargetStringSelected && (
+                                            <g
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                onRemoveNote(beat.id, s);
+                                              }}
+                                              className="delete-badge no-print cursor-pointer hover:scale-125 transition-transform"
+                                            >
+                                              <title>Delete note on string</title>
+                                              <circle
+                                                cx={beatX + 16 * zoom}
+                                                cy={stringY - 10 * zoom}
+                                                r={7.5 * zoom}
+                                                fill="#ef4444"
+                                                className="no-print"
+                                              />
+                                              <text
+                                                x={beatX + 16 * zoom}
+                                                y={stringY - 7 * zoom}
+                                                textAnchor="middle"
+                                                fill="#ffffff"
+                                                fontSize={`${9.5 * zoom}px`}
+                                                fontWeight="bold"
+                                                className="pointer-events-none font-mono no-print"
+                                              >
+                                                ✕
+                                              </text>
+                                            </g>
+                                          )}
+                                        </g>
+                                      )}
+
+                                      {/* Alternate Fret Suggestion (Ghost Note) */}
+                                      {!noteOnString && ghostOnString && (
+                                        <g
+                                          className="ghost-fret no-print opacity-80 hover:opacity-100 transition-opacity"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onAddNote(beat.id, s, ghostOnString.fret);
+                                          }}
+                                        >
+                                          <rect
+                                            x={beatX - 12 * zoom}
+                                            y={stringY - 8 * zoom}
+                                            width={24 * zoom}
+                                            height={16 * zoom}
+                                            fill="#020617"
+                                            rx={2}
+                                            className="fret-mask no-print"
+                                          />
+                                          <text
+                                            x={beatX}
+                                            y={stringY + 4 * zoom}
+                                            textAnchor="middle"
+                                            fill="#c084fc"
+                                            fontFamily="monospace, ui-monospace, sans-serif"
+                                            fontSize={`${13 * zoom}px`}
+                                            fontWeight="bold"
+                                            className="no-print"
+                                            style={{ pointerEvents: 'none' }}
+                                          >
+                                            ({ghostOnString.fret})
+                                          </text>
+                                        </g>
+                                      )}
+                                    </g>
+                                  );
+                                })
                               )}
 
                               {/* Inline Floating Context Action Toolbar */}
                               {isSelected && (
                                 <foreignObject
                                   x={beatX - popoverWidth / 2}
-                                  y={topMargin - 105 * zoom}
+                                  y={topMargin - 115 * zoom}
                                   width={popoverWidth}
-                                  height={95 * zoom}
+                                  height={105 * zoom}
                                   style={{ overflow: 'visible' }}
                                   className="floating-popover no-print pointer-events-auto"
                                 >
                                   <div className="flex flex-col items-center justify-between bg-slate-900/95 border border-sky-500/70 rounded-2xl p-2.5 shadow-2xl backdrop-blur-md w-full h-full">
-                                    {/* Row 1: Rhythm Duration & Insert/Delete Beat Column */}
+                                    {/* Row 1: Rhythm Duration, Rest, Triplet, Tie, Insert/Delete Beat */}
                                     <div className="flex items-center gap-1.5 border-b border-slate-800 pb-1.5 w-full justify-center">
                                       <span className="text-[11px] text-slate-400 font-semibold mr-1">Rhythm:</span>
                                       {durationOptions.map(d => (
@@ -696,61 +568,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
                                       <div className="h-4 w-px bg-slate-800 mx-1" />
 
-                                      {/* Rest Toggle */}
-                                      {onToggleRest && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onToggleRest(beat.id);
-                                          }}
-                                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
-                                            beat.isRest
-                                              ? 'bg-purple-500 text-slate-950 shadow-sm'
-                                              : 'bg-slate-800 text-purple-300 hover:bg-slate-700'
-                                          }`}
-                                          title="Toggle rest symbol for this beat (Press R)"
-                                        >
-                                          𝄽 Rest
-                                        </button>
-                                      )}
-
-                                      {/* Triplet Toggle */}
-                                      {onToggleTriplet && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onToggleTriplet(beat.id);
-                                          }}
-                                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
-                                            beat.isTriplet
-                                              ? 'bg-indigo-500 text-slate-950 shadow-sm'
-                                              : 'bg-slate-800 text-indigo-300 hover:bg-slate-700'
-                                          }`}
-                                          title="Toggle triplet (3:2) designation for this beat (Press T)"
-                                        >
-                                          3 Triplet
-                                        </button>
-                                      )}
-
-                                      {/* Tie Toggle */}
-                                      {onToggleTie && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onToggleTie(beat.id);
-                                          }}
-                                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
-                                            beat.isTied
-                                              ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                                              : 'bg-slate-800 text-cyan-300 hover:bg-slate-700'
-                                          }`}
-                                          title="Tie beat into next beat (sustains without re-strumming) (Press L)"
-                                        >
-                                          ⁀ Tie
-                                        </button>
-                                      )}
-
-                                      {/* Insert Beat Event in Measure */}
+                                      {/* Insert Beat Event */}
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -762,138 +580,138 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                         <PlusCircle className="w-3 h-3" />
                                         <span>+ Beat</span>
                                       </button>
-
-                                      {/* Insert Rest Event in Measure */}
-                                      {onInsertRest && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onInsertRest(beat.id);
-                                          }}
-                                          className="px-2 py-0.5 rounded-md bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 font-bold text-[11px] transition flex items-center gap-1"
-                                          title="Insert a new rest event into this measure"
-                                        >
-                                          <span>+ Rest</span>
-                                        </button>
-                                      )}
                                     </div>
 
-                                    {/* Row 2: Dynamic Fret Selection Buttons (0 to maxFretLimit) + Trashcan */}
-                                    {selectedString && (
-                                      <div className="flex items-center justify-center gap-1 w-full pt-1 overflow-x-auto">
-                                        <span className="text-[11px] text-slate-400 font-semibold mr-1">Fret:</span>
-                                        {fretButtonList.map(f => (
+                                    {/* Row 2: Ukulele Chord Diagram Quick Selector & Frets */}
+                                    <div className="flex items-center justify-between w-full pt-1 gap-2">
+                                      {/* Chord Selector */}
+                                      <div className="flex items-center gap-1">
+                                        <Music className="w-3 h-3 text-amber-400" />
+                                        <span className="text-[11px] text-amber-400 font-bold">Chord:</span>
+                                        <select
+                                          value={currentBeatChord?.name || ''}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            const chordName = e.target.value;
+                                            if (!chordName) {
+                                              if (onSetBeatChord) onSetBeatChord(beat.id, null);
+                                            } else {
+                                              const preset = getChordPreset(chordName);
+                                              if (preset && onSetBeatChord) {
+                                                onSetBeatChord(beat.id, preset);
+                                              }
+                                            }
+                                          }}
+                                          className="bg-slate-950 border border-slate-800 text-amber-400 font-bold text-[11px] rounded px-1.5 py-0.5 outline-none cursor-pointer"
+                                        >
+                                          <option value="">(None)</option>
+                                          {quickChordPresets.map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+
+                                      {/* Dynamic Fret Selection Buttons */}
+                                      {selectedString && (
+                                        <div className="flex items-center gap-1 overflow-x-auto">
+                                          <span className="text-[11px] text-slate-400 font-semibold">Fret:</span>
+                                          {fretButtonList.map(f => (
+                                            <button
+                                              key={f}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                onAddNote(beat.id, selectedString, f);
+                                              }}
+                                              className="w-5.5 h-5.5 rounded-md text-[10px] font-bold font-mono bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200 transition flex items-center justify-center flex-shrink-0"
+                                              title={`Set fret ${f}`}
+                                            >
+                                              {f}
+                                            </button>
+                                          ))}
+
                                           <button
-                                            key={f}
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              onAddNote(beat.id, selectedString, f);
+                                              onRemoveNote(beat.id, selectedString);
                                             }}
-                                            className="w-5.5 h-5.5 rounded-md text-[10px] font-bold font-mono bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200 transition flex items-center justify-center flex-shrink-0"
-                                            title={`Set fret ${f}`}
+                                            className="w-6 h-5.5 rounded-md bg-rose-600 hover:bg-rose-500 text-white transition flex items-center justify-center ml-1 shadow-md flex-shrink-0"
+                                            title="Delete note on string"
                                           >
-                                            {f}
+                                            <Trash2 className="w-3.5 h-3.5" />
                                           </button>
-                                        ))}
-
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onRemoveNote(beat.id, selectedString);
-                                          }}
-                                          className="w-6 h-5.5 rounded-md bg-rose-600 hover:bg-rose-500 text-white transition flex items-center justify-center ml-1 shadow-md flex-shrink-0"
-                                          title="Delete note on string"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    )}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </foreignObject>
                               )}
 
                               {/* Rhythm Stems & Flags */}
-                              <g stroke={isPlaying ? '#f59e0b' : '#cbd5e1'} strokeWidth={2 * zoom} fill="none">
-                                {beat.duration !== '1/1' && (
-                                  <line x1={stemX} y1={stemStartY} x2={stemX} y2={stemEndY} />
-                                )}
+                              {!beat.isRest && (
+                                <g stroke={isPlaying ? '#f59e0b' : '#cbd5e1'} strokeWidth={2 * zoom} fill="none">
+                                  {beat.duration !== '1/1' && (
+                                    <line x1={stemX} y1={stemStartY} x2={stemX} y2={stemEndY} />
+                                  )}
 
-                                {beat.duration === '1/1' && (
-                                  <circle cx={stemX} cy={stemStartY + 10 * zoom} r={6 * zoom} stroke="#cbd5e1" strokeWidth={2 * zoom} />
-                                )}
+                                  {beat.duration === '1/1' && (
+                                    <circle cx={stemX} cy={stemStartY + 10 * zoom} r={6 * zoom} stroke="#cbd5e1" strokeWidth={2 * zoom} />
+                                  )}
 
-                                {beat.duration === '1/2' && (
-                                  <circle cx={stemX} cy={stemEndY} r={4 * zoom} fill="#020617" stroke="#cbd5e1" strokeWidth={2 * zoom} />
-                                )}
+                                  {beat.duration === '1/2' && (
+                                    <circle cx={stemX} cy={stemEndY} r={4 * zoom} fill="#020617" stroke="#cbd5e1" strokeWidth={2 * zoom} />
+                                  )}
 
-                                {beat.duration === '1/8' && !isBeamed && (
-                                  <path
-                                    d={`M ${stemX} ${stemEndY} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -4 : 4) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -12 : 12) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -16 : 16) * zoom}`}
-                                    stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                    strokeWidth={2.5 * zoom}
-                                    fill="none"
-                                  />
-                                )}
-
-                                {beat.duration === '1/16' && !isBeamed && (
-                                  <g>
+                                  {beat.duration === '1/8' && !isBeamed && (
                                     <path
                                       d={`M ${stemX} ${stemEndY} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -4 : 4) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -12 : 12) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -16 : 16) * zoom}`}
                                       stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
                                       strokeWidth={2.5 * zoom}
                                       fill="none"
                                     />
-                                    <path
-                                      d={`M ${stemX} ${stemEndY + (stemsBelow ? -6 : 6) * zoom} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -10 : 10) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -18 : 18) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -22 : 22) * zoom}`}
-                                      stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                      strokeWidth={2.5 * zoom}
-                                      fill="none"
-                                    />
-                                  </g>
-                                )}
+                                  )}
 
-                                {beat.isDotted && (
-                                  <circle cx={stemX + 8 * zoom} cy={stemEndY} r={2.5 * zoom} fill="#f59e0b" stroke="none" />
-                                )}
+                                  {beat.duration === '1/16' && !isBeamed && (
+                                    <g>
+                                      <path
+                                        d={`M ${stemX} ${stemEndY} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -4 : 4) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -12 : 12) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -16 : 16) * zoom}`}
+                                        stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
+                                        strokeWidth={2.5 * zoom}
+                                        fill="none"
+                                      />
+                                      <path
+                                        d={`M ${stemX} ${stemEndY + (stemsBelow ? -6 : 6) * zoom} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -10 : 10) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -18 : 18) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -22 : 22) * zoom}`}
+                                        stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
+                                        strokeWidth={2.5 * zoom}
+                                        fill="none"
+                                      />
+                                    </g>
+                                  )}
 
-                                {/* Isolated Triplet Indicator: Clean single '3' text on background when not in a 3-note group */}
-                                {beat.isTriplet && !isBeamed && (
-                                  <text
-                                    x={stemX}
-                                    y={stemEndY + (stemsBelow ? 16 * zoom : -10 * zoom)}
-                                    textAnchor="middle"
-                                    fill="#818cf8"
-                                    fontFamily="sans-serif, ui-sans-serif"
-                                    fontSize={`${12 * zoom}px`}
-                                    fontWeight="800"
-                                    style={{ pointerEvents: 'none' }}
-                                  >
-                                    3
-                                  </text>
-                                )}
-                              </g>
+                                  {beat.isDotted && (
+                                    <circle cx={stemX + 8 * zoom} cy={stemEndY} r={2.5 * zoom} fill="#f59e0b" stroke="none" />
+                                  )}
+                                </g>
+                              )}
 
                               {/* Duration Label Badge (Hidden in Print) */}
                               <g className="no-print">
                                 <rect
                                   x={stemX - 14 * zoom}
-                                  y={stemsBelow ? stemEndY + (beat.isTriplet ? 28 * zoom : 4 * zoom) : stemEndY - (beat.isTriplet ? 28 * zoom : 16 * zoom)}
+                                  y={stemsBelow ? stemEndY + 4 * zoom : stemEndY - 16 * zoom}
                                   width={28 * zoom}
                                   height={12 * zoom}
                                   fill="#0f172a"
-                                  stroke={beat.isTriplet ? '#6366f1' : '#334155'}
+                                  stroke="#334155"
                                   strokeWidth={1}
                                   rx={3}
                                   className="no-print"
                                 />
                                 <text
                                   x={stemX}
-                                  y={stemsBelow ? stemEndY + (beat.isTriplet ? 37 * zoom : 13 * zoom) : stemEndY - (beat.isTriplet ? 19 * zoom : 7 * zoom)}
+                                  y={stemsBelow ? stemEndY + 13 * zoom : stemEndY - 7 * zoom}
                                   textAnchor="middle"
                                   fill={
-                                    beat.isTriplet
-                                      ? '#818cf8'
-                                      : beat.duration === '1/4'
+                                    beat.duration === '1/4'
                                       ? '#94a3b8'
                                       : beat.duration === '1/8'
                                       ? '#38bdf8'

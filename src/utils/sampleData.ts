@@ -1,5 +1,5 @@
 import { UkuleleTabDocument } from '../types/ukulele';
-import { TUNING_PRESETS } from './musicTheory';
+import { TUNING_PRESETS, getChordPreset } from './musicTheory';
 
 export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
   id: 'tab-three-is-a-magic-number-001',
@@ -23,6 +23,7 @@ export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
         {
           id: 'b1-1',
           duration: '1/4',
+          chord: getChordPreset('G') || undefined,
           notes: [
             { id: 'n1-1', string: 4, fret: 0 },
             { id: 'n1-2', string: 3, fret: 2 },
@@ -81,6 +82,7 @@ export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
         {
           id: 'b3-1',
           duration: '1/2',
+          chord: getChordPreset('C') || undefined,
           notes: [
             { id: 'n3-1', string: 4, fret: 0 },
             { id: 'n3-2', string: 3, fret: 0 },
@@ -124,10 +126,11 @@ export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
         {
           id: 'b5-1',
           duration: '1/4',
+          chord: getChordPreset('A7') || undefined,
           notes: [
-            { id: 'n5-1', string: 4, fret: 2 },
-            { id: 'n5-2', string: 3, fret: 0 },
-            { id: 'n5-3', string: 2, fret: 2 },
+            { id: 'n5-1', string: 4, fret: 0 },
+            { id: 'n5-2', string: 3, fret: 1 },
+            { id: 'n5-3', string: 2, fret: 0 },
             { id: 'n5-4', string: 1, fret: 0 }
           ],
           lyric: 'Yes'

@@ -1,121 +1,189 @@
 import React from 'react';
-import { UkuleleNote, TuningConfig } from '../types/ukulele';
+import { UkuleleNote, TuningConfig, ChordMarker } from '../types/ukulele';
 
 interface ChordDiagramProps {
-  notes: UkuleleNote[];
-  tuning: TuningConfig;
+  notes?: UkuleleNote[];
+  chord?: ChordMarker;
+  tuning?: TuningConfig;
   chordName?: string;
+  width?: number;
+  height?: number;
+  textColor?: string;
+  dotColor?: string;
+  gridColor?: string;
+  isSvgInline?: boolean;
 }
 
-export const ChordDiagram: React.FC<ChordDiagramProps> = ({ notes, tuning, chordName }) => {
-  if (!notes.length) return null;
+export const ChordDiagram: React.FC<ChordDiagramProps> = ({
+  notes,
+  chord,
+  chordName: chordNameProp,
+  width = 54,
+  height = 68,
+  textColor = '#f59e0b',
+  dotColor = '#f59e0b',
+  gridColor = '#64748b',
+  isSvgInline = false
+}) => {
+  let chordName = chordNameProp || chord?.name;
+  let fretsPerString: Record<1 | 2 | 3 | 4, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
+
+  if (chord) {
+    // chord.frets is [String 4, String 3, String 2, String 1]
+    fretsPerString[4] = chord.frets[0];
+    fretsPerString[3] = chord.frets[1];
+    fretsPerString[2] = chord.frets[2];
+    fretsPerString[1] = chord.frets[3];
+  } else if (notes && notes.length) {
+    notes.forEach(n => {
+      fretsPerString[n.string] = n.fret;
+    });
+  } else {
+    return null;
+  }
 
   const numFrets = 4;
-  const width = 80;
-  const height = 90;
-  const topMargin = 22;
-  const sideMargin = 16;
+  const topMargin = 18;
+  const sideMargin = 10;
   const stringSpacing = (width - sideMargin * 2) / 3;
-  const fretSpacing = (height - topMargin - 10) / numFrets;
+  const fretSpacing = (height - topMargin - 6) / numFrets;
 
-  // Determine highest fret to calculate base fret if > 4
-  const frets = notes.map(n => n.fret).filter(f => f > 0);
-  const maxFret = frets.length ? Math.max(...frets) : 0;
-  const minFret = frets.length ? Math.min(...frets) : 1;
-  const baseFret = maxFret > 4 ? minFret : 1;
+  // Compute base fret
+  const activeFrets = Object.values(fretsPerString).filter(f => f > 0);
+  const maxFret = activeFrets.length ? Math.max(...activeFrets) : 0;
+  const minFret = activeFrets.length ? Math.min(...activeFrets) : 1;
+  const baseFret = chord?.baseFret || (maxFret > 4 ? minFret : 1);
+
+  const diagramContent = (
+    <>
+      {/* Chord Name Label */}
+      {chordName && (
+        <text
+          x={width / 2}
+          y={11}
+          textAnchor="middle"
+          fill={textColor}
+          fontFamily="'Outfit', system-ui, sans-serif"
+          fontSize="11px"
+          fontWeight="bold"
+          className="chord-title-text"
+        >
+          {chordName}
+        </text>
+      )}
+
+      {/* Nut Line (Thick if baseFret === 1) */}
+      <line
+        x1={sideMargin}
+        y1={topMargin}
+        x2={width - sideMargin}
+        y2={topMargin}
+        stroke={baseFret === 1 ? '#f8fafc' : gridColor}
+        strokeWidth={baseFret === 1 ? 2.5 : 1}
+        className="chord-nut-line"
+      />
+
+      {/* Base Fret Indicator (e.g. 3fr) */}
+      {baseFret > 1 && (
+        <text
+          x={sideMargin - 6}
+          y={topMargin + fretSpacing / 2 + 3}
+          textAnchor="end"
+          fill={gridColor}
+          fontFamily="monospace"
+          fontSize="8px"
+          fontWeight="bold"
+          className="chord-base-fret-text"
+        >
+          {baseFret}fr
+        </text>
+      )}
+
+      {/* Horizontal Fret Lines */}
+      {Array.from({ length: numFrets + 1 }).map((_, fIdx) => {
+        const y = topMargin + fIdx * fretSpacing;
+        return (
+          <line
+            key={`fret-${fIdx}`}
+            x1={sideMargin}
+            y1={y}
+            x2={width - sideMargin}
+            y2={y}
+            stroke={gridColor}
+            strokeWidth={0.8}
+            className="chord-fret-line"
+          />
+        );
+      })}
+
+      {/* 4 String Lines (String 4 left to String 1 right) */}
+      {([4, 3, 2, 1] as const).map((s, colIdx) => {
+        const x = sideMargin + colIdx * stringSpacing;
+        const fretVal = fretsPerString[s];
+
+        return (
+          <g key={`str-${s}`}>
+            {/* Vertical String Line */}
+            <line
+              x1={x}
+              y1={topMargin}
+              x2={x}
+              y2={topMargin + numFrets * fretSpacing}
+              stroke={gridColor}
+              strokeWidth={1.2}
+              className="chord-string-line"
+            />
+
+            {/* String Status: Fretted Dot, Open Circle O, or Unplayed X */}
+            {fretVal === 0 ? (
+              /* Open String (0) */
+              <circle
+                cx={x}
+                cy={topMargin - 4}
+                r={2.5}
+                fill="none"
+                stroke={dotColor}
+                strokeWidth={1.2}
+                className="chord-open-circle"
+              />
+            ) : fretVal > 0 ? (
+              /* Fretted Finger Placement Dot */
+              <circle
+                cx={x}
+                cy={topMargin + (fretVal - baseFret + 0.5) * fretSpacing}
+                r={3.8}
+                fill={dotColor}
+                className="chord-fretted-dot"
+              />
+            ) : (
+              /* Unplayed Muted String 'X' */
+              <text
+                x={x}
+                y={topMargin - 2}
+                textAnchor="middle"
+                fill={gridColor}
+                fontFamily="monospace"
+                fontSize="8px"
+                fontWeight="bold"
+                className="chord-muted-x"
+              >
+                ✕
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </>
+  );
+
+  if (isSvgInline) {
+    return <g className="chord-diagram-group">{diagramContent}</g>;
+  }
 
   return (
-    <div className="inline-flex flex-col items-center bg-slate-950/80 border border-slate-800 rounded-xl p-2 shadow-lg">
-      {chordName && (
-        <span className="text-xs font-bold font-outfit text-amber-400 mb-1">{chordName}</span>
-      )}
-      <svg width={width} height={height} className="select-none">
-        {/* Nut Line */}
-        <line
-          x1={sideMargin}
-          y1={topMargin}
-          x2={width - sideMargin}
-          y2={topMargin}
-          stroke="#f8fafc"
-          strokeWidth={baseFret === 1 ? 3 : 1}
-        />
-
-        {/* Base Fret Indicator */}
-        {baseFret > 1 && (
-          <text
-            x={sideMargin - 10}
-            y={topMargin + fretSpacing / 2 + 3}
-            className="fill-slate-400 font-mono text-[9px] font-bold"
-          >
-            {baseFret}fr
-          </text>
-        )}
-
-        {/* Fret Grid Lines */}
-        {Array.from({ length: numFrets + 1 }).map((_, fIdx) => {
-          const y = topMargin + fIdx * fretSpacing;
-          return (
-            <line
-              key={`fret-${fIdx}`}
-              x1={sideMargin}
-              y1={y}
-              x2={width - sideMargin}
-              y2={y}
-              stroke="#475569"
-              strokeWidth={1}
-            />
-          );
-        })}
-
-        {/* 4 String Lines (String 4 left to String 1 right on diagram) */}
-        {([4, 3, 2, 1] as const).map((s, colIdx) => {
-          const x = sideMargin + colIdx * stringSpacing;
-          const note = notes.find(n => n.string === s);
-
-          return (
-            <g key={`str-${s}`}>
-              <line
-                x1={x}
-                y1={topMargin}
-                x2={x}
-                y2={topMargin + numFrets * fretSpacing}
-                stroke="#64748b"
-                strokeWidth={1.5}
-              />
-
-              {/* Open String (0) or Fretted Dot */}
-              {note ? (
-                note.fret === 0 ? (
-                  <circle
-                    cx={x}
-                    cy={topMargin - 6}
-                    r={3}
-                    fill="none"
-                    stroke="#f59e0b"
-                    strokeWidth={1.5}
-                  />
-                ) : (
-                  <circle
-                    cx={x}
-                    cy={topMargin + (note.fret - baseFret + 0.5) * fretSpacing}
-                    r={5}
-                    fill="#f59e0b"
-                  />
-                )
-              ) : (
-                /* Unplayed String 'X' */
-                <text
-                  x={x}
-                  y={topMargin - 3}
-                  textAnchor="middle"
-                  className="fill-slate-500 font-mono text-[9px]"
-                >
-                  x
-                </text>
-              )}
-            </g>
-          );
-        })}
+    <div className="inline-flex flex-col items-center bg-slate-950/90 border border-slate-800 rounded-xl p-1.5 shadow-lg">
+      <svg width={width} height={height} className="select-none overflow-visible">
+        {diagramContent}
       </svg>
     </div>
   );

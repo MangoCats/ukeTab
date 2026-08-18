@@ -128,7 +128,6 @@ body {
   .no-print,
   .EditorToolbar,
   .InspectorPanel,
-  .ChordDiagram,
   foreignObject,
   .floating-popover,
   .ghost-fret,
@@ -213,13 +212,31 @@ body {
     stroke: #0f172a !important;
   }
 
-  /* High contrast black text for digits, time signature & lyrics */
+  /* High contrast black text for digits, time signature, lyrics & chord titles */
   text:not(.no-print) {
     fill: #000000 !important;
   }
 
-  /* Black stems, flags & beams */
-  path:not(.no-print), circle:not(.no-print) {
+  /* Black stems, flags, beams & chord elements */
+  path:not(.no-print) {
+    stroke: #000000 !important;
+  }
+
+  circle.chord-fretted-dot {
+    fill: #000000 !important;
+    stroke: none !important;
+  }
+
+  circle.chord-open-circle {
+    fill: none !important;
+    stroke: #000000 !important;
+  }
+
+  .chord-title-text, .chord-base-fret-text, .chord-muted-x {
+    fill: #000000 !important;
+  }
+
+  .chord-nut-line, .chord-fret-line, .chord-string-line {
     stroke: #000000 !important;
   }
 }

@@ -7,6 +7,12 @@ export interface UkuleleNote {
   isGhost?: boolean;     // Visual alternate fret suggestion flag
 }
 
+export interface ChordMarker {
+  name: string; // e.g. "Am", "E7", "G", "C", "F", "Dm"
+  frets: [number, number, number, number]; // Strings [4, 3, 2, 1]: -1 = Muted/Unplayed X, 0 = Open O, 1..20 = Fretted Dot
+  baseFret?: number; // Optional base fret offset (default 1)
+}
+
 export interface BeatColumn {
   id: string;
   duration: DurationType;
@@ -15,6 +21,7 @@ export interface BeatColumn {
   isRest?: boolean;
   isTied?: boolean; // When true, sustains into the next beat without re-strumming
   notes: UkuleleNote[];
+  chord?: ChordMarker; // Optional Ukulele Chord Diagram attached above beat
   lyric?: string;
 }
 

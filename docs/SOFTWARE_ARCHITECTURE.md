@@ -36,7 +36,7 @@
 ### Technology Stack
 - **Framework**: React 18+ with TypeScript (Type-safe domain modeling for music theory & rendering).
 - **Build Tool**: Vite (Lightning-fast dev server and optimized production bundles).
-- **Rendering Engine**: Custom SVG Vector Engine (Continuous staff systems, traditional vertically stacked time signatures, crisp at any print zoom level).
+- **Rendering Engine**: Custom SVG Vector Engine (Continuous staff systems, traditional vertically stacked time signatures, ukulele chord diagram charts, crisp at any print zoom level).
 - **Audio Engine**: Web Audio API (Low-latency audio synthesizer with acoustic ukulele pluck ADSR envelope & metronome click generator).
 - **Print & PDF Engine**: Browser High-DPI Vector Printing Engine with automatic web UI stripping, large 28pt song title header, and zero-whitespace system layout.
 - **MIDI Processing**: `@tonejs/midi` (Binary MIDI parsing and generation).
@@ -57,13 +57,21 @@ export interface UkuleleNote {
   isGhost?: boolean;     // Rendered for alternate fret suggestions
 }
 
+export interface ChordMarker {
+  name: string; // e.g. "Am", "E7", "G", "C", "F", "Dm"
+  frets: [number, number, number, number]; // Strings [4, 3, 2, 1]: -1 = Muted X, 0 = Open O, 1..20 = Fretted Dot
+  baseFret?: number; // Optional base fret offset (default 1)
+}
+
 export interface BeatColumn {
   id: string;
   duration: DurationType;
   isDotted?: boolean;
   isTriplet?: boolean;
   isRest?: boolean;
+  isTied?: boolean;
   notes: UkuleleNote[];
+  chord?: ChordMarker;
   lyric?: string;
 }
 
@@ -137,7 +145,10 @@ $$f' = P - \text{Tuning}[s' - 1]$$
 
 If $0 \le f' \le \text{maxFretLimit}$ (default 12), string $s'$ receives a ghost note option. Clicking the ghost note converts it into an active note.
 
-### 3.3 Dynamic Zoom-Aware System Row Wrapping Engine
+### 3.3 Ukulele Chord Diagram Engine
+Maps chord names (`Am`, `E7`, `G`, `C`, `F`, `Dm`, etc.) to 4-string fret arrays `[f4, f3, f2, f1]`. Renders mini 4-string vertical fingering charts directly above the staff line with filled dots (frets), open circles `○` (open strings), and `✕` (muted strings).
+
+### 3.4 Dynamic Zoom-Aware System Row Wrapping Engine
 Calculates total horizontal measure widths against printable page width boundaries (`820px`). When a measure overruns the margin threshold, it wraps onto a new continuous system row starting with its own clef string header and time signature.
 
 ---
@@ -145,7 +156,7 @@ Calculates total horizontal measure widths against printable page width boundari
 ## 4. Audio Playback & Playhead Subsystem
 
 - **Web Audio Engine**: Uses an oscillator array with high-frequency dampening to simulate acoustic ukulele string plucking, plus an impulse oscillator for metronome clicks.
-- **Audio Clock Scheduling**: Audio events are scheduled using `window.setInterval` synced to document tempo and playback speed multiplier (`0.5x`–`1.25x`).
+- **Audio Clock Scheduling**: Audio events are scheduled using `window.setTimeout` synced to document tempo and playback speed multiplier (`0.5x`–`1.25x`).
 - **Visual Playhead**: Driven by active beat state updates to highlight the current beat column in real time without UI stutter.
 
 ---

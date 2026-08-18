@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn } from './types/ukulele';
+import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, ChordMarker } from './types/ukulele';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
 import { transposePitches, getBeatDurationMs } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
@@ -23,7 +23,7 @@ export const App: React.FC = () => {
   const lastKeyTimeRef = useRef<number>(0);
   const lastDigitRef = useRef<string>('');
 
-  // Playback Loop Controller with Speed & Triplet/Dotted Dynamic Timing
+  // Precise Audio Scheduling Engine with Dynamic Duration & Triplet Support
   useEffect(() => {
     if (!isPlaying) {
       if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
@@ -39,35 +39,33 @@ export const App: React.FC = () => {
 
     let currentIndex = 0;
 
-    const playNextStep = () => {
+    const playNextBeat = () => {
       if (currentIndex >= allBeats.length) {
         setIsPlaying(false);
         setPlayingBeatId(null);
         return;
       }
+
       const beatInfo = allBeats[currentIndex];
       setPlayingBeatId(beatInfo.id);
 
       const isFirstBeatInMeasure = (currentIndex === 0) || (allBeats[currentIndex - 1].measureIndex !== beatInfo.measureIndex);
 
-      const prevBeat = currentIndex > 0 ? allBeats[currentIndex - 1] : null;
-      const isTiedFromPrev = prevBeat && prevBeat.isTied;
-
-      if (isTiedFromPrev) {
-        // Tied note from previous beat: do NOT re-strum, only click metronome if enabled
-        if (enableMetronome) {
-          playMetronomeClick(isFirstBeatInMeasure);
-        }
-      } else {
-        playBeatChord(beatInfo, document.tuning, enableMetronome, isFirstBeatInMeasure);
+      if (!beatInfo.isRest && !beatInfo.isTied) {
+        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure);
+      }
+      if (enableMetronome && isFirstBeatInMeasure) {
+        playMetronomeClick(true);
+      } else if (enableMetronome) {
+        playMetronomeClick(false);
       }
 
-      const delayMs = getBeatDurationMs(beatInfo, document.tempo, playbackSpeed);
+      const durationMs = getBeatDurationMs(beatInfo, document.tempo, playbackSpeed);
       currentIndex++;
-      playbackTimeoutRef.current = window.setTimeout(playNextStep, delayMs);
+      playbackTimeoutRef.current = window.setTimeout(playNextBeat, durationMs);
     };
 
-    playNextStep();
+    playNextBeat();
 
     return () => {
       if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
@@ -109,6 +107,27 @@ export const App: React.FC = () => {
         return;
       }
 
+      // Toggle Rest: Key 'r'
+      if (keyLower === 'r' && selectedBeatId) {
+        e.preventDefault();
+        handleToggleRest(selectedBeatId);
+        return;
+      }
+
+      // Toggle Triplet: Key 't'
+      if (keyLower === 't' && selectedBeatId) {
+        e.preventDefault();
+        handleToggleTriplet(selectedBeatId);
+        return;
+      }
+
+      // Toggle Tie / Sustain: Key 'l'
+      if (keyLower === 'l' && selectedBeatId) {
+        e.preventDefault();
+        handleToggleTie(selectedBeatId);
+        return;
+      }
+
       // Dot shortcut (.)
       if (e.key === '.' && selectedBeatId) {
         e.preventDefault();
@@ -126,27 +145,6 @@ export const App: React.FC = () => {
       if ((e.key === '+' || (e.shiftKey && e.key === 'Enter')) && selectedBeatId) {
         e.preventDefault();
         handleInsertBeat(selectedBeatId);
-        return;
-      }
-
-      // 'r' or 'R': Toggle Rest for selected beat
-      if ((e.key === 'r' || e.key === 'R') && selectedBeatId) {
-        e.preventDefault();
-        handleToggleRest(selectedBeatId);
-        return;
-      }
-
-      // 't' or 'T': Toggle Triplet (3:2) designation for selected beat
-      if ((e.key === 't' || e.key === 'T') && selectedBeatId) {
-        e.preventDefault();
-        handleToggleTriplet(selectedBeatId);
-        return;
-      }
-
-      // 'l' or 'L': Toggle Tie (Sustain beat into next beat) for selected beat
-      if ((e.key === 'l' || e.key === 'L') && selectedBeatId) {
-        e.preventDefault();
-        handleToggleTie(selectedBeatId);
         return;
       }
 
@@ -292,7 +290,7 @@ export const App: React.FC = () => {
         const beatIdx = m.beats.findIndex(b => b.id === afterBeatId);
         if (beatIdx === -1) return m;
 
-        const newRestBeat: BeatColumn = {
+        const newBeat: BeatColumn = {
           id: newId,
           duration: activeDuration,
           isRest: true,
@@ -300,7 +298,7 @@ export const App: React.FC = () => {
         };
 
         const updatedBeats = [...m.beats];
-        updatedBeats.splice(beatIdx + 1, 0, newRestBeat);
+        updatedBeats.splice(beatIdx + 1, 0, newBeat);
         return { ...m, beats: updatedBeats };
       })
     }));
@@ -356,6 +354,22 @@ export const App: React.FC = () => {
     }));
   };
 
+  const handleSetBeatChord = (beatId: string, chord: ChordMarker | null) => {
+    setDocument(prev => ({
+      ...prev,
+      measures: prev.measures.map(m => ({
+        ...m,
+        beats: m.beats.map(b => {
+          if (b.id !== beatId) return b;
+          return {
+            ...b,
+            chord: chord || undefined
+          };
+        })
+      }))
+    }));
+  };
+
   const handleDeleteBeatColumn = (beatId: string) => {
     setDocument(prev => {
       const targetMeasure = prev.measures.find(m => m.beats.some(b => b.id === beatId));
@@ -384,31 +398,27 @@ export const App: React.FC = () => {
           };
         }
 
-        const updatedMeasures = prev.measures
+        const remainingMeasures = prev.measures
           .filter(m => m.id !== targetMeasure.id)
           .map((m, idx) => ({ ...m, index: idx + 1 }));
 
-        return {
-          ...prev,
-          measures: updatedMeasures
-        };
+        return { ...prev, measures: remainingMeasures };
       }
 
-      return {
-        ...prev,
-        measures: prev.measures.map(m => {
-          if (m.id !== targetMeasure.id) return m;
-          return {
-            ...m,
-            beats: m.beats.filter(b => b.id !== beatId)
-          };
-        })
-      };
+      const updatedMeasures = prev.measures.map(m => {
+        if (m.id !== targetMeasure.id) return m;
+        return {
+          ...m,
+          beats: m.beats.filter(b => b.id !== beatId)
+        };
+      });
+
+      return { ...prev, measures: updatedMeasures };
     });
     setSelectedBeatId(null);
   };
 
-  const handleUpdateBeatDuration = (beatId: string, duration: DurationType, isDotted?: boolean, isTriplet?: boolean) => {
+  const handleUpdateBeatDuration = (beatId: string, duration: DurationType, isDotted?: boolean) => {
     setDocument(prev => ({
       ...prev,
       measures: prev.measures.map(m => ({
@@ -418,8 +428,7 @@ export const App: React.FC = () => {
           return {
             ...b,
             duration,
-            isDotted: isDotted !== undefined ? isDotted : b.isDotted,
-            isTriplet: isTriplet !== undefined ? isTriplet : b.isTriplet
+            isDotted: isDotted !== undefined ? isDotted : b.isDotted
           };
         })
       }))
@@ -473,6 +482,14 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleNewSong = () => {
+    if (window.confirm('Create a new blank ukulele tab chart? Unsaved changes will be replaced.')) {
+      const blankDoc = createBlankTabDocument();
+      setDocument(blankDoc);
+      setSelectedBeatId(blankDoc.measures[0]?.beats[0]?.id || null);
+    }
+  };
+
   const handleExportJson = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(document, null, 2));
     const downloadAnchor = window.document.createElement('a');
@@ -487,14 +504,6 @@ export const App: React.FC = () => {
     setDocument(importedDoc);
     const firstBeat = importedDoc.measures[0]?.beats[0]?.id || null;
     setSelectedBeatId(firstBeat);
-  };
-
-  const handleNewSong = () => {
-    if (window.confirm('Clear all measures and start a new blank song? Unsaved changes will be cleared.')) {
-      const blankDoc = createBlankTabDocument();
-      setDocument(blankDoc);
-      setSelectedBeatId(blankDoc.measures[0]?.beats[0]?.id || null);
-    }
   };
 
   const handleExportPdf = () => {
@@ -552,20 +561,20 @@ export const App: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-amber-400">1. Setting Fret Notes:</span>
-              <p className="text-slate-300">Click any string on a beat, then type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or use floating popover bar.</p>
+              <span className="font-bold text-amber-400">1. Setting Fret Notes & Chords:</span>
+              <p className="text-slate-300">Click string on staff, type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or pick a Ukulele Chord (Am, G, F, C) in Inspector.</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-sky-400">2. Note Value (Rhythm):</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-sky-300 font-mono">w, h, q, e, s</code> for Whole, Half, 1/4, 1/8, 1/16.</p>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-sky-300 font-mono">w, h, q, e, s</code> for Whole, Half, 1/4, 1/8, 1/16 rhythm values.</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-purple-400">3. Insert / Toggle Rest:</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">r</code> to toggle Rest, or click <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">+ Rest</code> on toolbar.</p>
+              <span className="font-bold text-indigo-400">3. Rests, Triplets & Ties:</span>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">R</code> for Rest, <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300 font-mono">T</code> for Triplet (3:2), <code className="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">L</code> for Tie (Sustain).</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-rose-400">4. Delete & Playback:</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> / <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Delete</code>. (Deleting last beat deletes measure).</p>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> to delete note. Press <code className="bg-slate-800 px-1 py-0.5 rounded text-emerald-300 font-mono">Spacebar</code> to Play/Pause.</p>
             </div>
           </div>
         </div>
@@ -625,6 +634,7 @@ export const App: React.FC = () => {
           onDeleteBeatColumn={handleDeleteBeatColumn}
           onUpdateBeatDuration={handleUpdateBeatDuration}
           onUpdateBeatLyric={handleUpdateBeatLyric}
+          onSetBeatChord={handleSetBeatChord}
         />
 
         {/* Inspector Panel (Hidden in Print) */}
@@ -642,6 +652,7 @@ export const App: React.FC = () => {
             onToggleTriplet={handleToggleTriplet}
             onToggleTie={handleToggleTie}
             onDeleteBeatColumn={handleDeleteBeatColumn}
+            onSetBeatChord={handleSetBeatChord}
           />
         </div>
       </main>
