@@ -36,49 +36,86 @@ export const TUNING_PRESETS: Record<TuningPresetKey, TuningConfig> = {
 
 /**
  * Standard Ukulele Chord Preset Library (gCEA Standard Tuning)
- * Maps chord name to fret array [String 4, String 3, String 2, String 1].
+ * UkuTabs style chord catalog mapping chord name/abbreviation to fret array [String 4, String 3, String 2, String 1].
  * Values: -1 = Muted/Unplayed X, 0 = Open O, 1..20 = Fretted
  */
 export const UKULELE_CHORD_LIBRARY: Record<string, [number, number, number, number]> = {
   'C': [0, 0, 0, 3],
   'C7': [0, 0, 0, 1],
   'Cm': [0, 3, 3, 3],
+  'Cm7': [3, 3, 3, 3],
+  'C7m': [3, 3, 3, 3],
   'Cmaj7': [0, 0, 0, 2],
+  'Cadd9': [0, 0, 0, 5],
+  'Csus4': [0, 0, 1, 3],
+
   'G': [0, 2, 3, 2],
   'G7': [0, 2, 1, 2],
   'Gm': [0, 2, 3, 1],
+  'Gm7': [0, 2, 1, 1],
+  'G7m': [0, 2, 1, 1],
   'Gmaj7': [0, 2, 2, 2],
+  'Gsus4': [0, 2, 3, 3],
+
   'Am': [2, 0, 0, 0],
   'A': [2, 1, 0, 0],
   'A7': [0, 1, 0, 0],
+  'Am7': [0, 0, 0, 0],
+  'A7m': [0, 0, 0, 0],
   'Amaj7': [1, 1, 0, 0],
+  'Asus4': [2, 2, 0, 0],
+
   'F': [2, 0, 1, 0],
   'F7': [2, 3, 1, 0],
   'Fm': [1, 0, 1, 3],
+  'Fm7': [1, 3, 1, 3],
+  'F7m': [1, 3, 1, 3],
   'Fmaj7': [2, 4, 1, 0],
+  'Fadd9': [0, 0, 1, 0],
+
   'Em': [0, 4, 3, 2],
   'E': [4, 4, 4, 2],
   'E7': [1, 2, 0, 2],
+  'Em7': [0, 2, 0, 2],
+  'E7m': [0, 2, 0, 2], // UkuTabs alternative shorthand
   'Emaj7': [1, 3, 0, 2],
+
   'Dm': [2, 2, 1, 0],
   'D': [2, 2, 2, 0],
   'D7': [2, 2, 2, 3],
+  'Dm7': [2, 2, 1, 3],
+  'D7m': [2, 2, 1, 3],
   'Dmaj7': [2, 2, 2, 4],
+  'Dsus4': [2, 2, 3, 0],
+
   'Bm': [4, 2, 2, 2],
   'B': [4, 3, 2, 2],
   'B7': [2, 3, 2, 2],
+  'Bm7': [2, 2, 2, 2],
+  'B7m': [2, 2, 2, 2],
+
   'Bb': [3, 2, 1, 1],
   'Bbm': [3, 1, 1, 1],
   'Bb7': [1, 2, 1, 1],
+
   'Eb': [0, 3, 3, 1],
   'Ab': [5, 3, 4, 3],
   'F#m': [2, 1, 2, 0],
+  'F#m7': [2, 2, 2, 0],
   'C#m': [1, 1, 0, 4],
+  'C#m7': [1, 1, 0, 2]
 };
 
 export function getChordPreset(name: string): ChordMarker | null {
   const normalized = name.trim();
-  const frets = UKULELE_CHORD_LIBRARY[normalized];
+  if (!normalized) return null;
+
+  // Case-insensitive lookup match
+  const libraryKey = Object.keys(UKULELE_CHORD_LIBRARY).find(
+    k => k.toLowerCase() === normalized.toLowerCase()
+  );
+
+  const frets = libraryKey ? UKULELE_CHORD_LIBRARY[libraryKey] : null;
   if (!frets) return null;
 
   // Determine base fret if frets exceed 4
@@ -88,7 +125,7 @@ export function getChordPreset(name: string): ChordMarker | null {
   const baseFret = maxFret > 4 ? minFret : 1;
 
   return {
-    name: normalized,
+    name: libraryKey || normalized,
     frets: [...frets] as [number, number, number, number],
     baseFret
   };

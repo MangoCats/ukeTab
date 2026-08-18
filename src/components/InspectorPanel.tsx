@@ -68,7 +68,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const pitchMidi = selectedString && activeNote ? calculatePitch(selectedString, activeNote.fret, tuning) : null;
   const pitchName = pitchMidi ? midiToNoteName(pitchMidi) : null;
 
-  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'G7', 'C7', 'A7', 'Bm', 'Bb', 'D7', 'E', 'B'];
+  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'E7m', 'G7', 'C7', 'A7', 'Bm', 'Bb', 'D7', 'E', 'B'];
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-md space-y-5 InspectorPanel">

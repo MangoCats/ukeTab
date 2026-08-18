@@ -18,18 +18,18 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   notes,
   chord,
   chordName: chordNameProp,
-  width = 54,
-  height = 68,
+  width = 46,
+  height = 58,
   textColor = '#f59e0b',
   dotColor = '#f59e0b',
-  gridColor = '#64748b',
+  gridColor = '#94a3b8',
   isSvgInline = false
 }) => {
   let chordName = chordNameProp || chord?.name;
   let fretsPerString: Record<1 | 2 | 3 | 4, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
 
   if (chord) {
-    // chord.frets is [String 4, String 3, String 2, String 1]
+    // chord.frets is [String 4 (G), String 3 (C), String 2 (E), String 1 (A)]
     fretsPerString[4] = chord.frets[0];
     fretsPerString[3] = chord.frets[1];
     fretsPerString[2] = chord.frets[2];
@@ -43,10 +43,10 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   }
 
   const numFrets = 4;
-  const topMargin = 18;
-  const sideMargin = 10;
+  const topMargin = 16;
+  const sideMargin = 9;
   const stringSpacing = (width - sideMargin * 2) / 3;
-  const fretSpacing = (height - topMargin - 6) / numFrets;
+  const fretSpacing = (height - topMargin - 5) / numFrets;
 
   // Compute base fret
   const activeFrets = Object.values(fretsPerString).filter(f => f > 0);
@@ -56,17 +56,17 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
 
   const diagramContent = (
     <>
-      {/* Chord Name Label */}
+      {/* Chord Name Label e.g. G, C, F, Dm, E7, E7m */}
       {chordName && (
         <text
           x={width / 2}
-          y={11}
+          y={10}
           textAnchor="middle"
           fill={textColor}
-          fontFamily="'Outfit', system-ui, sans-serif"
-          fontSize="11px"
+          fontFamily="'Outfit', 'Inter', system-ui, sans-serif"
+          fontSize="10px"
           fontWeight="bold"
-          className="chord-title-text"
+          className="chord-title-text select-none"
         >
           {chordName}
         </text>
@@ -86,12 +86,12 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
       {/* Base Fret Indicator (e.g. 3fr) */}
       {baseFret > 1 && (
         <text
-          x={sideMargin - 6}
+          x={sideMargin - 4}
           y={topMargin + fretSpacing / 2 + 3}
           textAnchor="end"
           fill={gridColor}
           fontFamily="monospace"
-          fontSize="8px"
+          fontSize="7.5px"
           fontWeight="bold"
           className="chord-base-fret-text"
         >
@@ -110,13 +110,13 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
             x2={width - sideMargin}
             y2={y}
             stroke={gridColor}
-            strokeWidth={0.8}
+            strokeWidth={0.7}
             className="chord-fret-line"
           />
         );
       })}
 
-      {/* 4 String Lines (String 4 left to String 1 right) */}
+      {/* 4 String Lines (String 4 G left to String 1 A right) */}
       {([4, 3, 2, 1] as const).map((s, colIdx) => {
         const x = sideMargin + colIdx * stringSpacing;
         const fretVal = fretsPerString[s];
@@ -130,17 +130,17 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
               x2={x}
               y2={topMargin + numFrets * fretSpacing}
               stroke={gridColor}
-              strokeWidth={1.2}
+              strokeWidth={1.1}
               className="chord-string-line"
             />
 
-            {/* String Status: Fretted Dot, Open Circle O, or Unplayed X */}
+            {/* String Status: Open Circle O, Muted X, or Fretted Dot */}
             {fretVal === 0 ? (
               /* Open String (0) */
               <circle
                 cx={x}
                 cy={topMargin - 4}
-                r={2.5}
+                r={2.2}
                 fill="none"
                 stroke={dotColor}
                 strokeWidth={1.2}
@@ -151,7 +151,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
               <circle
                 cx={x}
                 cy={topMargin + (fretVal - baseFret + 0.5) * fretSpacing}
-                r={3.8}
+                r={3.2}
                 fill={dotColor}
                 className="chord-fretted-dot"
               />
@@ -163,7 +163,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
                 textAnchor="middle"
                 fill={gridColor}
                 fontFamily="monospace"
-                fontSize="8px"
+                fontSize="7.5px"
                 fontWeight="bold"
                 className="chord-muted-x"
               >
@@ -181,7 +181,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   }
 
   return (
-    <div className="inline-flex flex-col items-center bg-slate-950/90 border border-slate-800 rounded-xl p-1.5 shadow-lg">
+    <div className="inline-flex flex-col items-center bg-slate-950/90 border border-slate-800 rounded-xl p-1 shadow-lg">
       <svg width={width} height={height} className="select-none overflow-visible">
         {diagramContent}
       </svg>

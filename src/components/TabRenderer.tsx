@@ -1,6 +1,6 @@
 import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker } from '../types/ukulele';
-import { getAlternateFretSuggestions, UKULELE_CHORD_LIBRARY, getChordPreset } from '../utils/musicTheory';
+import { getAlternateFretSuggestions, getChordPreset } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
 import { Trash2, PlusCircle, Music } from 'lucide-react';
 
@@ -81,7 +81,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     { label: '1/16', value: '1/16' }
   ];
 
-  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'G7', 'C7', 'A7', 'Bm', 'Bb'];
+  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'E7m', 'G7', 'C7', 'A7', 'Bm', 'Bb', 'D7', 'E', 'B'];
 
   // Zoom-Aware Dynamic Row-Wrapping Engine
   const pagePrintWidth = 820; 
@@ -120,7 +120,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             <ChordDiagram notes={activeChordNotes} tuning={tuning} chordName={currentBeatChord?.name} />
           </div>
           <div className="text-xs text-slate-400 font-mono hidden md:block">
-            Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">Ukulele Chord Diagram</span> (e.g. Am, G, F, C) rendered above the staff lines.
+            Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">Ukulele Chord Diagram</span> (e.g. G, C, F, Dm, E7, E7m) rendered above the staff lines.
           </div>
         </div>
       )}
@@ -130,8 +130,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
         <div className="tab-canvas-wrapper flex flex-col space-y-6">
           {systems.map((systemMeasures, sysIdx) => {
             const hasChordsInSystem = systemMeasures.some(m => m.beats.some(b => b.chord));
-            const chordSpace = hasChordsInSystem ? 75 * zoom : 0;
-            const topMargin = (stemsBelow ? 45 * zoom : 65 * zoom) + chordSpace;
+            const chordSpace = hasChordsInSystem ? 65 * zoom : 0;
+            const topMargin = (stemsBelow ? 40 * zoom : 60 * zoom) + chordSpace;
             const bottomMargin = stemsBelow ? 55 * zoom : 30 * zoom;
 
             const getStringY = (stringIndex: 1 | 2 | 3 | 4) => {
@@ -347,16 +347,16 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                 className="playhead-highlight no-print transition-colors duration-150 group-hover:fill-slate-800/40"
                               />
 
-                              {/* Ukulele Chord Diagram Chart Rendered Above Staff */}
+                              {/* Ukulele Chord Diagram Chart Rendered Above Staff (UkuTabs Style) */}
                               {beat.chord && (
                                 <g
-                                  transform={`translate(${beatX - 27 * zoom}, ${string1Y - 76 * zoom}) scale(${zoom})`}
+                                  transform={`translate(${beatX - 23 * zoom}, ${string1Y - 64 * zoom}) scale(${zoom})`}
                                   className="chord-chart-rendering"
                                 >
                                   <ChordDiagram
                                     chord={beat.chord}
-                                    width={54}
-                                    height={68}
+                                    width={46}
+                                    height={58}
                                     textColor="#f59e0b"
                                     dotColor="#f59e0b"
                                     gridColor="#94a3b8"
