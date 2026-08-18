@@ -4,6 +4,19 @@ This document provides step-by-step instructions for setting up the development 
 
 ---
 
+## 🚀 Running the Project
+
+### Development Server (Hot-Reloading)
+To launch the interactive local development server with instant hot-reloading:
+```bash
+npm run dev
+```
+
+Once started, open your web browser and navigate to:
+👉 **[http://localhost:3000/](http://localhost:3000/)** (or the URL printed in your terminal).
+
+---
+
 ## 📋 Prerequisites
 
 Before setting up UkeTab, ensure you have the following installed on your operating system:
@@ -35,19 +48,6 @@ npm install
 
 ---
 
-## 🚀 Running the Project
-
-### Development Server (Hot-Reloading)
-To launch the interactive local development server with instant hot-reloading:
-```bash
-npm run dev
-```
-
-Once started, open your web browser and navigate to:
-👉 **[http://localhost:3000/](http://localhost:3000/)** (or the URL printed in your terminal).
-
----
-
 ## 📦 Production Build & Testing
 
 ### 1. Type Check & Compile Production Bundle
@@ -64,13 +64,14 @@ npm run preview
 
 ---
 
-## 🪕 Key Application Features
+## 🚀 Running the Project
 
-- **WYSIWYG 4-Line Ukulele Staff**: Edit tab fret numbers, traditional rhythm stems/flags, and lyrics.
-- **Ukulele Chord Diagram Charts**: Assign 4-line fingering grids with filled dots (frets), open circles (`○`), muted markers (`✕`), and chord titles above tabs.
-- **Composition Chord Palette Manager**: Limit chord dropdowns to relevant song chords or define custom chord fingerings.
-- **Auto Chord Recognition**: Auto-populates matching chord definitions when 4-string beats are selected.
-- **Guitar Pro Importer (`.gp`, `.gp3`–`.gp5`, `.gpx`)**: Import Guitar Pro files to generate pristine Ukulele tab charts with exact measure barlines, rhythm stems, and tied/continued notes.
-- **Tied / Continued Note Engine**: Rings out sustained notes across beat boundaries without re-strumming, with visual tie arches e.g. `(12) ⁀`.
-- **PDF Print Export Engine**: Export clean, high-contrast sheet music without web editing controls.
-- **Save & Open `.uketab` JSON Files**: Store and reload tab documents locally.
+### Development Server (Hot-Reloading)
+To launch the interactive local development server with instant hot-reloading:
+```bash
+npm run dev
+```
+
+Once started, open your web browser and navigate to:
+👉 **[http://localhost:3000/](http://localhost:3000/)** (or the URL printed in your terminal).
+
