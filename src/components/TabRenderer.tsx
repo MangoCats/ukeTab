@@ -95,7 +95,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   }
 
   // Zoom-Aware Dynamic Row-Wrapping Engine
-  const pagePrintWidth = 820; 
+  const pagePrintWidth = 780; 
   const maxSystemWidth = pagePrintWidth;
 
   const systems: Measure[][] = [];

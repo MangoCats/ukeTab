@@ -374,17 +374,17 @@ body {
     page-break-inside: avoid !important;
   }
 
-  /* Line Masking Box: Pure white in print expanded for 3x fret number */
+  /* Line Masking Box: Pure white in print scaled for 20pt fret number */
   .fret-mask {
     fill: #ffffff !important;
     transform-box: fill-box !important;
     transform-origin: center !important;
-    transform: scale(2.2) !important;
+    transform: scale(1.5) !important;
   }
 
-  /* Triple Size Note on Tab Number Font in PDF / Print Export (3x) */
+  /* 20pt Note on Tab Number Font in PDF / Print Export */
   .fret-number-text {
-    font-size: 32pt !important;
+    font-size: 20pt !important;
     font-weight: 800 !important;
     fill: #000000 !important;
     dominant-baseline: central !important;
