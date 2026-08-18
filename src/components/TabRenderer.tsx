@@ -142,7 +142,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
       <div className="w-full overflow-x-auto bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-6 shadow-2xl relative border-none shadow-none bg-transparent">
         <div className="tab-canvas-wrapper flex flex-col space-y-6">
           {systems.map((systemMeasures, sysIdx) => {
-            const hasChordsInSystem = systemMeasures.some(m => m.beats.some(b => b.chord));
+            const hasChordsInSystem = systemMeasures.some(m => m.beats.some(b => b.chord || autoDetectChordFromBeatNotes(b.notes, activeChordsList)));
             const chordSpace = hasChordsInSystem ? 85 * zoom : 0;
             const topMargin = (stemsBelow ? 45 * zoom : 65 * zoom) + chordSpace;
             const bottomMargin = stemsBelow ? 55 * zoom : 30 * zoom;
@@ -337,6 +337,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                           const activeNotes = beat.notes.filter(n => !n.isGhost);
                           const ghostNotes = isSelected ? getAlternateFretSuggestions(activeNotes, tuning, maxFretLimit) : [];
 
+                          const autoBeatChord = autoDetectChordFromBeatNotes(activeNotes, activeChordsList);
+                          const displayChord = beat.chord || autoBeatChord || undefined;
+
                           const stemX = beatX;
                           const stemStartY = stemsBelow ? string4Y + 6 * zoom : string1Y - 6 * zoom;
                           const stemEndY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
@@ -361,13 +364,13 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                               />
 
                               {/* Ukulele Chord Diagram Chart Rendered Above Staff */}
-                              {beat.chord && (
+                              {displayChord && (
                                 <g
                                   transform={`translate(${beatX - 25 * zoom}, ${string1Y - 78 * zoom}) scale(${zoom})`}
                                   className="chord-chart-rendering"
                                 >
                                   <ChordDiagram
-                                    chord={beat.chord}
+                                    chord={displayChord}
                                     width={50}
                                     height={72}
                                     textColor="#f59e0b"
@@ -602,7 +605,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                         <Music className="w-3 h-3 text-amber-400" />
                                         <span className="text-[11px] text-amber-400 font-bold">Chord:</span>
                                         <select
-                                          value={effectiveChord?.name || ''}
+                                          value={displayChord?.name || ''}
                                           onChange={(e) => {
                                             e.stopPropagation();
                                             const chordName = e.target.value;

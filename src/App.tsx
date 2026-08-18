@@ -223,6 +223,24 @@ export const App: React.FC = () => {
     if (stringIndex) {
       setSelectedString(stringIndex);
     }
+
+    // Auto-assign matching chord if 4 strings are defined on beat and no chord was previously assigned
+    setDocument(prev => ({
+      ...prev,
+      measures: prev.measures.map(m => ({
+        ...m,
+        beats: m.beats.map(b => {
+          if (b.id !== beatId) return b;
+          if (!b.chord) {
+            const autoChord = autoDetectChordFromBeatNotes(b.notes, prev.chordPalette);
+            if (autoChord) {
+              return { ...b, chord: autoChord };
+            }
+          }
+          return b;
+        })
+      }))
+    }));
   };
 
   const handleAddNote = (beatId: string, stringIndex: 1 | 2 | 3 | 4, fret: number) => {
