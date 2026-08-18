@@ -48,11 +48,11 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const fretButtonList = Array.from({ length: maxFretLimit + 1 }, (_, i) => i);
   const popoverWidth = Math.max(520, (maxFretLimit + 1) * 24 + 130);
 
-  // Layout metrics
-  const lineSpacing = 18 * zoom;
-  const stringHeaderWidth = 55 * zoom;
-  const measurePadding = 12 * zoom;
-  const beatWidth = 56 * zoom;
+  // Layout metrics (Relaxed halfway between previous 68px and compact 56px)
+  const lineSpacing = 19 * zoom;
+  const stringHeaderWidth = 60 * zoom;
+  const measurePadding = 15 * zoom;
+  const beatWidth = 62 * zoom;
 
   // Selected beat info for Chord Diagram & Inspector
   let activeChordNotes: UkuleleNote[] = [];
@@ -96,9 +96,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
   // Calculate layout heights
   const hasChordsInDocument = measures.some(m => m.beats.some(b => b.chord && typeof b.chord === 'object'));
-  const chordSpace = hasChordsInDocument ? 72 * zoom : 0;
-  const topMargin = (stemsBelow ? 38 * zoom : 54 * zoom) + chordSpace;
-  const bottomMargin = stemsBelow ? 45 * zoom : 25 * zoom;
+  const chordSpace = hasChordsInDocument ? 78 * zoom : 0;
+  const topMargin = (stemsBelow ? 42 * zoom : 60 * zoom) + chordSpace;
+  const bottomMargin = stemsBelow ? 50 * zoom : 28 * zoom;
 
   const getStringY = (stringIndex: 1 | 2 | 3 | 4) => {
     return topMargin + (stringIndex - 1) * lineSpacing;

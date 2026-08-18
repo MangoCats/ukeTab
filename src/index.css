@@ -407,9 +407,9 @@ body {
     dominant-baseline: central !important;
   }
 
-  /* Double Size Lyric Font in PDF / Print Export (2x) */
+  /* 14pt Lyric Font in PDF / Print Export */
   .tab-lyric-text {
-    font-size: 20pt !important;
+    font-size: 14pt !important;
     font-weight: 700 !important;
     fill: #000000 !important;
   }
