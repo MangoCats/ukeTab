@@ -436,8 +436,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                     />
                                     <text
                                       x={beatX}
-                                      y={stringY + 4 * zoom}
+                                      y={stringY}
                                       textAnchor="middle"
+                                      dominantBaseline="central"
                                       fill={
                                         isNoteTied
                                           ? '#38bdf8'
@@ -509,8 +510,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                     />
                                     <text
                                       x={beatX}
-                                      y={stringY + 4 * zoom}
+                                      y={stringY}
                                       textAnchor="middle"
+                                      dominantBaseline="central"
                                       fill="#c084fc"
                                       fontFamily="monospace, ui-monospace, sans-serif"
                                       fontSize={`${13 * zoom}px`}
