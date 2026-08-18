@@ -18,7 +18,16 @@ function convertGpDuration(duration: number, isDotted: boolean): { duration: Dur
 }
 
 /**
- * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied/Continued Notes.
+ * Clean Guitar Pro lyric syllable formatting (remove trailing commas/hyphens)
+ */
+function cleanGpLyric(lyrics: string[] | null | undefined): string | undefined {
+  if (!lyrics || lyrics.length === 0) return undefined;
+  const raw = lyrics.join('').replace(/,/g, '').trim();
+  return raw || undefined;
+}
+
+/**
+ * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied/Continued Notes & Synchronized Lyrics.
  */
 export function parseGuitarProToUkuleleTab(
   arrayBuffer: ArrayBuffer,
@@ -38,9 +47,13 @@ export function parseGuitarProToUkuleleTab(
     throw new Error('Guitar Pro file contains no tracks.');
   }
 
-  // Find active guitar / melody track (default to track 0)
-  const track = score.tracks[0];
-  const staff = track.staves[0];
+  // Find track with lyrics or default to track 0
+  let targetTrack = score.tracks.find(t => t.staves.some(s => s.bars.some(b => b.voices.some(v => v.beats.some(bt => bt.lyrics && bt.lyrics.length > 0)))));
+  if (!targetTrack) {
+    targetTrack = score.tracks[0];
+  }
+
+  const staff = targetTrack.staves[0];
 
   if (!staff || !staff.bars || staff.bars.length === 0) {
     throw new Error('Guitar Pro track contains no measures.');
@@ -119,6 +132,7 @@ export function parseGuitarProToUkuleleTab(
         }
 
         const autoChord = autoDetectChordFromBeatNotes(ukeNotes, chordPalette);
+        const beatLyric = cleanGpLyric(gpBeat.lyrics);
 
         beatsInBar.push({
           id: `b-gp-${mIdx + 1}-${bIdx + 1}`,
@@ -127,7 +141,8 @@ export function parseGuitarProToUkuleleTab(
           isRest: isRest,
           isTied: hasTiedNote, // Mark BeatColumn as tied/continued note
           notes: ukeNotes,
-          chord: autoChord || undefined
+          chord: autoChord || undefined,
+          lyric: beatLyric
         });
       });
     } else {
