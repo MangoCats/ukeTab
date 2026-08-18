@@ -46,7 +46,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const stemsBelow = layout.stemsPlacement === 'below';
   const maxFretLimit = layout.maxFretLimit ?? 12;
   const fretButtonList = Array.from({ length: maxFretLimit + 1 }, (_, i) => i);
-  const popoverWidth = Math.max(440, (maxFretLimit + 1) * 24 + 110);
+  const popoverWidth = Math.max(520, (maxFretLimit + 1) * 24 + 130);
 
   // Layout metrics
   const lineSpacing = 20 * zoom;
@@ -605,6 +605,19 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                       >
                                         <PlusCircle className="w-3 h-3" />
                                         <span>+ Beat</span>
+                                      </button>
+
+                                      {/* Delete Beat Event */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onDeleteBeatColumn(beat.id);
+                                        }}
+                                        className="px-2 py-0.5 rounded-md bg-rose-600/30 hover:bg-rose-600/60 text-rose-300 font-bold text-[11px] transition flex items-center gap-1"
+                                        title="Delete this beat column from measure"
+                                      >
+                                        <Trash2 className="w-3 h-3 text-rose-400" />
+                                        <span>Del Beat</span>
                                       </button>
                                     </div>
 
