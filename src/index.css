@@ -367,6 +367,7 @@ body {
     column-gap: 0px !important;
     padding: 0 !important;
     margin: 0 !important;
+    overflow: visible !important;
   }
 
   .measure-svg-block {
@@ -380,6 +381,7 @@ body {
     background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
+    overflow: visible !important;
   }
 
   /* SVG Canvas Styling for Print */
@@ -389,6 +391,7 @@ body {
     box-shadow: none !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    overflow: visible !important;
   }
 
   /* Line Masking Box: Pure white in print scaled for 18pt fret number without adjacent string overlap */
