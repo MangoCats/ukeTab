@@ -277,8 +277,11 @@ body {
 /* Dedicated High-Quality Print & PDF Output Engine */
 @media print {
   @page {
-    size: portrait;
-    margin: 0.6cm 0.8cm 0.6cm 0.8cm;
+    size: auto;
+    margin-left: 0.75in;
+    margin-right: 0.5in;
+    margin-top: 0.5in;
+    margin-bottom: 0.5in;
   }
 
   html, body, #root, main, div.tab-canvas-wrapper, div.w-full {
@@ -351,19 +354,29 @@ body {
     font-family: monospace !important;
   }
 
-  /* Sheet Music System Rows - Compressed Vertical Spacing for 5 rows per page */
-  .system-row {
-    display: block !important;
-    margin-bottom: 0.15rem !important;
-    page-break-inside: avoid !important;
-  }
-
+  /* Flexbox Measure Wrapping Engine for PDF / Print */
   .tab-canvas-wrapper {
     display: flex !important;
-    flex-direction: column !important;
-    gap: 0.15rem !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    row-gap: 0.25rem !important;
+    column-gap: 0px !important;
     padding: 0 !important;
     margin: 0 !important;
+  }
+
+  .measure-svg-block {
+    display: inline-block !important;
+    vertical-align: top !important;
+    flex-shrink: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   /* SVG Canvas Styling for Print */
@@ -372,6 +385,7 @@ body {
     border: none !important;
     box-shadow: none !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Line Masking Box: Pure white in print scaled for 20pt fret number */
