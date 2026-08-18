@@ -5,6 +5,7 @@ export interface UkuleleNote {
   string: 1 | 2 | 3 | 4; // 1 = Top line (A4 default), 4 = Bottom line (G4 default)
   fret: number;          // 0 = Open, 1..20 = Fretted
   isGhost?: boolean;     // Visual alternate fret suggestion flag
+  isTied?: boolean;      // Continued / sustained note from previous beat without re-strumming
 }
 
 export interface ChordMarker {
@@ -19,7 +20,7 @@ export interface BeatColumn {
   isDotted?: boolean;
   isTriplet?: boolean;
   isRest?: boolean;
-  isTied?: boolean; // When true, sustains into the next beat without re-strumming
+  isTied?: boolean; // When true, sustains into the next beat without re-strumming (Continued Note)
   notes: UkuleleNote[];
   chord?: ChordMarker | null; // Optional Ukulele Chord Diagram attached above beat (null = explicitly cleared None)
   lyric?: string;
@@ -44,7 +45,7 @@ export interface TuningConfig {
 export interface LayoutOptions {
   stemsPlacement: 'below' | 'above'; // Default: 'below'
   zoomScale: number;                 // 0.75 (Compact), 1.0 (Standard), 1.5 (Large)
-  measuresPerSystem: number;         // 2..6 measures per system line
+  measuresPerSystem: number;         // Default: 4
   maxFretLimit: number;              // Default: 12 (user selectable 7..20)
 }
 

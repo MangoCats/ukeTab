@@ -391,6 +391,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                   const ghostOnString = ghostNotes.find(n => n.string === s);
                                   const stringY = getStringY(s);
                                   const isTargetStringSelected = isSelected && selectedString === s;
+                                  const isNoteTied = noteOnString?.isTied || (beat.isTied && !!noteOnString);
 
                                   return (
                                     <g key={`cell-${beat.id}-s${s}`}>
@@ -410,6 +411,16 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                           }
                                         }}
                                       />
+
+                                      {/* Tied / Continued Note Arc (Curve Arch Connecting to Previous Note) */}
+                                      {isNoteTied && (
+                                        <path
+                                          d={`M ${beatX - beatWidth + 8 * zoom} ${stringY - 5 * zoom} Q ${beatX - beatWidth / 2} ${stringY - 16 * zoom} ${beatX - 8 * zoom} ${stringY - 5 * zoom}`}
+                                          fill="none"
+                                          stroke="#38bdf8"
+                                          strokeWidth={2 * zoom}
+                                        />
+                                      )}
 
                                       {/* Selection Ring */}
                                       {isTargetStringSelected && (
@@ -449,7 +460,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                             y={stringY + 4 * zoom}
                                             textAnchor="middle"
                                             fill={
-                                              isTargetStringSelected
+                                              isNoteTied
+                                                ? '#38bdf8'
+                                                : isTargetStringSelected
                                                 ? '#38bdf8'
                                                 : isPlaying
                                                 ? '#fbbf24'
@@ -460,7 +473,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                             fontWeight="bold"
                                             style={{ pointerEvents: 'none' }}
                                           >
-                                            {noteOnString.fret}
+                                            {isNoteTied ? `(${noteOnString.fret})` : noteOnString.fret}
                                           </text>
 
                                           {/* Direct Red Trashcan Badge */}

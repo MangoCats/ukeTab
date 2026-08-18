@@ -28,7 +28,7 @@ cd ukeTab
 ```
 
 ### 2. Install Dependencies
-Install all required Node.js packages and dependencies (React, Vite, TypeScript, Lucide Icons, alphaTab Guitar Pro parser, Tone.js MIDI parser):
+Install all required Node.js packages and dependencies (React, Vite, TypeScript, Lucide Icons, alphaTab Guitar Pro parser):
 ```bash
 npm install
 ```
@@ -70,7 +70,7 @@ npm run preview
 - **Ukulele Chord Diagram Charts**: Assign 4-line fingering grids with filled dots (frets), open circles (`○`), muted markers (`✕`), and chord titles above tabs.
 - **Composition Chord Palette Manager**: Limit chord dropdowns to relevant song chords or define custom chord fingerings.
 - **Auto Chord Recognition**: Auto-populates matching chord definitions when 4-string beats are selected.
-- **Guitar Pro Importer (`.gp`, `.gp3`–`.gp5`, `.gpx`)**: Import Guitar Pro files to generate pristine Ukulele tab charts with exact measure barlines and rhythm stems.
-- **MIDI File Importer (`.mid` / `.midi`)**: Import `.mid` files to auto-generate draft Ukulele tab charts with High-G string/fret solver.
+- **Guitar Pro Importer (`.gp`, `.gp3`–`.gp5`, `.gpx`)**: Import Guitar Pro files to generate pristine Ukulele tab charts with exact measure barlines, rhythm stems, and tied/continued notes.
+- **Tied / Continued Note Engine**: Rings out sustained notes across beat boundaries without re-strumming, with visual tie arches e.g. `(12) ⁀`.
 - **PDF Print Export Engine**: Export clean, high-contrast sheet music without web editing controls.
 - **Save & Open `.uketab` JSON Files**: Store and reload tab documents locally.

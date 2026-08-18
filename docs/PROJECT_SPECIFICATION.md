@@ -2,7 +2,7 @@
 
 ## 1. Product Overview & Core Purpose
 **UkeTab** is a modern interactive web application for creating, editing, listening to, and exporting 4-line Ukulele tablature.
-It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, Guitar Pro import (`.gp`, `.gp3`–`.gp5`, `.gpx`), MIDI file import (`.mid`), and configurable fingering aids.
+It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, Guitar Pro import (`.gp`, `.gp3`–`.gp5`, `.gpx`), tied/continued note sustain, and configurable fingering aids.
 
 ---
 
@@ -35,9 +35,10 @@ It features standard stringed instrument notation with fret numbers on staff lin
 - **1-Click Auto-Assignment**: Selecting any 4-string beat automatically detects and assigns the matching chord from the defined library.
 - **Print & PDF Support**: Renders in high-contrast crisp black lines, text, and dots in PDF export.
 
-### Fret Number Representation
+### Fret Number Representation & Tied Notes
 - Fret numbers (`0` through `20`) are rendered directly on staff lines inside solid pitch-black line cutout boxes (`#020617`).
 - Fret digits are rendered in high-contrast white (`#ffffff`) or sky-blue when active.
+- **Tied / Continued Notes**: Notes that ring out across beat boundaries without re-strumming render as parenthesized fret numbers e.g. `(12)` with a cyan tie arch `⁀` connecting from the previous beat.
 
 ### Unified Max Fret Limit Control
 - **User-Selectable Fret Limit (`maxFretLimit`)**:
@@ -60,12 +61,8 @@ It features standard stringed instrument notation with fret numbers on staff lin
   - **Dotted Notes**: Amber dot attached to stem base.
 
 ### Guitar Pro Import Engine (`.gp`, `.gp3`–`.gp5`, `.gpx`)
-- **Pristine Single-Note & Polyphonic Import**: Decodes Guitar Pro binary files using `@coderline/alphatab`. Preserves exact track selection, measure barlines, time signatures, note durations, dotted notes, and song headers (Title, Artist, Tempo).
+- **Pristine Single-Note & Polyphonic Import**: Decodes Guitar Pro binary files using `@coderline/alphatab`. Preserves exact track selection, measure barlines, time signatures, note durations, dotted notes, tied/continued notes, and song headers (Title, Artist, Tempo).
 - **High-G Ukulele Re-voicing**: Automatically re-voices guitar pitch streams ($E_2$–$E_6$) onto 4-string High-G Ukulele staff lines.
-
-### MIDI Import Engine (`.mid` / `.midi`)
-- **Automated Import**: Imports MIDI files, parses header tempo/time signatures, and automatically converts note pitch streams into draft Ukulele tab charts.
-- **High-G Pitch Solver**: Automatically transposes pitches outside High-G range ($C_4$ to $A_5$) and solves optimal string $s \in \{1..4\}$ and fret $f \in [0..15]$ assignments.
 
 ---
 

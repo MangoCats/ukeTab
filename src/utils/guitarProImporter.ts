@@ -18,7 +18,7 @@ function convertGpDuration(duration: number, isDotted: boolean): { duration: Dur
 }
 
 /**
- * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument.
+ * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied/Continued Notes.
  */
 export function parseGuitarProToUkuleleTab(
   arrayBuffer: ArrayBuffer,
@@ -64,10 +64,16 @@ export function parseGuitarProToUkuleleTab(
 
         const ukeNotes: UkuleleNote[] = [];
         const assignedStrings = new Set<1 | 2 | 3 | 4>();
+        let hasTiedNote = false;
 
         if (!isRest && gpBeat.notes.length > 0) {
           gpBeat.notes.forEach((gpNote, nIdx) => {
             let pitch = gpNote.realValue;
+            const isTied = !!(gpNote.isTieDestination || (gpNote as any).tie);
+
+            if (isTied) {
+              hasTiedNote = true;
+            }
 
             // Transpose into High-G Ukulele pitch range [60..84]
             while (pitch < 60) pitch += 12;
@@ -105,7 +111,8 @@ export function parseGuitarProToUkuleleTab(
               ukeNotes.push({
                 id: `gp-n-${mIdx}-${bIdx}-${nIdx}`,
                 string: bestString,
-                fret: bestFret
+                fret: bestFret,
+                isTied: isTied
               });
             }
           });
@@ -118,6 +125,7 @@ export function parseGuitarProToUkuleleTab(
           duration: duration,
           isDotted: isDotted,
           isRest: isRest,
+          isTied: hasTiedNote, // Mark BeatColumn as tied/continued note
           notes: ukeNotes,
           chord: autoChord || undefined
         });

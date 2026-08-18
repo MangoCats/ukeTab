@@ -28,7 +28,7 @@
 |                           Core Subsystems                               |
 |  +------------------+  +------------------+  +-----------------------+  |
 |  | SVG Vector Render|  | Web Audio Synth  |  | Import/Export (PDF,   |  |
-|  |     Pipeline     |  |     Engine       |  |  GP, MIDI, .uketab)   |  |
+|  |     Pipeline     |  |     Engine       |  |  Guitar Pro, .uketab) |  |
 |  +------------------+  +------------------+  +-----------------------+  |
 +-------------------------------------------------------------------------+
 ```
@@ -36,11 +36,10 @@
 ### Technology Stack
 - **Framework**: React 18+ with TypeScript (Type-safe domain modeling for music theory & rendering).
 - **Build Tool**: Vite (Lightning-fast dev server and optimized production bundles).
-- **Rendering Engine**: Custom SVG Vector Engine (Continuous staff systems, traditional vertically stacked time signatures, ukulele chord diagram charts, crisp at any print zoom level).
-- **Audio Engine**: Web Audio API (Low-latency audio synthesizer with acoustic ukulele pluck ADSR envelope & metronome click generator).
+- **Rendering Engine**: Custom SVG Vector Engine (Continuous staff systems, traditional vertically stacked time signatures, ukulele chord diagram charts, tied note arches, crisp at any print zoom level).
+- **Audio Engine**: Web Audio API (Low-latency audio synthesizer with acoustic ukulele pluck ADSR envelope & metronome click generator; skips re-strumming on tied/continued notes).
 - **Print & PDF Engine**: Browser High-DPI Vector Printing Engine with automatic web UI stripping, large 28pt song title header, and zero-whitespace system layout.
 - **Guitar Pro Parsing**: `@coderline/alphatab` (Binary Guitar Pro `.gp`, `.gp3`–`.gp5`, `.gpx` decoding and track extraction).
-- **MIDI Processing**: `@tonejs/midi` (Binary MIDI parsing, pitch solver, and automatic Ukulele tab generation).
 
 ---
 
@@ -56,6 +55,7 @@ export interface UkuleleNote {
   string: 1 | 2 | 3 | 4; // 1 = A4 (Top), 4 = G4 (Bottom)
   fret: number;          // 0 = Open, 1..20 = Fretted
   isGhost?: boolean;     // Rendered for alternate fret suggestions
+  isTied?: boolean;      // Continued / sustained note without re-strumming
 }
 
 export interface ChordMarker {
@@ -70,7 +70,7 @@ export interface BeatColumn {
   isDotted?: boolean;
   isTriplet?: boolean;
   isRest?: boolean;
-  isTied?: boolean;
+  isTied?: boolean; // When true, sustains note duration into next beat without re-strumming
   notes: UkuleleNote[];
   chord?: ChordMarker | null;
   lyric?: string;
@@ -154,10 +154,7 @@ Maps chord names (`Am`, `E7`, `G`, `C`, `F`, `Dm`, etc.) to 4-string fret arrays
 Calculates total horizontal measure widths against printable page width boundaries (`820px`). When a measure overruns the margin threshold, it wraps onto a new continuous system row starting with its own clef string header and time signature.
 
 ### 3.5 Guitar Pro Importer Engine (`guitarProImporter.ts`)
-Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphatab`. Extracts exact track selection, measure barlines, note durations, dotted notes, and song headers. Re-voices guitar pitches onto 4-string High-G Ukulele staff lines.
-
-### 3.6 MIDI File Import Engine (`midiImporter.ts`)
-Decodes binary `.mid` files using `@tonejs/midi`. Extracts tempos, time signatures, and note pitch streams. Transposes pitches into High-G range ($C_4$ to $A_5$), solves 4-string fret assignments, and auto-detects matching chord diagrams.
+Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphatab`. Extracts exact track selection, measure barlines, note durations, dotted notes, tied/continued notes, and song headers. Re-voices guitar pitches onto 4-string High-G Ukulele staff lines.
 
 ---
 
@@ -178,6 +175,4 @@ Decodes binary `.mid` files using `@tonejs/midi`. Extracts tempos, time signatur
    - `Save .uketab`: Exports full document state to compact `.uketab` JSON file.
    - `Open .uketab`: File input handler reading `.uketab` JSON files via FileReader, updating document state instantly.
 3. **Guitar Pro Importer (`.gp`, `.gp3`–`.gp5`, `.gpx`)**:
-   - `Open Guitar Pro`: File input handler reading `.gp` files via `@coderline/alphatab`, generating pristine Ukulele tab charts with exact measure barlines and rhythm stems.
-4. **MIDI Importer (`.mid` / `.midi`)**:
-   - `Open MIDI`: File input handler reading `.mid` files via `@tonejs/midi`, generating draft Ukulele tab charts automatically.
+   - `Open Guitar Pro`: File input handler reading `.gp` files via `@coderline/alphatab`, generating pristine Ukulele tab charts with exact measure barlines, rhythm stems, and tied/continued notes.
