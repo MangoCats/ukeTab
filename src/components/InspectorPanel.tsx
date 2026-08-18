@@ -1,6 +1,6 @@
 import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
-import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES } from '../utils/musicTheory';
+import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES, autoDetectChordFromBeatNotes } from '../utils/musicTheory';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2 } from 'lucide-react';
 
 interface InspectorPanelProps {
@@ -74,6 +74,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const activeChordsList = chordPalette && chordPalette.length > 0
     ? chordPalette
     : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+
+  // Auto-detect chord when beat has fingerings defined on all 4 strings (including 0 for open)
+  const autoDetectedChord = autoDetectChordFromBeatNotes(currentNotes, activeChordsList);
+  const effectiveChord = selectedBeat.chord || autoDetectedChord || undefined;
+
+  const displayChordsList = [...activeChordsList];
+  if (effectiveChord && !displayChordsList.some(c => c.name.toLowerCase() === effectiveChord.name.toLowerCase())) {
+    displayChordsList.push(effectiveChord);
+  }
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-md space-y-5 InspectorPanel">
@@ -213,14 +222,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         {/* Composition Active Chords Selector */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <span className="text-xs text-slate-400 font-medium">Composition Chords:</span>
-          {activeChordsList.map(chordObj => (
+          {displayChordsList.map(chordObj => (
             <button
               key={chordObj.name}
               onClick={() => {
                 if (onSetBeatChord) onSetBeatChord(selectedBeat.id, chordObj);
               }}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition ${
-                selectedBeat.chord?.name.toLowerCase() === chordObj.name.toLowerCase()
+                effectiveChord?.name.toLowerCase() === chordObj.name.toLowerCase()
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
               }`}
@@ -231,17 +240,17 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </div>
 
         {/* Custom Chord Editor Inputs */}
-        {selectedBeat.chord && (
+        {effectiveChord && (
           <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-wrap items-center gap-4 text-xs">
             <div className="flex items-center gap-2">
               <span className="text-slate-400 font-medium">Chord Name:</span>
               <input
                 type="text"
-                value={selectedBeat.chord.name}
+                value={effectiveChord.name}
                 onChange={(e) => {
                   if (onSetBeatChord) {
                     onSetBeatChord(selectedBeat.id, {
-                      ...selectedBeat.chord,
+                      ...effectiveChord,
                       name: e.target.value
                     });
                   }
@@ -254,7 +263,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <span className="text-slate-400 font-medium">Strings [S4, S3, S2, S1]:</span>
               {([0, 1, 2, 3] as const).map(strIdx => {
                 const strNum = (4 - strIdx) as 1 | 2 | 3 | 4;
-                const currentFret = selectedBeat.chord ? selectedBeat.chord.frets[strIdx] : 0;
+                const currentFret = effectiveChord ? effectiveChord.frets[strIdx] : 0;
 
                 return (
                   <div key={`c-str-${strNum}`} className="flex items-center gap-1">
@@ -262,10 +271,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     <select
                       value={currentFret}
                       onChange={(e) => {
-                        if (onSetBeatChord && selectedBeat.chord) {
-                          const newFrets = [...selectedBeat.chord.frets] as [number, number, number, number];
+                        if (onSetBeatChord) {
+                          const newFrets = [...effectiveChord.frets] as [number, number, number, number];
                           newFrets[strIdx] = parseInt(e.target.value, 10);
-                          onSetBeatChord(selectedBeat.id, createChordMarker(selectedBeat.chord.name, newFrets));
+                          onSetBeatChord(selectedBeat.id, createChordMarker(effectiveChord.name, newFrets));
                         }
                       }}
                       className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono font-bold rounded px-1.5 py-0.5 outline-none"

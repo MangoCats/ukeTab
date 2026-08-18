@@ -6,6 +6,13 @@ UkeTab is a modern web application designed for Ukulele players, teachers, and a
 
 ---
 
+## 🛠️ Quick Start & Setup
+
+For step-by-step instructions on setting up your environment, running the development server (`npm run dev`), and building for production (`npm run build`), see:
+👉 **[HOWTO.md](file:///c:/Users/Mango%20Cat/Dev/UkeTab/HOWTO.md)**
+
+---
+
 ## ✨ Key Features
 
 - 🎼 **4-Line Ukulele Staff**: Engineered specifically for Ukulele with High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), Soprano D ($aDF\#B$), and custom tunings.
@@ -30,6 +37,7 @@ UkeTab is a modern web application designed for Ukulele players, teachers, and a
 
 ## 📚 Documentation
 
+- [📖 Execution & Setup Guide (HOWTO.md)](file:///c:/Users/Mango%20Cat/Dev/UkeTab/HOWTO.md): Environment setup, running locally, building, and previewing.
 - [📋 Project & Notation Specification](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/PROJECT_SPECIFICATION.md): Comprehensive guide to visual tab specs, rhythm notation standards, data schemas, alternate fret algorithms, and rendering rules.
 - [🏗️ Software Architecture Document](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/SOFTWARE_ARCHITECTURE.md): Technical architecture, data models, SVG rendering pipeline, Web Audio synthesis, and export subsystems.
 

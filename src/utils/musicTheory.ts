@@ -159,6 +159,39 @@ export function findExistingChordsByFrets(
   return matches;
 }
 
+/**
+ * Automatically detects a matching chord from the defined library when all 4 strings have fingerings defined (including 0 for open).
+ */
+export function autoDetectChordFromBeatNotes(
+  notes: UkuleleNote[],
+  customPalette: ChordMarker[] = []
+): ChordMarker | null {
+  const activeNotes = notes.filter(n => !n.isGhost);
+  const s1 = activeNotes.find(n => n.string === 1);
+  const s2 = activeNotes.find(n => n.string === 2);
+  const s3 = activeNotes.find(n => n.string === 3);
+  const s4 = activeNotes.find(n => n.string === 4);
+
+  // Must have fingerings defined on all 4 strings (where fret >= 0)
+  if (!s1 || !s2 || !s3 || !s4) return null;
+
+  const frets: [number, number, number, number] = [s4.fret, s3.fret, s2.fret, s1.fret];
+
+  const customLibrary: Record<string, [number, number, number, number]> = {};
+  customPalette.forEach(c => {
+    customLibrary[c.name] = c.frets;
+  });
+
+  const matches = findExistingChordsByFrets(frets, customLibrary);
+  if (matches.length > 0) {
+    const firstMatchName = matches[0];
+    const customMatch = customPalette.find(c => c.name.toLowerCase() === firstMatchName.toLowerCase());
+    return customMatch || getChordPreset(firstMatchName) || createChordMarker(firstMatchName, frets);
+  }
+
+  return null;
+}
+
 export function createChordMarker(
   name: string,
   frets?: [number, number, number, number],

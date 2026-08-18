@@ -1,6 +1,6 @@
 import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker } from '../types/ukulele';
-import { getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES } from '../utils/musicTheory';
+import { getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES, autoDetectChordFromBeatNotes } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
 import { Trash2, PlusCircle, Music } from 'lucide-react';
 
@@ -86,6 +86,16 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     ? chordPalette
     : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
 
+  // Auto-detect chord when beat has all 4 string fingerings defined (including 0 for open)
+  const autoDetectedChord = selectedBeatId ? autoDetectChordFromBeatNotes(activeChordNotes, activeChordsList) : null;
+  const effectiveChord = currentBeatChord || autoDetectedChord || undefined;
+
+  // Pre-select dropdown options list: include auto-detected chord if defined in library even if not in composition palette
+  const dropdownChordOptions = [...activeChordsList];
+  if (effectiveChord && !dropdownChordOptions.some(c => c.name.toLowerCase() === effectiveChord.name.toLowerCase())) {
+    dropdownChordOptions.push(effectiveChord);
+  }
+
   // Zoom-Aware Dynamic Row-Wrapping Engine
   const pagePrintWidth = 820; 
   const maxSystemWidth = pagePrintWidth;
@@ -120,7 +130,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
         <div className="no-print flex items-center justify-between gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-3 shadow-md">
           <div className="flex items-center gap-3">
             <div className="text-xs font-semibold text-slate-400">Selected Beat Shape:</div>
-            <ChordDiagram notes={activeChordNotes} tuning={tuning} chordName={currentBeatChord?.name} />
+            <ChordDiagram notes={activeChordNotes} tuning={tuning} chordName={effectiveChord?.name} />
           </div>
           <div className="text-xs text-slate-400 font-mono hidden md:block">
             Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">Ukulele Chord Diagram</span> rendered above the staff lines.
@@ -592,14 +602,14 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                         <Music className="w-3 h-3 text-amber-400" />
                                         <span className="text-[11px] text-amber-400 font-bold">Chord:</span>
                                         <select
-                                          value={currentBeatChord?.name || ''}
+                                          value={effectiveChord?.name || ''}
                                           onChange={(e) => {
                                             e.stopPropagation();
                                             const chordName = e.target.value;
                                             if (!chordName) {
                                               if (onSetBeatChord) onSetBeatChord(beat.id, null);
                                             } else {
-                                              const found = activeChordsList.find(c => c.name.toLowerCase() === chordName.toLowerCase()) || getChordPreset(chordName);
+                                              const found = dropdownChordOptions.find(c => c.name.toLowerCase() === chordName.toLowerCase()) || getChordPreset(chordName);
                                               if (found && onSetBeatChord) {
                                                 onSetBeatChord(beat.id, found);
                                               }
@@ -608,7 +618,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                           className="bg-slate-950 border border-slate-800 text-amber-400 font-bold text-[11px] rounded px-1.5 py-0.5 outline-none cursor-pointer"
                                         >
                                           <option value="">(None)</option>
-                                          {activeChordsList.map(c => (
+                                          {dropdownChordOptions.map(c => (
                                             <option key={c.name} value={c.name}>{c.name}</option>
                                           ))}
                                         </select>
