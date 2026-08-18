@@ -18,8 +18,8 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   notes,
   chord,
   chordName: chordNameProp,
-  width = 46,
-  height = 58,
+  width = 50,
+  height = 72,
   textColor = '#f59e0b',
   dotColor = '#f59e0b',
   gridColor = '#94a3b8',
@@ -43,7 +43,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   }
 
   const numFrets = 4;
-  const topMargin = 16;
+  const topMargin = 26; // Expanded whitespace between 60% larger chord title and nut line / open circles
   const sideMargin = 9;
   const stringSpacing = (width - sideMargin * 2) / 3;
   const fretSpacing = (height - topMargin - 5) / numFrets;
@@ -56,16 +56,16 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
 
   const diagramContent = (
     <>
-      {/* Chord Name Label e.g. G, C, F, Dm, E7, E7m */}
+      {/* Chord Name Label (60% Larger Font: 16px) */}
       {chordName && (
         <text
           x={width / 2}
-          y={10}
+          y={16}
           textAnchor="middle"
           fill={textColor}
           fontFamily="'Outfit', 'Inter', system-ui, sans-serif"
-          fontSize="10px"
-          fontWeight="bold"
+          fontSize="16px"
+          fontWeight="800"
           className="chord-title-text select-none"
         >
           {chordName}
@@ -91,7 +91,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
           textAnchor="end"
           fill={gridColor}
           fontFamily="monospace"
-          fontSize="7.5px"
+          fontSize="8px"
           fontWeight="bold"
           className="chord-base-fret-text"
         >
@@ -140,7 +140,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
               <circle
                 cx={x}
                 cy={topMargin - 4}
-                r={2.2}
+                r={2.4}
                 fill="none"
                 stroke={dotColor}
                 strokeWidth={1.2}
@@ -151,7 +151,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
               <circle
                 cx={x}
                 cy={topMargin + (fretVal - baseFret + 0.5) * fretSpacing}
-                r={3.2}
+                r={3.4}
                 fill={dotColor}
                 className="chord-fretted-dot"
               />
@@ -163,7 +163,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
                 textAnchor="middle"
                 fill={gridColor}
                 fontFamily="monospace"
-                fontSize="7.5px"
+                fontSize="8px"
                 fontWeight="bold"
                 className="chord-muted-x"
               >

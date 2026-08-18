@@ -57,4 +57,5 @@ export interface UkuleleTabDocument {
   tuning: TuningConfig;
   layout: LayoutOptions;
   measures: Measure[];
+  chordPalette?: ChordMarker[]; // Composition-specific active chord palette
 }

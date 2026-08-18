@@ -1,6 +1,6 @@
 import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker } from '../types/ukulele';
-import { getAlternateFretSuggestions, getChordPreset } from '../utils/musicTheory';
+import { getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
 import { Trash2, PlusCircle, Music } from 'lucide-react';
 
@@ -41,7 +41,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onUpdateBeatLyric,
   onSetBeatChord
 }) => {
-  const { tuning, layout, measures } = document;
+  const { tuning, layout, measures, chordPalette } = document;
   const zoom = layout.zoomScale;
   const stemsBelow = layout.stemsPlacement === 'below';
   const maxFretLimit = layout.maxFretLimit ?? 12;
@@ -81,7 +81,10 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     { label: '1/16', value: '1/16' }
   ];
 
-  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'E7m', 'G7', 'C7', 'A7', 'Bm', 'Bb', 'D7', 'E', 'B'];
+  // Active composition chords palette
+  const activeChordsList = chordPalette && chordPalette.length > 0
+    ? chordPalette
+    : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
 
   // Zoom-Aware Dynamic Row-Wrapping Engine
   const pagePrintWidth = 820; 
@@ -120,7 +123,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             <ChordDiagram notes={activeChordNotes} tuning={tuning} chordName={currentBeatChord?.name} />
           </div>
           <div className="text-xs text-slate-400 font-mono hidden md:block">
-            Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">Ukulele Chord Diagram</span> (e.g. G, C, F, Dm, E7, E7m) rendered above the staff lines.
+            Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">Ukulele Chord Diagram</span> rendered above the staff lines.
           </div>
         </div>
       )}
@@ -130,8 +133,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
         <div className="tab-canvas-wrapper flex flex-col space-y-6">
           {systems.map((systemMeasures, sysIdx) => {
             const hasChordsInSystem = systemMeasures.some(m => m.beats.some(b => b.chord));
-            const chordSpace = hasChordsInSystem ? 65 * zoom : 0;
-            const topMargin = (stemsBelow ? 40 * zoom : 60 * zoom) + chordSpace;
+            const chordSpace = hasChordsInSystem ? 85 * zoom : 0;
+            const topMargin = (stemsBelow ? 45 * zoom : 65 * zoom) + chordSpace;
             const bottomMargin = stemsBelow ? 55 * zoom : 30 * zoom;
 
             const getStringY = (stringIndex: 1 | 2 | 3 | 4) => {
@@ -347,16 +350,16 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                 className="playhead-highlight no-print transition-colors duration-150 group-hover:fill-slate-800/40"
                               />
 
-                              {/* Ukulele Chord Diagram Chart Rendered Above Staff (UkuTabs Style) */}
+                              {/* Ukulele Chord Diagram Chart Rendered Above Staff */}
                               {beat.chord && (
                                 <g
-                                  transform={`translate(${beatX - 23 * zoom}, ${string1Y - 64 * zoom}) scale(${zoom})`}
+                                  transform={`translate(${beatX - 25 * zoom}, ${string1Y - 78 * zoom}) scale(${zoom})`}
                                   className="chord-chart-rendering"
                                 >
                                   <ChordDiagram
                                     chord={beat.chord}
-                                    width={46}
-                                    height={58}
+                                    width={50}
+                                    height={72}
                                     textColor="#f59e0b"
                                     dotColor="#f59e0b"
                                     gridColor="#94a3b8"
@@ -525,7 +528,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                               {isSelected && (
                                 <foreignObject
                                   x={beatX - popoverWidth / 2}
-                                  y={topMargin - 115 * zoom}
+                                  y={topMargin - 125 * zoom}
                                   width={popoverWidth}
                                   height={105 * zoom}
                                   style={{ overflow: 'visible' }}
@@ -582,7 +585,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                       </button>
                                     </div>
 
-                                    {/* Row 2: Ukulele Chord Diagram Quick Selector & Frets */}
+                                    {/* Row 2: Composition Chord Palette Dropdown & Frets */}
                                     <div className="flex items-center justify-between w-full pt-1 gap-2">
                                       {/* Chord Selector */}
                                       <div className="flex items-center gap-1">
@@ -596,17 +599,17 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                             if (!chordName) {
                                               if (onSetBeatChord) onSetBeatChord(beat.id, null);
                                             } else {
-                                              const preset = getChordPreset(chordName);
-                                              if (preset && onSetBeatChord) {
-                                                onSetBeatChord(beat.id, preset);
+                                              const found = activeChordsList.find(c => c.name.toLowerCase() === chordName.toLowerCase()) || getChordPreset(chordName);
+                                              if (found && onSetBeatChord) {
+                                                onSetBeatChord(beat.id, found);
                                               }
                                             }
                                           }}
                                           className="bg-slate-950 border border-slate-800 text-amber-400 font-bold text-[11px] rounded px-1.5 py-0.5 outline-none cursor-pointer"
                                         >
                                           <option value="">(None)</option>
-                                          {quickChordPresets.map(c => (
-                                            <option key={c} value={c}>{c}</option>
+                                          {activeChordsList.map(c => (
+                                            <option key={c.name} value={c.name}>{c.name}</option>
                                           ))}
                                         </select>
                                       </div>

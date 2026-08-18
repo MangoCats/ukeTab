@@ -106,6 +106,8 @@ export const UKULELE_CHORD_LIBRARY: Record<string, [number, number, number, numb
   'C#m7': [1, 1, 0, 2]
 };
 
+export const DEFAULT_COMPOSITION_CHORD_NAMES = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'E7m'];
+
 export function getChordPreset(name: string): ChordMarker | null {
   const normalized = name.trim();
   if (!normalized) return null;
@@ -129,6 +131,32 @@ export function getChordPreset(name: string): ChordMarker | null {
     frets: [...frets] as [number, number, number, number],
     baseFret
   };
+}
+
+/**
+ * Searches the library for any existing chord names that match the given 4-string fret pattern [S4, S3, S2, S1].
+ */
+export function findExistingChordsByFrets(
+  frets: [number, number, number, number],
+  customLibrary: Record<string, [number, number, number, number]> = {}
+): string[] {
+  const combinedLibrary = { ...UKULELE_CHORD_LIBRARY, ...customLibrary };
+  const matches: string[] = [];
+
+  Object.entries(combinedLibrary).forEach(([chordName, chordFrets]) => {
+    if (
+      chordFrets[0] === frets[0] &&
+      chordFrets[1] === frets[1] &&
+      chordFrets[2] === frets[2] &&
+      chordFrets[3] === frets[3]
+    ) {
+      if (!matches.includes(chordName)) {
+        matches.push(chordName);
+      }
+    }
+  });
+
+  return matches;
 }
 
 export function createChordMarker(

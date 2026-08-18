@@ -1,7 +1,7 @@
 import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
-import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, getChordPreset, createChordMarker } from '../utils/musicTheory';
-import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle } from 'lucide-react';
+import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES } from '../utils/musicTheory';
+import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2 } from 'lucide-react';
 
 interface InspectorPanelProps {
   document: UkuleleTabDocument;
@@ -17,6 +17,7 @@ interface InspectorPanelProps {
   onToggleTie?: (beatId: string) => void;
   onDeleteBeatColumn: (beatId: string) => void;
   onSetBeatChord?: (beatId: string, chord: ChordMarker | null) => void;
+  onOpenChordPaletteModal?: () => void;
 }
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
@@ -32,9 +33,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onToggleTriplet,
   onToggleTie,
   onDeleteBeatColumn,
-  onSetBeatChord
+  onSetBeatChord,
+  onOpenChordPaletteModal
 }) => {
-  const { tuning, measures, layout } = document;
+  const { tuning, measures, layout, chordPalette } = document;
   const maxFretLimit = layout.maxFretLimit ?? 12;
   const fretButtonList = Array.from({ length: maxFretLimit + 1 }, (_, i) => i);
 
@@ -68,7 +70,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const pitchMidi = selectedString && activeNote ? calculatePitch(selectedString, activeNote.fret, tuning) : null;
   const pitchName = pitchMidi ? midiToNoteName(pitchMidi) : null;
 
-  const quickChordPresets = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'E7m', 'G7', 'C7', 'A7', 'Bm', 'Bb', 'D7', 'E', 'B'];
+  // Active composition chords palette
+  const activeChordsList = chordPalette && chordPalette.length > 0
+    ? chordPalette
+    : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-md space-y-5 InspectorPanel">
@@ -180,33 +185,47 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               Ukulele Chord Diagram (Rendered Above Staff)
             </span>
           </div>
-          {selectedBeat.chord && (
-            <button
-              onClick={() => onSetBeatChord && onSetBeatChord(selectedBeat.id, null)}
-              className="text-xs text-rose-400 hover:text-rose-300 font-semibold transition flex items-center gap-1"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>Clear Chord</span>
-            </button>
-          )}
+
+          <div className="flex items-center gap-3">
+            {onOpenChordPaletteModal && (
+              <button
+                onClick={onOpenChordPaletteModal}
+                className="text-xs text-amber-400 hover:text-amber-300 font-semibold transition flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg"
+                title="Manage song chord palette or create custom chord fingerings"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                <span>Manage Palette / Create Chord</span>
+              </button>
+            )}
+
+            {selectedBeat.chord && (
+              <button
+                onClick={() => onSetBeatChord && onSetBeatChord(selectedBeat.id, null)}
+                className="text-xs text-rose-400 hover:text-rose-300 font-semibold transition flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Clear Chord</span>
+              </button>
+            )}
+          </div>
         </div>
 
+        {/* Composition Active Chords Selector */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="text-xs text-slate-400 font-medium">Preset Chords:</span>
-          {quickChordPresets.map(chordName => (
+          <span className="text-xs text-slate-400 font-medium">Composition Chords:</span>
+          {activeChordsList.map(chordObj => (
             <button
-              key={chordName}
+              key={chordObj.name}
               onClick={() => {
-                const preset = getChordPreset(chordName);
-                if (preset && onSetBeatChord) onSetBeatChord(selectedBeat.id, preset);
+                if (onSetBeatChord) onSetBeatChord(selectedBeat.id, chordObj);
               }}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition ${
-                selectedBeat.chord?.name === chordName
+                selectedBeat.chord?.name.toLowerCase() === chordObj.name.toLowerCase()
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
               }`}
             >
-              {chordName}
+              {chordObj.name}
             </button>
           ))}
         </div>

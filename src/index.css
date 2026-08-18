@@ -230,9 +230,16 @@ body {
   circle.chord-open-circle {
     fill: none !important;
     stroke: #000000 !important;
+    stroke-width: 1.5px !important;
   }
 
-  .chord-title-text, .chord-base-fret-text, .chord-muted-x {
+  .chord-title-text {
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    fill: #000000 !important;
+  }
+
+  .chord-base-fret-text, .chord-muted-x {
     fill: #000000 !important;
   }
 

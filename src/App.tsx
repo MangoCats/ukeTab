@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, ChordMarker } from './types/ukulele';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
-import { transposePitches, getBeatDurationMs } from './utils/musicTheory';
+import { transposePitches, getBeatDurationMs, DEFAULT_COMPOSITION_CHORD_NAMES, getChordPreset, createChordMarker } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
 import { InspectorPanel } from './components/InspectorPanel';
-import { Sparkles, Keyboard } from 'lucide-react';
+import { ChordPaletteModal } from './components/ChordPaletteModal';
+import { Sparkles, Keyboard, Music2 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [document, setDocument] = useState<UkuleleTabDocument>(SAMPLE_TAB_DOCUMENT);
+  const [document, setDocument] = useState<UkuleleTabDocument>(() => {
+    const doc = { ...SAMPLE_TAB_DOCUMENT };
+    if (!doc.chordPalette || doc.chordPalette.length === 0) {
+      doc.chordPalette = DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+    }
+    return doc;
+  });
+
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>('b1-1');
   const [selectedString, setSelectedString] = useState<1 | 2 | 3 | 4>(1);
   const [activeDuration, setActiveDuration] = useState<DurationType>('1/4');
@@ -18,6 +26,7 @@ export const App: React.FC = () => {
   const [enableMetronome, setEnableMetronome] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
+  const [showChordPaletteModal, setShowChordPaletteModal] = useState<boolean>(false);
 
   const playbackTimeoutRef = useRef<number | null>(null);
   const lastKeyTimeRef = useRef<number>(0);
@@ -370,6 +379,13 @@ export const App: React.FC = () => {
     }));
   };
 
+  const handleUpdateChordPalette = (newPalette: ChordMarker[]) => {
+    setDocument(prev => ({
+      ...prev,
+      chordPalette: newPalette
+    }));
+  };
+
   const handleDeleteBeatColumn = (beatId: string) => {
     setDocument(prev => {
       const targetMeasure = prev.measures.find(m => m.beats.some(b => b.id === beatId));
@@ -485,6 +501,9 @@ export const App: React.FC = () => {
   const handleNewSong = () => {
     if (window.confirm('Create a new blank ukulele tab chart? Unsaved changes will be replaced.')) {
       const blankDoc = createBlankTabDocument();
+      if (!blankDoc.chordPalette || blankDoc.chordPalette.length === 0) {
+        blankDoc.chordPalette = DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+      }
       setDocument(blankDoc);
       setSelectedBeatId(blankDoc.measures[0]?.beats[0]?.id || null);
     }
@@ -501,6 +520,9 @@ export const App: React.FC = () => {
   };
 
   const handleImportJson = (importedDoc: UkuleleTabDocument) => {
+    if (!importedDoc.chordPalette || importedDoc.chordPalette.length === 0) {
+      importedDoc.chordPalette = DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+    }
     setDocument(importedDoc);
     const firstBeat = importedDoc.measures[0]?.beats[0]?.id || null;
     setSelectedBeatId(firstBeat);
@@ -512,6 +534,14 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col justify-between p-4 md:p-8 max-w-7xl mx-auto">
+      {/* Chord Palette & Custom Chord Creator Modal */}
+      <ChordPaletteModal
+        isOpen={showChordPaletteModal}
+        onClose={() => setShowChordPaletteModal(false)}
+        activePalette={document.chordPalette || []}
+        onUpdatePalette={handleUpdateChordPalette}
+      />
+
       {/* Top Banner & App Header (Hidden in Print) */}
       <header className="no-print mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -531,16 +561,19 @@ export const App: React.FC = () => {
         {/* Feature Badges & Shortcuts Help Button */}
         <div className="flex items-center gap-3 text-xs font-semibold">
           <button
+            onClick={() => setShowChordPaletteModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl transition shadow-md"
+          >
+            <Music2 className="w-4 h-4" />
+            <span>Manage Chord Palette</span>
+          </button>
+          <button
             onClick={() => setShowHelpModal(!showHelpModal)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl transition shadow-md"
           >
             <Keyboard className="w-4 h-4" />
-            <span>Editing Shortcuts & Guide</span>
+            <span>Shortcuts & Guide</span>
           </button>
-          <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" />
-            Alternate Frets Active
-          </span>
         </div>
       </header>
 
@@ -561,8 +594,8 @@ export const App: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-amber-400">1. Setting Fret Notes & Chords:</span>
-              <p className="text-slate-300">Click string on staff, type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or pick a Ukulele Chord (Am, G, F, C) in Inspector.</p>
+              <span className="font-bold text-amber-400">1. Fret Notes & Chords:</span>
+              <p className="text-slate-300">Click string on staff, type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or assign a Ukulele Chord (G, C, F, Dm, E7, E7m).</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-sky-400">2. Note Value (Rhythm):</span>
@@ -570,11 +603,11 @@ export const App: React.FC = () => {
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-indigo-400">3. Rests, Triplets & Ties:</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">R</code> for Rest, <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300 font-mono">T</code> for Triplet (3:2), <code className="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">L</code> for Tie (Sustain).</p>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">R</code> for Rest, <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300 font-mono">T</code> for Triplet, <code className="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">L</code> for Tie (Sustain).</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-rose-400">4. Delete & Playback:</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> to delete note. Press <code className="bg-slate-800 px-1 py-0.5 rounded text-emerald-300 font-mono">Spacebar</code> to Play/Pause.</p>
+              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> to delete. Press <code className="bg-slate-800 px-1 py-0.5 rounded text-emerald-300 font-mono">Spacebar</code> to Play/Pause.</p>
             </div>
           </div>
         </div>
@@ -605,6 +638,7 @@ export const App: React.FC = () => {
             onExportJson={handleExportJson}
             onImportJson={handleImportJson}
             onExportPdf={handleExportPdf}
+            onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
           />
         </div>
 
@@ -653,6 +687,7 @@ export const App: React.FC = () => {
             onToggleTie={handleToggleTie}
             onDeleteBeatColumn={handleDeleteBeatColumn}
             onSetBeatChord={handleSetBeatChord}
+            onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
           />
         </div>
       </main>
