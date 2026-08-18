@@ -278,20 +278,23 @@ body {
 @media print {
   @page {
     size: auto;
-    margin-left: 0.75in;
-    margin-right: 0.5in;
-    margin-top: 0.5in;
-    margin-bottom: 0.5in;
+    margin-top: 0.5in !important;
+    margin-bottom: 0.5in !important;
+    margin-left: 0.75in !important;
+    margin-right: 0.5in !important;
   }
 
-  html, body, #root, main, div.tab-canvas-wrapper, div.w-full {
+  html, body, #root, main, .min-h-screen, .TabContainer, div.tab-canvas-wrapper, div.w-full {
     background: #ffffff !important;
     background-image: none !important;
     color: #000000 !important;
     padding: 0 !important;
+    padding-bottom: 0 !important;
     margin: 0 !important;
+    margin-bottom: 0 !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
     overflow: visible !important;
     box-shadow: none !important;
     border: none !important;
@@ -326,8 +329,8 @@ body {
   .print-title-header {
     display: block !important;
     text-align: center !important;
-    margin: 0 0 0.35rem 0 !important;
-    padding: 0 0 0.25rem 0 !important;
+    margin: 0 0 0.25rem 0 !important;
+    padding: 0 0 0.2rem 0 !important;
     border-bottom: 1.5px solid #0f172a !important;
   }
 
@@ -360,7 +363,7 @@ body {
     flex-wrap: wrap !important;
     align-items: flex-start !important;
     width: 100% !important;
-    row-gap: 0.25rem !important;
+    row-gap: 0.15in !important;
     column-gap: 0px !important;
     padding: 0 !important;
     margin: 0 !important;
