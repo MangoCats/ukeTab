@@ -28,7 +28,7 @@
 |                           Core Subsystems                               |
 |  +------------------+  +------------------+  +-----------------------+  |
 |  | SVG Vector Render|  | Web Audio Synth  |  | Import/Export (PDF,   |  |
-|  |     Pipeline     |  |     Engine       |  |  MIDI, .uketab JSON)  |  |
+|  |     Pipeline     |  |     Engine       |  |  GP, MIDI, .uketab)   |  |
 |  +------------------+  +------------------+  +-----------------------+  |
 +-------------------------------------------------------------------------+
 ```
@@ -39,6 +39,7 @@
 - **Rendering Engine**: Custom SVG Vector Engine (Continuous staff systems, traditional vertically stacked time signatures, ukulele chord diagram charts, crisp at any print zoom level).
 - **Audio Engine**: Web Audio API (Low-latency audio synthesizer with acoustic ukulele pluck ADSR envelope & metronome click generator).
 - **Print & PDF Engine**: Browser High-DPI Vector Printing Engine with automatic web UI stripping, large 28pt song title header, and zero-whitespace system layout.
+- **Guitar Pro Parsing**: `@coderline/alphatab` (Binary Guitar Pro `.gp`, `.gp3`–`.gp5`, `.gpx` decoding and track extraction).
 - **MIDI Processing**: `@tonejs/midi` (Binary MIDI parsing, pitch solver, and automatic Ukulele tab generation).
 
 ---
@@ -152,7 +153,10 @@ Maps chord names (`Am`, `E7`, `G`, `C`, `F`, `Dm`, etc.) to 4-string fret arrays
 ### 3.4 Dynamic Zoom-Aware System Row Wrapping Engine
 Calculates total horizontal measure widths against printable page width boundaries (`820px`). When a measure overruns the margin threshold, it wraps onto a new continuous system row starting with its own clef string header and time signature.
 
-### 3.5 MIDI File Import Engine (`midiImporter.ts`)
+### 3.5 Guitar Pro Importer Engine (`guitarProImporter.ts`)
+Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphatab`. Extracts exact track selection, measure barlines, note durations, dotted notes, and song headers. Re-voices guitar pitches onto 4-string High-G Ukulele staff lines.
+
+### 3.6 MIDI File Import Engine (`midiImporter.ts`)
 Decodes binary `.mid` files using `@tonejs/midi`. Extracts tempos, time signatures, and note pitch streams. Transposes pitches into High-G range ($C_4$ to $A_5$), solves 4-string fret assignments, and auto-detects matching chord diagrams.
 
 ---
@@ -173,5 +177,7 @@ Decodes binary `.mid` files using `@tonejs/midi`. Extracts tempos, time signatur
 2. **JSON Serializer & Importer (`.uketab`)**:
    - `Save .uketab`: Exports full document state to compact `.uketab` JSON file.
    - `Open .uketab`: File input handler reading `.uketab` JSON files via FileReader, updating document state instantly.
-3. **MIDI Importer (`.mid` / `.midi`)**:
-   - `Open MIDI`: File input handler reading `.mid` files via `@tonejs/midi`, generating complete draft Ukulele tab charts automatically.
+3. **Guitar Pro Importer (`.gp`, `.gp3`–`.gp5`, `.gpx`)**:
+   - `Open Guitar Pro`: File input handler reading `.gp` files via `@coderline/alphatab`, generating pristine Ukulele tab charts with exact measure barlines and rhythm stems.
+4. **MIDI Importer (`.mid` / `.midi`)**:
+   - `Open MIDI`: File input handler reading `.mid` files via `@tonejs/midi`, generating draft Ukulele tab charts automatically.

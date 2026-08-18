@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { UkuleleTabDocument, DurationType, TuningPresetKey } from '../types/ukulele';
 import { TUNING_PRESETS } from '../utils/musicTheory';
 import { parseMidiToUkuleleTab } from '../utils/midiImporter';
+import { parseGuitarProToUkuleleTab } from '../utils/guitarProImporter';
 import {
   Play,
   Pause,
@@ -68,6 +69,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const { tuning, layout, tempo } = document;
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const midiFileInputRef = useRef<HTMLInputElement>(null);
+  const gpFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTuningChange = (key: TuningPresetKey) => {
     onUpdateDocument(prev => ({
@@ -140,9 +142,27 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     e.target.value = '';
   };
 
+  const handleGpFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const buffer = event.target?.result as ArrayBuffer;
+        const parsedDoc = parseGuitarProToUkuleleTab(buffer, file.name);
+        onImportJson(parsedDoc);
+      } catch (err: any) {
+        alert(`Could not parse Guitar Pro file: ${err?.message || err}`);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="no-print EditorToolbar bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-4">
-      {/* Hidden File Inputs for .uketab and .mid imports */}
+      {/* Hidden File Inputs for .uketab, .mid, and .gp imports */}
       <input
         type="file"
         ref={jsonFileInputRef}
@@ -155,6 +175,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         ref={midiFileInputRef}
         onChange={handleMidiFileChange}
         accept=".mid,.midi"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={gpFileInputRef}
+        onChange={handleGpFileChange}
+        accept=".gp,.gp3,.gp4,.gp5,.gpx"
         className="hidden"
       />
 
@@ -237,6 +264,16 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           >
             <Upload className="w-4 h-4 text-emerald-400" />
             <span>Open .uketab</span>
+          </button>
+
+          {/* Open / Import Guitar Pro (.gp, .gp3-5, .gpx) File */}
+          <button
+            onClick={() => gpFileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+            title="Import a Guitar Pro (.gp/.gp3/.gp4/.gp5/.gpx) file to auto-generate a clean Ukulele tab chart"
+          >
+            <Upload className="w-4 h-4 text-amber-400" />
+            <span>Open Guitar Pro</span>
           </button>
 
           {/* Open / Import MIDI (.mid) File */}

@@ -2,7 +2,7 @@
 
 ## 1. Product Overview & Core Purpose
 **UkeTab** is a modern interactive web application for creating, editing, listening to, and exporting 4-line Ukulele tablature.
-It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, MIDI file import (`.mid`), and configurable fingering aids.
+It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, Guitar Pro import (`.gp`, `.gp3`–`.gp5`, `.gpx`), MIDI file import (`.mid`), and configurable fingering aids.
 
 ---
 
@@ -59,10 +59,13 @@ It features standard stringed instrument notation with fret numbers on staff lin
   - **Sixteenth Note (`1/16`)**: Double flag `|//` or double beam `||=||`
   - **Dotted Notes**: Amber dot attached to stem base.
 
+### Guitar Pro Import Engine (`.gp`, `.gp3`–`.gp5`, `.gpx`)
+- **Pristine Single-Note & Polyphonic Import**: Decodes Guitar Pro binary files using `@coderline/alphatab`. Preserves exact track selection, measure barlines, time signatures, note durations, dotted notes, and song headers (Title, Artist, Tempo).
+- **High-G Ukulele Re-voicing**: Automatically re-voices guitar pitch streams ($E_2$–$E_6$) onto 4-string High-G Ukulele staff lines.
+
 ### MIDI Import Engine (`.mid` / `.midi`)
 - **Automated Import**: Imports MIDI files, parses header tempo/time signatures, and automatically converts note pitch streams into draft Ukulele tab charts.
 - **High-G Pitch Solver**: Automatically transposes pitches outside High-G range ($C_4$ to $A_5$) and solves optimal string $s \in \{1..4\}$ and fret $f \in [0..15]$ assignments.
-- **Auto-Chord Attachment**: Detects matching 4-string fingerings and automatically attaches UkuTabs-style chord diagrams.
 
 ---
 
