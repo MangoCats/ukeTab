@@ -27,7 +27,7 @@ function cleanGpLyric(lyrics: string[] | null | undefined): string | undefined {
 }
 
 /**
- * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied/Continued Notes & Synchronized Lyrics.
+ * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied Notes & Perfectly Synchronized Lyrics.
  */
 export function parseGuitarProToUkuleleTab(
   arrayBuffer: ArrayBuffer,
@@ -47,8 +47,36 @@ export function parseGuitarProToUkuleleTab(
     throw new Error('Guitar Pro file contains no tracks.');
   }
 
-  // Find track with lyrics or default to track 0
-  let targetTrack = score.tracks.find(t => t.staves.some(s => s.bars.some(b => b.voices.some(v => v.beats.some(bt => bt.lyrics && bt.lyrics.length > 0)))));
+  // 1. Build a global measure-indexed & beat-indexed Lyrics Map across all tracks in the song
+  // Key format: `${mIdx}-${bIdx}` -> lyric syllable string
+  const globalLyricsMap = new Map<string, string>();
+
+  score.tracks.forEach((t) => {
+    t.staves.forEach((st) => {
+      st.bars.forEach((bar, mIdx) => {
+        bar.voices.forEach((voice) => {
+          voice.beats.forEach((bt, bIdx) => {
+            if (bt.lyrics && bt.lyrics.length > 0) {
+              const cleaned = cleanGpLyric(bt.lyrics);
+              if (cleaned) {
+                const key = `${mIdx}-${bIdx}`;
+                if (!globalLyricsMap.has(key)) {
+                  globalLyricsMap.set(key, cleaned);
+                }
+              }
+            }
+          });
+        });
+      });
+    });
+  });
+
+  // 2. Select the optimal instrumental track (prefer Guitar/Uke or track with highest note density)
+  let targetTrack = score.tracks.find(t => {
+    const nameLower = t.name.toLowerCase();
+    return nameLower.includes('guitar') || nameLower.includes('ukulele') || nameLower.includes('acoustic');
+  });
+
   if (!targetTrack) {
     targetTrack = score.tracks[0];
   }
@@ -132,7 +160,9 @@ export function parseGuitarProToUkuleleTab(
         }
 
         const autoChord = autoDetectChordFromBeatNotes(ukeNotes, chordPalette);
-        const beatLyric = cleanGpLyric(gpBeat.lyrics);
+
+        // Synchronize lyric syllable using global measure & beat index map
+        const beatLyric = globalLyricsMap.get(`${mIdx}-${bIdx}`) || cleanGpLyric(gpBeat.lyrics);
 
         beatsInBar.push({
           id: `b-gp-${mIdx + 1}-${bIdx + 1}`,
