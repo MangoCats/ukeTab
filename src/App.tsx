@@ -725,8 +725,8 @@ export const App: React.FC = () => {
           onSetBeatChord={handleSetBeatChord}
         />
 
-        {/* Inspector Panel (Hidden in Print) */}
-        <div className="no-print">
+        {/* Sticky Pinned Bottom Edit Controls (Hidden in Print) */}
+        <div className="no-print sticky bottom-0 z-40 pt-3 pb-1 bg-slate-950/90 backdrop-blur-md">
           <InspectorPanel
             document={document}
             selectedBeatId={selectedBeatId}
