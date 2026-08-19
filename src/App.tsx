@@ -728,6 +728,22 @@ export const App: React.FC = () => {
           />
         </div>
 
+        {/* Dynamic Printable Page Footer Styles (PDF / Print Mode) */}
+        <style>{`
+          @media print {
+            @page {
+              @bottom-center {
+                content: ${JSON.stringify((document.title || 'Untitled Ukulele Tab') + ' ')} counter(page) " of " counter(pages);
+                font-size: 9pt;
+                font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                color: #0f172a;
+                font-weight: 500;
+                vertical-align: middle;
+              }
+            }
+          }
+        `}</style>
+
         {/* Dedicated Printable Title Header (Visible ONLY in Print / PDF Mode) */}
         <div className="print-title-header">
           <h1>{document.title || 'Untitled Ukulele Tab'}</h1>

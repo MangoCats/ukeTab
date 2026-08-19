@@ -176,6 +176,7 @@ Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphat
 
 1. **Clean Sheet Music PDF Engine**:
    - Renders a clean printable title header, artist name, and tuning/tempo metadata.
+   - Embeds a dynamic multi-page footer via CSS Paged Media `@page { @bottom-center { ... } }` in `9pt` typography positioned `0.5in` above the bottom page margin showing `"{Title} X of Y"`.
    - Right-justifies measure rows against the right page margin with dynamic wrapping.
    - Enforces pure black-on-white non-color-based engraving for all stems, beams, flags, dots, time signatures, and chord diagrams.
    - Uses line cutout masks to prevent staff lines from striking through time signature digits and fret numbers.

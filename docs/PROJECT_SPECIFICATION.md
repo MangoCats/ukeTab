@@ -68,6 +68,7 @@ It features standard stringed instrument notation with fret numbers on staff lin
 
 ## 3. High-Contrast PDF Print & Export Engine
 - **Large Song Title Header**: Displays a prominent `18pt` title caption, italicized artist subtitle, and tuning/tempo metadata centered at the top of the PDF.
+- **Dynamic Multi-Page Footer**: Displays a clean footer in `9pt` font positioned 1/2" (`0.5in`) above the bottom edge of each printed page showing `"{Title} X of Y"` (where `{Title}` is the dynamic song title, `X` is the current page number via `counter(page)`, and `Y` is the total page count via `counter(pages)`).
 - **Right-Justified Measure Layout**: Measure rows wrap dynamically to fit page width and are right-justified flush against the right page margin, placing excess whitespace on the left.
 - **Pure Black-on-White Non-Color-Based Engraving**: All notation symbols (dots, flags, stems, beams, time signature digits, chord diagrams, and rests) render in pure `#000000` black on `#ffffff` white background with zero dependency on color.
 - **Strict UI Stripping**: All web editing controls, toolbars, popovers, selection highlight rings, and red **✕** deletion badges are 100% hidden in print mode (`no-print`).

@@ -28,6 +28,7 @@ For step-by-step instructions on setting up your environment, running the develo
 - 🔄 **Key & Tuning Transposition**: 1-click transposition across keys (+/- semitones) and string tunings with automatic tab recalculation.
 - 📄 **Clean PDF Print Export Engine**:
   - Displays a clean Song Title Header, artist subtitle, and tuning/tempo metadata.
+  - Multi-page `9pt` footer positioned 1/2" above the page bottom showing `"{Title} X of Y"`.
   - Right-justifies measure rows against the right page margin.
   - Pure black-on-white non-color-based engraving for dots, flags, stems, beams, and chord diagrams.
   - Automatically strips all web UI controls, toolbars, selection rings, and red **✕** deletion badges in PDF mode.
