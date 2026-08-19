@@ -360,10 +360,11 @@ body {
     font-family: monospace !important;
   }
 
-  /* Flexbox Measure Wrapping Engine for PDF / Print */
+  /* Flexbox Measure Wrapping Engine for PDF / Print: Right-justify measure rows against right margin */
   .tab-canvas-wrapper {
     display: flex !important;
     flex-wrap: wrap !important;
+    justify-content: flex-end !important;
     align-items: flex-start !important;
     width: calc(100% - 0.5in) !important;
     row-gap: 0.15in !important;
@@ -468,4 +469,59 @@ body {
     stroke: #000000 !important;
     color: #000000 !important;
   }
+
+  .rest-dot {
+    fill: #000000 !important;
+    stroke: none !important;
+  }
+
+  /* Time Signature Clean Mask & Engraving in PDF / Print Export */
+  .time-signature-mask {
+    fill: #ffffff !important;
+  }
+
+  .time-signature-text {
+    fill: #000000 !important;
+    font-weight: 800 !important;
+  }
+
+  /* Rhythm Stems, Beams, Flags, Rings, Ties & Dots in Pure Black-on-White */
+  .rhythm-stem {
+    stroke: #000000 !important;
+  }
+
+  .rhythm-beam {
+    stroke: #000000 !important;
+    stroke-width: 3.5px !important;
+  }
+
+  .rhythm-flag {
+    stroke: #000000 !important;
+    stroke-width: 2.8px !important;
+    fill: none !important;
+  }
+
+  .rhythm-dot {
+    fill: #000000 !important;
+    stroke: none !important;
+  }
+
+  .rhythm-whole-ring {
+    fill: none !important;
+    stroke: #000000 !important;
+    stroke-width: 2px !important;
+  }
+
+  /* Half-note ring must have pure white fill on paper so it renders hollow, not a solid dark blob */
+  .rhythm-half-ring {
+    fill: #ffffff !important;
+    stroke: #000000 !important;
+    stroke-width: 2px !important;
+  }
+
+  .tab-tie-arc {
+    stroke: #000000 !important;
+    stroke-width: 2px !important;
+  }
 }
+

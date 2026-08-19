@@ -119,6 +119,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     // Quarter, 8th, 16th rests: centered on String 3 (Line 3)
     const restY = duration === '1/1' ? string2Y : string3Y;
 
+    // Dot Y offset aligned with each rest shape
+    const dotY = duration === '1/1' ? 3 * z : duration === '1/2' ? -3 * z : duration === '1/4' ? 0 : -2 * z;
+
     return (
       <g transform={`translate(${beatX}, ${restY})`} className="rest-symbol text-sky-400">
         {duration === '1/1' && (
@@ -212,13 +215,15 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
         {/* Dotted rest dot indicator */}
         {isDotted && (
-          <circle cx={9 * z} cy={-2 * z} r={2.2 * z} fill="currentColor" />
+          <circle cx={9 * z} cy={dotY} r={2.6 * z} fill="currentColor" className="rest-dot" />
         )}
       </g>
     );
   };
 
   const string1Y = getStringY(1);
+  const string2Y = getStringY(2);
+  const string3Y = getStringY(3);
   const string4Y = getStringY(4);
   const staffHeight = string4Y - string1Y;
   const measureSvgHeight = topMargin + staffHeight + bottomMargin;
@@ -254,6 +259,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             const beamedBeatIndices = new Set<number>();
             const beams: { startX: number; endX: number; level: number; y: number }[] = [];
 
+            // Step 1: Identify all Level 1 primary beams between adjacent 8th/16th notes
             measure.beats.forEach((b, bIdx) => {
               if (b.duration === '1/8' || b.duration === '1/16') {
                 const nextBeat = measure.beats[bIdx + 1];
@@ -266,9 +272,40 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                   beamedBeatIndices.add(bIdx + 1);
 
                   beams.push({ startX: x1, endX: x2, level: 1, y: beamY });
-                  if (b.duration === '1/16' && nextBeat.duration === '1/16') {
-                    const level2Y = stemsBelow ? beamY - 6 * zoom : beamY + 6 * zoom;
-                    beams.push({ startX: x1, endX: x2, level: 2, y: level2Y });
+                }
+              }
+            });
+
+            // Step 2: Compute Level 2 secondary beams (full beams and fractional beamlets for 1/16th notes)
+            const beamY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
+            const level2Y = stemsBelow ? beamY - 6 * zoom : beamY + 6 * zoom;
+            const stubLength = 16 * zoom;
+
+            measure.beats.forEach((b, bIdx) => {
+              if (b.duration === '1/16' && beamedBeatIndices.has(bIdx)) {
+                const prevBeat = measure.beats[bIdx - 1];
+                const nextBeat = measure.beats[bIdx + 1];
+
+                const isConnectedToNext16th = nextBeat && nextBeat.duration === '1/16' && beamedBeatIndices.has(bIdx + 1);
+                const isConnectedToPrev16th = prevBeat && prevBeat.duration === '1/16' && beamedBeatIndices.has(bIdx - 1);
+
+                const currentX = beatsStartX + bIdx * beatWidth;
+
+                if (isConnectedToNext16th) {
+                  // Full Level 2 secondary beam connecting this 16th to the next 16th
+                  const nextX = beatsStartX + (bIdx + 1) * beatWidth;
+                  beams.push({ startX: currentX, endX: nextX, level: 2, y: level2Y });
+                } else if (!isConnectedToPrev16th) {
+                  // Single 1/16th note in a beam group: render traditional fractional secondary beam (stub / beamlet)
+                  const isConnectedToPrev8th = prevBeat && (prevBeat.duration === '1/8' || prevBeat.duration === '1/16') && beamedBeatIndices.has(bIdx - 1);
+                  const isConnectedToNext8th = nextBeat && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16') && beamedBeatIndices.has(bIdx + 1);
+
+                  if (isConnectedToPrev8th) {
+                    // Fractional beam stub pointing leftward along the primary beam
+                    beams.push({ startX: currentX - stubLength, endX: currentX, level: 2, y: level2Y });
+                  } else if (isConnectedToNext8th) {
+                    // Fractional beam stub pointing rightward along the primary beam
+                    beams.push({ startX: currentX, endX: currentX + stubLength, level: 2, y: level2Y });
                   }
                 }
               }
@@ -335,6 +372,25 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                   {/* Traditional Sheet Music Time Signature (First Measure) */}
                   {isFirstMeasure && (
                     <g className="time-signature-engraving">
+                      {/* Line Cutout Masks so staff lines do not strike through time signature numbers */}
+                      <rect
+                        x={clefWidth + 4 * zoom}
+                        y={string1Y + 2 * zoom}
+                        width={24 * zoom}
+                        height={28 * zoom}
+                        fill="#020617"
+                        rx={3}
+                        className="time-signature-mask"
+                      />
+                      <rect
+                        x={clefWidth + 4 * zoom}
+                        y={string3Y - 2 * zoom}
+                        width={24 * zoom}
+                        height={28 * zoom}
+                        fill="#020617"
+                        rx={3}
+                        className="time-signature-mask"
+                      />
                       <text
                         x={clefWidth + 16 * zoom}
                         y={string1Y + 24 * zoom}
@@ -343,6 +399,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                         fontFamily="'Outfit', 'Times New Roman', Georgia, serif"
                         fontSize={`${26 * zoom}px`}
                         fontWeight="800"
+                        className="time-signature-text"
                         style={{ pointerEvents: 'none' }}
                       >
                         {measure.timeSignature[0]}
@@ -355,6 +412,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                         fontFamily="'Outfit', 'Times New Roman', Georgia, serif"
                         fontSize={`${26 * zoom}px`}
                         fontWeight="800"
+                        className="time-signature-text"
                         style={{ pointerEvents: 'none' }}
                       >
                         {measure.timeSignature[1]}
@@ -416,6 +474,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                       y2={bm.y}
                       stroke="#38bdf8"
                       strokeWidth={3.5 * zoom}
+                      className="rhythm-beam"
                     />
                   ))}
 
@@ -509,6 +568,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                     fill="none"
                                     stroke="#38bdf8"
                                     strokeWidth={2 * zoom}
+                                    className="tab-tie-arc"
                                   />
                                 )}
 
@@ -795,23 +855,41 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                         {!beat.isRest && (
                           <g stroke={isPlaying ? '#f59e0b' : '#cbd5e1'} strokeWidth={2 * zoom} fill="none">
                             {beat.duration !== '1/1' && (
-                              <line x1={stemX} y1={stemStartY} x2={stemX} y2={stemEndY} />
+                              <line x1={stemX} y1={stemStartY} x2={stemX} y2={stemEndY} className="rhythm-stem" />
                             )}
 
                             {beat.duration === '1/1' && (
-                              <circle cx={stemX} cy={stemStartY + 10 * zoom} r={6 * zoom} stroke="#cbd5e1" strokeWidth={2 * zoom} />
+                              <circle
+                                cx={stemX}
+                                cy={stemStartY + 10 * zoom}
+                                r={6 * zoom}
+                                stroke="#cbd5e1"
+                                strokeWidth={2 * zoom}
+                                className="rhythm-whole-ring"
+                              />
                             )}
 
                             {beat.duration === '1/2' && (
-                              <circle cx={stemX} cy={stemEndY} r={4 * zoom} fill="#020617" stroke="#cbd5e1" strokeWidth={2 * zoom} />
+                              <circle
+                                cx={stemX}
+                                cy={stemEndY}
+                                r={4 * zoom}
+                                fill="#020617"
+                                stroke="#cbd5e1"
+                                strokeWidth={2 * zoom}
+                                className="rhythm-half-ring"
+                              />
                             )}
 
                             {beat.duration === '1/8' && !isBeamed && (
                               <path
                                 d={`M ${stemX} ${stemEndY} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -4 : 4) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -12 : 12) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -16 : 16) * zoom}`}
                                 stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                strokeWidth={2.5 * zoom}
+                                strokeWidth={2.8 * zoom}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
                                 fill="none"
+                                className="rhythm-flag"
                               />
                             )}
 
@@ -820,21 +898,45 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                 <path
                                   d={`M ${stemX} ${stemEndY} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -4 : 4) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -12 : 12) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -16 : 16) * zoom}`}
                                   stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                  strokeWidth={2.5 * zoom}
+                                  strokeWidth={2.8 * zoom}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                   fill="none"
+                                  className="rhythm-flag"
                                 />
                                 <path
                                   d={`M ${stemX} ${stemEndY + (stemsBelow ? -6 : 6) * zoom} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -10 : 10) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -18 : 18) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -22 : 22) * zoom}`}
                                   stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                  strokeWidth={2.5 * zoom}
+                                  strokeWidth={2.8 * zoom}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                   fill="none"
+                                  className="rhythm-flag"
                                 />
                               </g>
                             )}
 
-                            {beat.isDotted && (
-                              <circle cx={stemX + 8 * zoom} cy={stemEndY} r={2.5 * zoom} fill="#f59e0b" stroke="none" />
-                            )}
+                            {beat.isDotted && (() => {
+                              // Traditional uncollided dot placement toward top of vertical stem away from flags
+                              let dotX = stemX + 7.5 * zoom;
+                              let dotY = stemsBelow ? stemStartY + 8 * zoom : stemStartY - 8 * zoom;
+
+                              if (beat.duration === '1/1') {
+                                dotX = stemX + 11 * zoom;
+                                dotY = stemStartY + 10 * zoom;
+                              }
+
+                              return (
+                                <circle
+                                  cx={dotX}
+                                  cy={dotY}
+                                  r={2.8 * zoom}
+                                  fill="#f59e0b"
+                                  stroke="none"
+                                  className="rhythm-dot"
+                                />
+                              );
+                            })()}
                           </g>
                         )}
 

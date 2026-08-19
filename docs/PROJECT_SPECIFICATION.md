@@ -58,7 +58,7 @@ It features standard stringed instrument notation with fret numbers on staff lin
   - **Quarter Note (`1/4`)**: Plain vertical stem `|`
   - **Eighth Note (`1/8`)**: Single flag `|/` or horizontal beam `|__|`
   - **Sixteenth Note (`1/16`)**: Double flag `|//` or double beam `||=||`
-  - **Dotted Notes**: Amber dot attached to stem base.
+  - **Dotted Notes**: Cleanly positioned dot indicator (amber on web screen, pure black `#000000` in PDF/print output).
 
 ### Guitar Pro Import Engine (`.gp`, `.gp3`–`.gp5`, `.gpx`)
 - **Pristine Single-Note & Polyphonic Import**: Decodes Guitar Pro binary files using `@coderline/alphatab`. Preserves exact track selection, measure barlines, time signatures, note durations, dotted notes, tied/continued notes, and song headers (Title, Artist, Tempo).
