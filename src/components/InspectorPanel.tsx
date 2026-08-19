@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
 import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES, autoDetectChordFromBeatNotes } from '../utils/musicTheory';
-import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface InspectorPanelProps {
   document: UkuleleTabDocument;
@@ -18,6 +18,7 @@ interface InspectorPanelProps {
   onDeleteBeatColumn: (beatId: string) => void;
   onSetBeatChord?: (beatId: string, chord: ChordMarker | null) => void;
   onOpenChordPaletteModal?: () => void;
+  onDeselectBeat?: () => void;
 }
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
@@ -34,7 +35,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onToggleTie,
   onDeleteBeatColumn,
   onSetBeatChord,
-  onOpenChordPaletteModal
+  onOpenChordPaletteModal,
+  onDeselectBeat
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const { tuning, measures, layout, chordPalette } = document;
@@ -194,9 +196,20 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             />
           </div>
 
+          {onDeselectBeat && (
+            <button
+              onClick={onDeselectBeat}
+              className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition ml-1"
+              title="Close beat editor (Deselect beat)"
+            >
+              <X className="w-3.5 h-3.5 text-slate-400" />
+              <span>Close</span>
+            </button>
+          )}
+
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition border border-slate-700 ml-2"
+            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition border border-slate-700 ml-1"
             title={isCollapsed ? "Expand Inspector Controls" : "Minimize Inspector Controls"}
           >
             {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}

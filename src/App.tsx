@@ -7,6 +7,7 @@ import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
 import { InspectorPanel } from './components/InspectorPanel';
 import { ChordPaletteModal } from './components/ChordPaletteModal';
+import { DuplicateMeasuresModal } from './components/DuplicateMeasuresModal';
 import { Sparkles, Keyboard, Music2 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -27,6 +28,7 @@ export const App: React.FC = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showChordPaletteModal, setShowChordPaletteModal] = useState<boolean>(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false);
 
   const playbackTimeoutRef = useRef<number | null>(null);
   const lastKeyTimeRef = useRef<number>(0);
@@ -532,6 +534,51 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleDuplicateMeasureRange = (startIdx: number, endIdx: number) => {
+    setDocument(prev => {
+      const total = prev.measures.length;
+      if (total === 0) return prev;
+
+      const validStart = Math.max(1, Math.min(startIdx, total));
+      const validEnd = Math.max(validStart, Math.min(endIdx, total));
+
+      const targetMeasures = prev.measures.slice(validStart - 1, validEnd);
+
+      const duplicatedMeasures: Measure[] = targetMeasures.map((m, mOffset) => {
+        const newMeasureId = `m-${Date.now()}-${mOffset}-${Math.random().toString(36).substring(2, 6)}`;
+        const newBeats: BeatColumn[] = m.beats.map((b, bOffset) => {
+          const newBeatId = `b-${newMeasureId}-${bOffset}`;
+          const newNotes: UkuleleNote[] = b.notes.map((n, nOffset) => ({
+            ...n,
+            id: `n-${Date.now()}-${bOffset}-${nOffset}-${Math.random().toString(36).substring(2, 5)}`
+          }));
+          return {
+            ...b,
+            id: newBeatId,
+            notes: newNotes,
+            chord: b.chord ? { ...b.chord } : b.chord
+          };
+        });
+
+        return {
+          ...m,
+          id: newMeasureId,
+          beats: newBeats
+        };
+      });
+
+      const combinedMeasures = [...prev.measures, ...duplicatedMeasures].map((m, idx) => ({
+        ...m,
+        index: idx + 1
+      }));
+
+      return {
+        ...prev,
+        measures: combinedMeasures
+      };
+    });
+  };
+
   const handleNewSong = () => {
     if (window.confirm('Create a new blank ukulele tab chart? Unsaved changes will be replaced.')) {
       const blankDoc = createBlankTabDocument();
@@ -594,6 +641,14 @@ export const App: React.FC = () => {
         activePalette={document.chordPalette || []}
         onUpdatePalette={handleUpdateChordPalette}
         initialFrets={selectedBeatInitialFrets}
+      />
+
+      {/* Duplicate Measure Range Modal */}
+      <DuplicateMeasuresModal
+        isOpen={showDuplicateModal}
+        onClose={() => setShowDuplicateModal(false)}
+        totalMeasures={document.measures.length}
+        onDuplicate={handleDuplicateMeasureRange}
       />
 
       {/* Top Banner & App Header (Hidden in Print) */}
@@ -683,6 +738,7 @@ export const App: React.FC = () => {
             onChangeSpeed={setPlaybackSpeed}
             onSelectDuration={setActiveDuration}
             onAddMeasure={handleAddMeasure}
+            onOpenDuplicateModal={() => setShowDuplicateModal(true)}
             onInsertBeat={selectedBeatId ? () => handleInsertBeat(selectedBeatId) : undefined}
             onInsertRest={selectedBeatId ? () => handleInsertRest(selectedBeatId) : undefined}
             onToggleTriplet={selectedBeatId ? () => handleToggleTriplet(selectedBeatId) : undefined}
@@ -723,6 +779,7 @@ export const App: React.FC = () => {
           onUpdateBeatDuration={handleUpdateBeatDuration}
           onUpdateBeatLyric={handleUpdateBeatLyric}
           onSetBeatChord={handleSetBeatChord}
+          onDeselectBeat={() => setSelectedBeatId(null)}
         />
 
         {/* Fixed Viewport Bottom Edit Dock (Hidden in Print) */}
@@ -743,6 +800,7 @@ export const App: React.FC = () => {
               onDeleteBeatColumn={handleDeleteBeatColumn}
               onSetBeatChord={handleSetBeatChord}
               onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
+              onDeselectBeat={() => setSelectedBeatId(null)}
             />
           </div>
         </div>

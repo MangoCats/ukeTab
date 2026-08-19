@@ -17,7 +17,8 @@ import {
   Sparkles,
   PlusCircle,
   Music2,
-  FilePlus
+  FilePlus,
+  Copy
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -32,6 +33,7 @@ interface EditorToolbarProps {
   onChangeSpeed: (speed: number) => void;
   onSelectDuration: (duration: DurationType) => void;
   onAddMeasure: () => void;
+  onOpenDuplicateModal?: () => void;
   onInsertBeat?: () => void;
   onInsertRest?: () => void;
   onToggleTriplet?: () => void;
@@ -54,6 +56,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onToggleMetronome,
   onChangeSpeed,
   onAddMeasure,
+  onOpenDuplicateModal,
   onInsertBeat,
   onInsertRest,
   onToggleTriplet,
@@ -288,6 +291,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <Plus className="w-4 h-4 text-amber-400" />
             <span>Add Measure</span>
           </button>
+
+          {/* Duplicate Measure Range Button */}
+          {onOpenDuplicateModal && (
+            <button
+              onClick={onOpenDuplicateModal}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 rounded-xl text-xs font-semibold transition"
+              title="Duplicate a range of measures and append to the end of the tab chart"
+            >
+              <Copy className="w-4 h-4 text-sky-400" />
+              <span>Duplicate Measures</span>
+            </button>
+          )}
         </div>
       </div>
 

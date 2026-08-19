@@ -55,6 +55,8 @@ body {
 .right-0 { right: 0 !important; }
 .right-6 { right: 1.5rem !important; }
 
+.z-9999, .z-\[9999\], .z-modal { z-index: 9999 !important; }
+.z-100, .z-\[100\] { z-index: 100 !important; }
 .z-50 { z-index: 50 !important; }
 .z-40 { z-index: 40 !important; }
 .z-30 { z-index: 30 !important; }
@@ -456,5 +458,14 @@ body {
 
   .chord-nut-line, .chord-fret-line, .chord-string-line {
     stroke: #000000 !important;
+  }
+
+  /* High-contrast traditional black rest symbols on white background */
+  .rest-symbol,
+  .rest-symbol *,
+  .rest-rect {
+    fill: #000000 !important;
+    stroke: #000000 !important;
+    color: #000000 !important;
   }
 }

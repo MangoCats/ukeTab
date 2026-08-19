@@ -2,7 +2,7 @@ import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker } from '../types/ukulele';
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
-import { Trash2, PlusCircle, Music } from 'lucide-react';
+import { Trash2, PlusCircle, Music, X } from 'lucide-react';
 
 interface TabRendererProps {
   document: UkuleleTabDocument;
@@ -21,6 +21,7 @@ interface TabRendererProps {
   onUpdateBeatDuration: (beatId: string, duration: DurationType, isDotted?: boolean) => void;
   onUpdateBeatLyric: (beatId: string, lyric: string) => void;
   onSetBeatChord?: (beatId: string, chord: ChordMarker | null) => void;
+  onDeselectBeat?: () => void;
 }
 
 export const TabRenderer: React.FC<TabRendererProps> = ({
@@ -39,7 +40,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onDeleteBeatColumn,
   onUpdateBeatDuration,
   onUpdateBeatLyric,
-  onSetBeatChord
+  onSetBeatChord,
+  onDeselectBeat
 }) => {
   const { tuning, layout, measures, chordPalette } = document;
   const zoom = layout.zoomScale;
@@ -102,6 +104,118 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
   const getStringY = (stringIndex: 1 | 2 | 3 | 4) => {
     return topMargin + (stringIndex - 1) * lineSpacing;
+  };
+
+  const renderRestSymbol = (beat: { duration: DurationType; isDotted?: boolean }, beatX: number) => {
+    const z = zoom;
+    const duration = beat.duration || '1/4';
+    const isDotted = !!beat.isDotted;
+    const string2Y = getStringY(2);
+    const string3Y = getStringY(3);
+
+    // Traditional rest placement:
+    // Whole rest ('1/1'): hangs directly below String 2 (Line 2)
+    // Half rest ('1/2'): sits directly on top of String 3 (Line 3)
+    // Quarter, 8th, 16th rests: centered on String 3 (Line 3)
+    const restY = duration === '1/1' ? string2Y : string3Y;
+
+    return (
+      <g transform={`translate(${beatX}, ${restY})`} className="rest-symbol text-sky-400">
+        {duration === '1/1' && (
+          /* Whole Rest: Solid rectangle hanging below String 2 (Line 2) */
+          <rect
+            x={-6 * z}
+            y={0}
+            width={12 * z}
+            height={6 * z}
+            fill="currentColor"
+            className="rest-rect"
+          />
+        )}
+
+        {duration === '1/2' && (
+          /* Half Rest: Solid rectangle sitting on top of String 3 (Line 3) */
+          <rect
+            x={-6 * z}
+            y={-6 * z}
+            width={12 * z}
+            height={6 * z}
+            fill="currentColor"
+            className="rest-rect"
+          />
+        )}
+
+        {duration === '1/4' && (
+          /* Quarter Rest: Traditional squiggly rest centered on String 3 (Line 3) */
+          <path
+            d={`M ${-2 * z} ${-14 * z}
+               C ${0 * z} ${-17 * z}, ${3.5 * z} ${-15 * z}, ${2 * z} ${-11 * z}
+               C ${0.5 * z} ${-8 * z}, ${-3.5 * z} ${-4 * z}, ${3 * z} ${0 * z}
+               C ${6 * z} ${3 * z}, ${3 * z} ${8 * z}, ${-1 * z} ${10.5 * z}
+               C ${-4 * z} ${12 * z}, ${-4.5 * z} ${14 * z}, ${-2.5 * z} ${15.5 * z}
+               C ${-0.5 * z} ${16.5 * z}, ${1.5 * z} ${15 * z}, ${2 * z} ${13.5 * z}
+               C ${-0.5 * z} ${16.5 * z}, ${-5.5 * z} ${16 * z}, ${-5 * z} ${12 * z}
+               C ${-4.5 * z} ${9 * z}, ${-1.5 * z} ${6.5 * z}, ${-2.5 * z} ${4 * z}
+               C ${-3.5 * z} ${1.5 * z}, ${-6 * z} ${-2 * z}, ${-2 * z} ${-6.5 * z}
+               C ${0.5 * z} ${-9.5 * z}, ${-2 * z} ${-12 * z}, ${-2 * z} ${-14 * z} Z`}
+            fill="currentColor"
+          />
+        )}
+
+        {duration === '1/8' && (
+          /* Eighth Rest: Traditional 7-shaped rest with single hook on String 3 (Line 3) */
+          <g>
+            <path
+              d={`M ${3 * z} ${11 * z} L ${-2 * z} ${-11 * z}`}
+              stroke="currentColor"
+              strokeWidth={2.2 * z}
+              strokeLinecap="round"
+            />
+            <circle cx={-6 * z} cy={-7.5 * z} r={3 * z} fill="currentColor" />
+            <path
+              d={`M ${-6 * z} ${-10.5 * z} C ${-1 * z} ${-10.5 * z}, ${-1 * z} ${-3 * z}, ${-2 * z} ${-7.5 * z}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2 * z}
+              strokeLinecap="round"
+            />
+          </g>
+        )}
+
+        {duration === '1/16' && (
+          /* Sixteenth Rest: Traditional rest with double hooks on String 3 (Line 3) */
+          <g>
+            <path
+              d={`M ${4 * z} ${13 * z} L ${-3 * z} ${-13 * z}`}
+              stroke="currentColor"
+              strokeWidth={2.2 * z}
+              strokeLinecap="round"
+            />
+            <circle cx={-7 * z} cy={-9.5 * z} r={2.5 * z} fill="currentColor" />
+            <path
+              d={`M ${-7 * z} ${-12 * z} C ${-2 * z} ${-12 * z}, ${-2 * z} ${-5 * z}, ${-2.5 * z} ${-9.5 * z}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8 * z}
+              strokeLinecap="round"
+            />
+            <circle cx={-7 * z} cy={-1.5 * z} r={2.5 * z} fill="currentColor" />
+            <path
+              d={`M ${-7 * z} ${-4 * z} C ${-2 * z} ${-4 * z}, ${-2 * z} ${3 * z}, ${-1.5 * z} ${-1.5 * z}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8 * z}
+              strokeLinecap="round"
+            />
+          </g>
+        )}
+
+        {/* Dotted rest dot indicator */}
+        {isDotted && (
+          <circle cx={9 * z} cy={-2 * z} r={2.2 * z} fill="currentColor" />
+        )}
+      </g>
+    );
   };
 
   const string1Y = getStringY(1);
@@ -357,12 +471,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                           </g>
                         )}
 
-                        {/* Rest Symbol */}
+                        {/* Traditional Rest Symbol */}
                         {beat.isRest ? (
-                          <g transform={`translate(${beatX}, ${string1Y + staffHeight / 2})`}>
-                            <rect x={-8 * zoom} y={-4 * zoom} width={16 * zoom} height={8 * zoom} fill="#38bdf8" rx={2} />
-                            <text x={0} y={12 * zoom} textAnchor="middle" fill="#38bdf8" fontSize={`${10 * zoom}px`} fontWeight="bold" fontFamily="monospace">Rest</text>
-                          </g>
+                          renderRestSymbol(beat, beatX)
                         ) : (
                           /* Standard Fret Numbers & Line Cutouts */
                           ([1, 2, 3, 4] as const).map(s => {
@@ -600,6 +711,19 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                 >
                                   <Trash2 className="w-3 h-3 text-rose-400" />
                                   <span>Del Beat</span>
+                                </button>
+
+                                {/* Close Beat Editor Button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onDeselectBeat) onDeselectBeat();
+                                    else onSelectBeat(-1, '');
+                                  }}
+                                  className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition ml-0.5"
+                                  title="Close beat editor (Deselect beat)"
+                                >
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
 
