@@ -5,6 +5,7 @@ node_modules/
 # Production build outputs
 dist/
 dist-ssr/
+coverage/
 *.local
 
 # Logs & Environment
