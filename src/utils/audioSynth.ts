@@ -63,6 +63,25 @@ export function playMetronomeClick(isAccent: boolean = false) {
   osc.stop(now + 0.05);
 }
 
+export function playMutedClick() {
+  const ctx = getAudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(120, ctx.currentTime);
+
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.035);
+}
+
 export function playBeatChord(beat: BeatColumn, tuning: TuningConfig, enableMetronome: boolean = false, isFirstBeatInMeasure: boolean = false) {
   if (enableMetronome) {
     playMetronomeClick(isFirstBeatInMeasure);
@@ -72,6 +91,10 @@ export function playBeatChord(beat: BeatColumn, tuning: TuningConfig, enableMetr
 
   beat.notes.forEach(note => {
     if (note.isGhost) return;
+    if (note.fret < 0) {
+      playMutedClick();
+      return;
+    }
     const pitch = calculatePitch(note.string, note.fret, tuning);
     playPluck(pitch, 0.6);
   });

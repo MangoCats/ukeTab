@@ -41,7 +41,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const { tuning, measures, layout, chordPalette } = document;
   const maxFretLimit = layout.maxFretLimit ?? 12;
-  const fretButtonList = Array.from({ length: maxFretLimit + 1 }, (_, i) => i);
+  const fretButtonList = [-1, ...Array.from({ length: maxFretLimit + 1 }, (_, i) => i)];
 
   if (!selectedBeatId) {
     return (
@@ -81,7 +81,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   const stringName = selectedString ? tuning.stringsDisplay[selectedString - 1] : null;
   const pitchMidi = selectedString && activeNote ? calculatePitch(selectedString, activeNote.fret, tuning) : null;
-  const pitchName = pitchMidi ? midiToNoteName(pitchMidi) : null;
+  const pitchName = pitchMidi && pitchMidi > 0 ? midiToNoteName(pitchMidi) : null;
 
   // Active composition chords palette
   const activeChordsList = getEffectiveChordPalette(chordPalette);
@@ -336,7 +336,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 </span>
                 {selectedString && activeNote && (
                   <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                    Fret {activeNote.fret} ({pitchName})
+                    {activeNote.fret === -1 ? 'Muted (X)' : `Fret ${activeNote.fret} (${pitchName})`}
                   </span>
                 )}
               </div>
@@ -346,6 +346,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   <div className="flex flex-wrap gap-1.5">
                     {fretButtonList.map(f => {
                       const isActive = activeNote?.fret === f;
+                      const isMute = f === -1;
                       return (
                         <button
                           key={f}
@@ -353,10 +354,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                           className={`px-3 py-1 rounded-xl font-mono text-xs font-bold transition shadow-sm ${
                             isActive
                               ? 'bg-amber-500 text-slate-950 shadow-amber-500/20'
+                              : isMute
+                              ? 'bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-500/30'
                               : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                           }`}
+                          title={isMute ? 'Muted String Note (X)' : `Fret ${f}`}
                         >
-                          {f}
+                          {isMute ? 'X' : f}
                         </button>
                       );
                     })}

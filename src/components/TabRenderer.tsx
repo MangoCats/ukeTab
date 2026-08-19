@@ -47,7 +47,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const zoom = layout.zoomScale;
   const stemsBelow = layout.stemsPlacement === 'below';
   const maxFretLimit = layout.maxFretLimit ?? 12;
-  const fretButtonList = Array.from({ length: maxFretLimit + 1 }, (_, i) => i);
+  const fretButtonList = [-1, ...Array.from({ length: maxFretLimit + 1 }, (_, i) => i)];
   const popoverWidth = Math.max(520, (maxFretLimit + 1) * 24 + 130);
 
   // Layout metrics (Widen string grid vertically so vertically stacked frets don't overwrite)
@@ -578,7 +578,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                   />
                                 )}
 
-                                {/* Fret Number */}
+                                {/* Fret Number / X Muted Note */}
                                 {noteOnString && (
                                   <g
                                     onClick={(e) => {
@@ -607,6 +607,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                           ? '#38bdf8'
                                           : isPlaying
                                           ? '#fbbf24'
+                                          : noteOnString.fret === -1
+                                          ? '#f87171'
                                           : '#ffffff'
                                       }
                                       fontFamily="monospace, ui-monospace, sans-serif"
@@ -615,7 +617,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                       className="fret-number-text"
                                       style={{ pointerEvents: 'none' }}
                                     >
-                                      {isNoteTied ? `(${noteOnString.fret})` : noteOnString.fret}
+                                      {noteOnString.fret === -1
+                                        ? isNoteTied ? '(X)' : 'X'
+                                        : isNoteTied ? `(${noteOnString.fret})` : noteOnString.fret}
                                     </text>
 
                                     {/* Direct Red Trashcan Badge */}
@@ -810,19 +814,26 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                 {selectedString && (
                                   <div className="flex items-center gap-1 overflow-x-auto">
                                     <span className="text-[11px] text-slate-400 font-semibold">Fret:</span>
-                                    {fretButtonList.map(f => (
-                                      <button
-                                        key={f}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onAddNote(beat.id, selectedString, f);
-                                        }}
-                                        className="w-5.5 h-5.5 rounded-md text-[10px] font-bold font-mono bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200 transition flex items-center justify-center flex-shrink-0"
-                                        title={`Set fret ${f}`}
-                                      >
-                                        {f}
-                                      </button>
-                                    ))}
+                                    {fretButtonList.map(f => {
+                                      const isMute = f === -1;
+                                      return (
+                                        <button
+                                          key={f}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onAddNote(beat.id, selectedString, f);
+                                          }}
+                                          className={`w-5.5 h-5.5 rounded-md text-[10px] font-bold font-mono transition flex items-center justify-center flex-shrink-0 ${
+                                            isMute
+                                              ? 'bg-rose-950/70 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40'
+                                              : 'bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200'
+                                          }`}
+                                          title={isMute ? 'Muted note (X)' : `Set fret ${f}`}
+                                        >
+                                          {isMute ? 'X' : f}
+                                        </button>
+                                      );
+                                    })}
 
                                     <button
                                       onClick={(e) => {

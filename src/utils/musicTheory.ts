@@ -249,6 +249,7 @@ export function midiToNoteName(midi: number): string {
 }
 
 export function calculatePitch(stringIndex: 1 | 2 | 3 | 4, fret: number, tuning: TuningConfig): number {
+  if (fret < 0) return -1;
   return tuning.pitches[stringIndex - 1] + fret;
 }
 
@@ -285,6 +286,7 @@ export function getAlternateFretSuggestions(
   const assignedStrings = new Set(currentNotes.map(n => n.string));
 
   currentNotes.forEach(activeNote => {
+    if (activeNote.fret < 0) return; // Muted X notes do not suggest alternate frets
     const pitch = calculatePitch(activeNote.string, activeNote.fret, tuning);
 
     ([1, 2, 3, 4] as const).forEach(targetString => {
@@ -314,6 +316,7 @@ export function transposePitches(
   tuning: TuningConfig
 ): UkuleleNote[] {
   return notes.map(note => {
+    if (note.fret < 0) return note; // Muted X notes remain muted X
     const currentPitch = calculatePitch(note.string, note.fret, tuning);
     const newPitch = currentPitch + semitoneShift;
     const newFret = newPitch - tuning.pitches[note.string - 1];

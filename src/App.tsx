@@ -45,7 +45,15 @@ export const App: React.FC = () => {
       return;
     }
 
-    let currentIndex = 0;
+    let startIndex = 0;
+    if (selectedBeatId) {
+      const foundIdx = allBeats.findIndex(b => b.id === selectedBeatId);
+      if (foundIdx !== -1) {
+        startIndex = foundIdx;
+      }
+    }
+
+    let currentIndex = startIndex;
 
     const playNextBeat = () => {
       if (currentIndex >= allBeats.length) {
@@ -182,6 +190,12 @@ export const App: React.FC = () => {
         if (selectedBeatId) {
           handleRemoveNote(selectedBeatId, selectedString);
         }
+        return;
+      }
+
+      if ((e.key === 'x' || e.key === 'X' || e.key === 'm' || e.key === 'M') && selectedBeatId) {
+        e.preventDefault();
+        handleAddNote(selectedBeatId, selectedString, -1);
         return;
       }
 
@@ -680,7 +694,7 @@ export const App: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-amber-400">1. Fret Notes & Chords:</span>
-              <p className="text-slate-300">Click string on staff, type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or assign a Ukulele Chord (G, C, F, Dm, E7, E7m).</p>
+              <p className="text-slate-300">Click string, type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">X/M</code> for Muted (X), or assign Chords.</p>
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
               <span className="font-bold text-sky-400">2. Note Value (Rhythm):</span>
