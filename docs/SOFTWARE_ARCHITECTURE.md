@@ -185,3 +185,34 @@ Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphat
    - `Open .uketab`: File input handler reading `.uketab` JSON files via FileReader, updating document state instantly.
 3. **Guitar Pro Importer (`.gp`, `.gp3`–`.gp5`, `.gpx`)**:
    - `Open Guitar Pro`: File input handler reading `.gp` files via `@coderline/alphatab`, generating pristine Ukulele tab charts with exact measure barlines, rhythm stems, and tied/continued notes.
+
+---
+
+## 6. Automated Testing Architecture & Subsystem Verification
+
+```
++-------------------------------------------------------------------------+
+|                              Vitest Runner                              |
++--------------------+--------------------+-------------------------------+
+                     |                    |
+                     v                    v
+          +--------------------+ +--------------------+
+          | musicTheory.test   | | guitarPro.test     |
+          | - calculatePitch   | | - convertGpDuration|
+          | - duration ms      | | - cleanGpLyric     |
+          | - chord detection  | +--------------------+
+          | - ghost notes      |          |
+          | - transposition    |          v
+          +--------------------+ +--------------------+
+                     |           | ukulele.test       |
+                     v           | sampleData.test    |
+          +--------------------+ +--------------------+
+          | TypeScript (tsc)   |
+          | Strict Type Safety |
+          +--------------------+
+```
+
+### Testing Strategy
+- **Unit Testing**: Powered by Vitest to execute pure mathematical and parsing logic in memory with millisecond response times.
+- **Continuous Static Analysis**: `tsc` is integrated into the build pipeline (`npm run build`) to ensure type contracts, interface definitions, and component prop constraints remain unbroken.
+- **Regression Defense**: Test suites cover critical boundary conditions (transposition clamping, `maxFretLimit` filtering, compound note duration multipliers, and 4-string fret chord identification).

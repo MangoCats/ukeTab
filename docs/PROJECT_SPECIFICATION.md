@@ -103,3 +103,35 @@ Tabs are stored as JSON files (`.uketab`):
   "measures": []
 }
 ```
+
+---
+
+## 5. Automated Testing & Quality Assurance
+
+### Test Runner & Engine
+- **Framework**: [Vitest](https://vitest.dev/) native Vite-powered unit test runner.
+- **Execution Speed**: Sub-second execution with direct TypeScript transpilation and zero Babel overhead.
+
+### Test Suites & Coverage
+1. **Music Theory & Mathematical Engine (`src/utils/musicTheory.test.ts`)**:
+   - Multi-tuning pitch calculations (`calculatePitch`) across High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), and Soprano D ($aDF\#B$).
+   - Pitch transposition and semitone shifting with $0 \le \text{fret} \le 20$ bounds clamping.
+   - Beat duration calculations (`getBeatDurationMs`) across all note values (`1/1`–`1/32`), dotted multipliers ($1.5\times$), triplets ($\frac{2}{3}\times$), and speed multipliers.
+   - Alternate fret ghost notes solver with `maxFretLimit` filtering.
+   - Chord palette resolution (`getDefaultChordPalette`, `getEffectiveChordPalette`), chord detection (`autoDetectChordFromBeatNotes`), and 4-string fret extraction (`extract4StringFrets`).
+2. **Guitar Pro Import Parser (`src/utils/guitarProImporter.test.ts`)**:
+   - AlphaTab duration code mappings (`convertGpDuration`).
+   - Clean lyric syllable hyphenation and whitespace handling (`cleanGpLyric`).
+3. **Ukulele Domain Types & Constants (`src/types/ukulele.test.ts`)**:
+   - Validation of `DURATION_OPTIONS` and keyboard shortcut mappings `DURATION_KEY_MAP`.
+4. **Sample Tab Documents & Generator (`src/utils/sampleData.test.ts`)**:
+   - Validation of default sample tab files and blank tab document generation.
+
+### Running Automated Tests
+```bash
+# Run all unit test suites once
+npm test
+
+# Run test runner in live watch mode during development
+npm run test:watch
+```

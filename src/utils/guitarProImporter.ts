@@ -5,7 +5,7 @@ import { TUNING_PRESETS, autoDetectChordFromBeatNotes, getDefaultChordPalette } 
 /**
  * Convert alphaTab duration number to UkeTab DurationType
  */
-function convertGpDuration(duration: number, isDotted: boolean): { duration: DurationType; isDotted: boolean } {
+export function convertGpDuration(duration: number, isDotted: boolean): { duration: DurationType; isDotted: boolean } {
   let dType: DurationType = '1/4';
   if (duration === 1) dType = '1/1';
   else if (duration === 2) dType = '1/2';
@@ -20,7 +20,7 @@ function convertGpDuration(duration: number, isDotted: boolean): { duration: Dur
 /**
  * Clean Guitar Pro lyric syllable formatting (remove trailing commas/hyphens)
  */
-function cleanGpLyric(lyrics: string[] | null | undefined): string | undefined {
+export function cleanGpLyric(lyrics: string[] | null | undefined): string | undefined {
   if (!lyrics || lyrics.length === 0) return undefined;
   const raw = lyrics.join('').replace(/,/g, '').trim();
   return raw || undefined;

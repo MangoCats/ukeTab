@@ -33,14 +33,15 @@ For step-by-step instructions on setting up your environment, running the develo
   - Automatically strips all web UI controls, toolbars, selection rings, and red **✕** deletion badges in PDF mode.
 - 📂 **Digital Storage & File Import**:
   - Save and Open `.uketab` JSON files and Guitar Pro files (`.gp`, `.gp3`–`.gp5`, `.gpx`).
+- 🧪 **Automated Unit Testing**: Fast, comprehensive test suites covering music theory mathematical solvers, duration calculations, pitch transpositions, chord detection, and Guitar Pro parser utilities.
 
 ---
 
 ## 📚 Documentation
 
-- [📖 Execution & Setup Guide (HOWTO.md)](file:///c:/Users/Mango%20Cat/Dev/UkeTab/HOWTO.md): Environment setup, running locally, building, and previewing.
-- [📋 Project & Notation Specification](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/PROJECT_SPECIFICATION.md): Comprehensive guide to visual tab specs, rhythm notation standards, data schemas, alternate fret algorithms, and rendering rules.
-- [🏗️ Software Architecture Document](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/SOFTWARE_ARCHITECTURE.md): Technical architecture, data models, SVG rendering pipeline, Web Audio synthesis, and export subsystems.
+- [📖 Execution & Setup Guide (HOWTO.md)](file:///c:/Users/Mango%20Cat/Dev/UkeTab/HOWTO.md): Environment setup, running locally, automated testing, building, and previewing.
+- [📋 Project & Notation Specification](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/PROJECT_SPECIFICATION.md): Comprehensive guide to visual tab specs, rhythm notation standards, data schemas, alternate fret algorithms, automated testing QA, and rendering rules.
+- [🏗️ Software Architecture Document](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/SOFTWARE_ARCHITECTURE.md): Technical architecture, data models, SVG rendering pipeline, Web Audio synthesis, testing architecture, and export subsystems.
 
 ---
 
@@ -49,7 +50,26 @@ For step-by-step instructions on setting up your environment, running the develo
 - **Frontend**: React 18, TypeScript, HTML5 SVG Vector Engine
 - **Audio**: Web Audio API Synthesizer & Metronome
 - **Print & PDF Engine**: Browser High-DPI Vector Printing Engine
+- **Test Runner**: Vitest Native Vite Test Runner
 - **Build System**: Vite
+
+---
+
+## 💻 Quick Commands
+
+```bash
+# Start local development server (http://localhost:3000)
+npm run dev
+
+# Run all automated unit test suites
+npm test
+
+# Run tests in live watch mode
+npm run test:watch
+
+# Compile TypeScript and create production build
+npm run build
+```
 
 ---
 
@@ -60,3 +80,4 @@ For step-by-step instructions on setting up your environment, running the develo
 - [x] Phase 3: Interactive WYSIWYG Editor & Audio Playback Engine
 - [x] Phase 4: Transposition Engine & Alternate Fret Helper
 - [x] Phase 5: PDF Generator with Zoom Scaling, Ukulele Chord Diagrams & Storage (.uketab)
+- [x] Phase 6: Automated Testing Suite (Vitest) & High-Contrast Print Notation

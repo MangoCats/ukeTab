@@ -50,28 +50,26 @@ npm install
 
 ## 📦 Production Build & Testing
 
-### 1. Type Check & Compile Production Bundle
+### 1. Run Automated Unit Test Suites
+To run all automated unit tests via Vitest:
+```bash
+npm test
+```
+
+To run the test runner in interactive live watch mode during active development:
+```bash
+npm run test:watch
+```
+
+### 2. Type Check & Compile Production Bundle
 To compile TypeScript files and create an optimized production bundle in the `dist/` directory:
 ```bash
 npm run build
 ```
 
-### 2. Preview Production Build
+### 3. Preview Production Build
 To test and preview the production build locally:
 ```bash
 npm run preview
 ```
-
----
-
-## 🚀 Running the Project
-
-### Development Server (Hot-Reloading)
-To launch the interactive local development server with instant hot-reloading:
-```bash
-npm run dev
-```
-
-Once started, open your web browser and navigate to:
-👉 **[http://localhost:3000/](http://localhost:3000/)** (or the URL printed in your terminal).
 
