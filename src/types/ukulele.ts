@@ -1,5 +1,21 @@
 export type DurationType = '1/1' | '1/2' | '1/4' | '1/8' | '1/16' | '1/32';
 
+export const DURATION_OPTIONS: { label: string; value: DurationType }[] = [
+  { label: '1', value: '1/1' },
+  { label: '1/2', value: '1/2' },
+  { label: '1/4', value: '1/4' },
+  { label: '1/8', value: '1/8' },
+  { label: '1/16', value: '1/16' }
+];
+
+export const DURATION_KEY_MAP: Record<string, DurationType> = {
+  'w': '1/1',
+  'h': '1/2',
+  'q': '1/4',
+  'e': '1/8',
+  's': '1/16'
+};
+
 export interface UkuleleNote {
   id: string;
   string: 1 | 2 | 3 | 4; // 1 = Top line (A4 default), 4 = Bottom line (G4 default)

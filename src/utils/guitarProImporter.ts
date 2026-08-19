@@ -1,6 +1,6 @@
 import * as alphaTab from '@coderline/alphatab';
 import { UkuleleTabDocument, Measure, BeatColumn, UkuleleNote, DurationType, TuningConfig, ChordMarker } from '../types/ukulele';
-import { TUNING_PRESETS, autoDetectChordFromBeatNotes, DEFAULT_COMPOSITION_CHORD_NAMES, getChordPreset, createChordMarker } from './musicTheory';
+import { TUNING_PRESETS, autoDetectChordFromBeatNotes, getDefaultChordPalette } from './musicTheory';
 
 /**
  * Convert alphaTab duration number to UkeTab DurationType
@@ -41,7 +41,7 @@ export function parseGuitarProToUkuleleTab(
   const tempo = Math.round(score.tempo || 120);
 
   const tuning: TuningConfig = TUNING_PRESETS.gCEA;
-  const chordPalette = DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+  const chordPalette = getDefaultChordPalette();
 
   if (!score.tracks || score.tracks.length === 0) {
     throw new Error('Guitar Pro file contains no tracks.');

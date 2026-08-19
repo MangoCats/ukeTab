@@ -108,6 +108,34 @@ export const UKULELE_CHORD_LIBRARY: Record<string, [number, number, number, numb
 
 export const DEFAULT_COMPOSITION_CHORD_NAMES = ['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7', 'E7m'];
 
+/**
+ * Returns the default composition chord palette markers
+ */
+export function getDefaultChordPalette(): ChordMarker[] {
+  return DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+}
+
+/**
+ * Returns the provided palette if non-empty, otherwise falls back to the default chord palette
+ */
+export function getEffectiveChordPalette(palette?: ChordMarker[]): ChordMarker[] {
+  return palette && palette.length > 0 ? palette : getDefaultChordPalette();
+}
+
+/**
+ * Extracts 4-string fret array [S4, S3, S2, S1] from note objects if all 4 strings have notes defined.
+ */
+export function extract4StringFrets(notes: UkuleleNote[]): [number, number, number, number] | null {
+  const activeNotes = notes.filter(n => !n.isGhost);
+  const s1 = activeNotes.find(n => n.string === 1);
+  const s2 = activeNotes.find(n => n.string === 2);
+  const s3 = activeNotes.find(n => n.string === 3);
+  const s4 = activeNotes.find(n => n.string === 4);
+
+  if (!s1 || !s2 || !s3 || !s4) return null;
+  return [s4.fret, s3.fret, s2.fret, s1.fret];
+}
+
 export function getChordPreset(name: string): ChordMarker | null {
   const normalized = name.trim();
   if (!normalized) return null;
@@ -166,16 +194,8 @@ export function autoDetectChordFromBeatNotes(
   notes: UkuleleNote[],
   customPalette: ChordMarker[] = []
 ): ChordMarker | null {
-  const activeNotes = notes.filter(n => !n.isGhost);
-  const s1 = activeNotes.find(n => n.string === 1);
-  const s2 = activeNotes.find(n => n.string === 2);
-  const s3 = activeNotes.find(n => n.string === 3);
-  const s4 = activeNotes.find(n => n.string === 4);
-
-  // Must have fingerings defined on all 4 strings (where fret >= 0)
-  if (!s1 || !s2 || !s3 || !s4) return null;
-
-  const frets: [number, number, number, number] = [s4.fret, s3.fret, s2.fret, s1.fret];
+  const frets = extract4StringFrets(notes);
+  if (!frets) return null;
 
   const customLibrary: Record<string, [number, number, number, number]> = {};
   customPalette.forEach(c => {

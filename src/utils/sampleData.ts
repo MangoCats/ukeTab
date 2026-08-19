@@ -1,5 +1,5 @@
 import { UkuleleTabDocument } from '../types/ukulele';
-import { TUNING_PRESETS, getChordPreset } from './musicTheory';
+import { TUNING_PRESETS, getChordPreset, getDefaultChordPalette } from './musicTheory';
 
 export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
   id: 'tab-three-is-a-magic-number-001',
@@ -658,6 +658,7 @@ export const createBlankTabDocument = (): UkuleleTabDocument => ({
   tempo: 120,
   keySignature: 'C',
   tuning: TUNING_PRESETS.gCEA,
+  chordPalette: getDefaultChordPalette(),
   layout: {
     stemsPlacement: 'below',
     zoomScale: 1.0,

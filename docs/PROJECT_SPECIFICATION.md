@@ -50,15 +50,15 @@ It features standard stringed instrument notation with fret numbers on staff lin
 
 ### Rhythm Notation & Time Signatures
 - **Traditional Vertically Stacked Time Signature ($\mathbf{\frac{4}{4}}$)**:
-  - Numerator sits centered over upper staff lines; denominator sits centered over lower staff lines in bold serif typography (`font-weight: 800`, `26px`).
-- **Rhythm Stems & Flags**:
+  - Numerator sits centered over upper staff lines; denominator sits centered over lower staff lines in bold serif typography (`font-weight: 800`, `26px`) with background masking to prevent staff lines from cutting through numbers.
+- **Rhythm Stems, Flags & Beams**:
   - Default to below staff lines, user-configurable to above staff.
-  - **Whole Note (`1/1`)**: Open ring
-  - **Half Note (`1/2`)**: Open circle stem base
-  - **Quarter Note (`1/4`)**: Plain vertical stem `|`
-  - **Eighth Note (`1/8`)**: Single flag `|/` or horizontal beam `|__|`
-  - **Sixteenth Note (`1/16`)**: Double flag `|//` or double beam `||=||`
-  - **Dotted Notes**: Cleanly positioned dot indicator (amber on web screen, pure black `#000000` in PDF/print output).
+  - **Whole Note (`1/1`)**: Open ring indicator.
+  - **Half Note (`1/2`)**: Open circle stem base (hollow with white fill in print mode).
+  - **Quarter Note (`1/4`)**: Plain vertical stem `|`.
+  - **Eighth Note (`1/8`)**: Single curved flag `|/` or horizontal primary beam `|__|`.
+  - **Sixteenth Note (`1/16`)**: Double flag `|//`, full double beam `||=||`, or fractional secondary beam stubs (`|/--|`) when mixed adjacent to 1/8th notes.
+  - **Dotted Notes**: Cleanly positioned dot indicator placed beside the top of the vertical stem near the staff to prevent flag interference (amber on web screen, pure black `#000000` in PDF/print output).
 
 ### Guitar Pro Import Engine (`.gp`, `.gp3`–`.gp5`, `.gpx`)
 - **Pristine Single-Note & Polyphonic Import**: Decodes Guitar Pro binary files using `@coderline/alphatab`. Preserves exact track selection, measure barlines, time signatures, note durations, dotted notes, tied/continued notes, and song headers (Title, Artist, Tempo).
@@ -66,9 +66,11 @@ It features standard stringed instrument notation with fret numbers on staff lin
 
 ---
 
-## 3. High-Contrast PDF Print Engine
-- **Large Song Title Header**: Displays a prominent `28pt` title caption (**"Aloha Ukulele Groove"**), italicized artist subtitle, and tuning/tempo metadata centered at the top of the PDF.
-- **Strict UI Stripping**: All web editing controls, popovers, selection highlight rings, and red **✕** deletion badges are 100% hidden in print mode (`no-print`).
+## 3. High-Contrast PDF Print & Export Engine
+- **Large Song Title Header**: Displays a prominent `18pt` title caption, italicized artist subtitle, and tuning/tempo metadata centered at the top of the PDF.
+- **Right-Justified Measure Layout**: Measure rows wrap dynamically to fit page width and are right-justified flush against the right page margin, placing excess whitespace on the left.
+- **Pure Black-on-White Non-Color-Based Engraving**: All notation symbols (dots, flags, stems, beams, time signature digits, chord diagrams, and rests) render in pure `#000000` black on `#ffffff` white background with zero dependency on color.
+- **Strict UI Stripping**: All web editing controls, toolbars, popovers, selection highlight rings, and red **✕** deletion badges are 100% hidden in print mode (`no-print`).
 
 ---
 
@@ -78,10 +80,10 @@ Tabs are stored as JSON files (`.uketab`):
 ```json
 {
   "id": "tab-001",
-  "title": "Aloha Ukulele Groove",
-  "artist": "Traditional",
-  "tempo": 100,
-  "keySignature": "C",
+  "title": "Three Is a Magic Number",
+  "artist": "Bob Dorough",
+  "tempo": 112,
+  "keySignature": "G",
   "tuning": {
     "key": "gCEA",
     "name": "Standard High-G (gCEA)",
@@ -94,6 +96,10 @@ Tabs are stored as JSON files (`.uketab`):
     "measuresPerSystem": 4,
     "maxFretLimit": 12
   },
+  "chordPalette": [
+    { "name": "C", "frets": [0, 0, 0, 3], "baseFret": 1 },
+    { "name": "G", "frets": [0, 2, 3, 2], "baseFret": 1 }
+  ],
   "measures": []
 }
 ```

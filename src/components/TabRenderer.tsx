@@ -1,6 +1,6 @@
 import React from 'react';
-import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker } from '../types/ukulele';
-import { getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES } from '../utils/musicTheory';
+import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/ukulele';
+import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
 
@@ -75,18 +75,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     }
   }
 
-  const durationOptions: { label: string; value: DurationType }[] = [
-    { label: '1', value: '1/1' },
-    { label: '1/2', value: '1/2' },
-    { label: '1/4', value: '1/4' },
-    { label: '1/8', value: '1/8' },
-    { label: '1/16', value: '1/16' }
-  ];
-
   // Active composition chords palette
-  const activeChordsList = chordPalette && chordPalette.length > 0
-    ? chordPalette
-    : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+  const activeChordsList = getEffectiveChordPalette(chordPalette);
 
   const effectiveChord = (currentBeatChord && typeof currentBeatChord === 'object') ? currentBeatChord : undefined;
 
@@ -714,7 +704,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                               {/* Row 1: Rhythm Duration, Rest, Triplet, Tie, Insert/Delete Beat */}
                               <div className="flex items-center gap-1.5 border-b border-slate-800 pb-1.5 w-full justify-center">
                                 <span className="text-[11px] text-slate-400 font-semibold mr-1">Rhythm:</span>
-                                {durationOptions.map(d => (
+                                {DURATION_OPTIONS.map(d => (
                                   <button
                                     key={d.value}
                                     onClick={(e) => {

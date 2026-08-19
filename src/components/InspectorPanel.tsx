@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
-import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, getChordPreset, createChordMarker, DEFAULT_COMPOSITION_CHORD_NAMES, autoDetectChordFromBeatNotes } from '../utils/musicTheory';
+import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette } from '../utils/musicTheory';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface InspectorPanelProps {
@@ -84,9 +84,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const pitchName = pitchMidi ? midiToNoteName(pitchMidi) : null;
 
   // Active composition chords palette
-  const activeChordsList = chordPalette && chordPalette.length > 0
-    ? chordPalette
-    : DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
+  const activeChordsList = getEffectiveChordPalette(chordPalette);
 
   const effectiveChord = (selectedBeat.chord && typeof selectedBeat.chord === 'object') ? selectedBeat.chord : undefined;
 

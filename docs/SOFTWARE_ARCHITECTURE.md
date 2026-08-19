@@ -153,7 +153,13 @@ Maps chord names (`Am`, `E7`, `G`, `C`, `F`, `Dm`, etc.) to 4-string fret arrays
 ### 3.4 Dynamic Zoom-Aware System Row Wrapping Engine
 Calculates total horizontal measure widths against printable page width boundaries (`820px`). When a measure overruns the margin threshold, it wraps onto a new continuous system row starting with its own clef string header and time signature.
 
-### 3.5 Guitar Pro Importer Engine (`guitarProImporter.ts`)
+### 3.5 Rhythm Beaming & Fractional Beamlet Engine
+- **Primary Beams (Level 1)**: Connects adjacent 8th and 16th notes across beat boundaries within a measure.
+- **Secondary Beams & Fractional Stubs (Level 2)**:
+  - Connects consecutive 16th notes with continuous double horizontal beams.
+  - Generates fractional secondary beam stubs (beamlets of length `16 * zoom`) for isolated 16th notes adjacent to 8th notes (e.g. dotted 8th + 16th note combinations), adhering to classical music engraving standards.
+
+### 3.6 Guitar Pro Importer Engine (`guitarProImporter.ts`)
 Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphatab`. Extracts exact track selection, measure barlines, note durations, dotted notes, tied/continued notes, and song headers. Re-voices guitar pitches onto 4-string High-G Ukulele staff lines.
 
 ---
@@ -169,7 +175,10 @@ Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphat
 ## 5. Multi-Format Export & Import Architecture
 
 1. **Clean Sheet Music PDF Engine**:
-   - Renders a large 28pt song title header, artist name, and tuning/tempo metadata.
+   - Renders a clean printable title header, artist name, and tuning/tempo metadata.
+   - Right-justifies measure rows against the right page margin with dynamic wrapping.
+   - Enforces pure black-on-white non-color-based engraving for all stems, beams, flags, dots, time signatures, and chord diagrams.
+   - Uses line cutout masks to prevent staff lines from striking through time signature digits and fret numbers.
    - Strips all web editor controls, toolbars, popover bars, selection rings, and red **✕** deletion badges in print mode.
 2. **JSON Serializer & Importer (`.uketab`)**:
    - `Save .uketab`: Exports full document state to compact `.uketab` JSON file.

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, ChordMarker } from './types/ukulele';
+import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, ChordMarker, DURATION_KEY_MAP } from './types/ukulele';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
-import { transposePitches, getBeatDurationMs, DEFAULT_COMPOSITION_CHORD_NAMES, getChordPreset, createChordMarker, autoDetectChordFromBeatNotes } from './utils/musicTheory';
+import { transposePitches, getBeatDurationMs, getEffectiveChordPalette, autoDetectChordFromBeatNotes, extract4StringFrets } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
@@ -11,13 +11,10 @@ import { DuplicateMeasuresModal } from './components/DuplicateMeasuresModal';
 import { Sparkles, Keyboard, Music2 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [document, setDocument] = useState<UkuleleTabDocument>(() => {
-    const doc = { ...SAMPLE_TAB_DOCUMENT };
-    if (!doc.chordPalette || doc.chordPalette.length === 0) {
-      doc.chordPalette = DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
-    }
-    return doc;
-  });
+  const [document, setDocument] = useState<UkuleleTabDocument>(() => ({
+    ...SAMPLE_TAB_DOCUMENT,
+    chordPalette: getEffectiveChordPalette(SAMPLE_TAB_DOCUMENT.chordPalette)
+  }));
 
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>('b1-1');
   const [selectedString, setSelectedString] = useState<1 | 2 | 3 | 4>(1);
@@ -101,18 +98,10 @@ export const App: React.FC = () => {
       }
 
       // Duration Shortcuts: w (1/1), h (1/2), q (1/4), e (1/8), s (1/16)
-      const durationKeyMap: Record<string, DurationType> = {
-        'w': '1/1',
-        'h': '1/2',
-        'q': '1/4',
-        'e': '1/8',
-        's': '1/16'
-      };
-
       const keyLower = e.key.toLowerCase();
-      if (durationKeyMap[keyLower] && selectedBeatId) {
+      if (DURATION_KEY_MAP[keyLower] && selectedBeatId) {
         e.preventDefault();
-        const targetDur = durationKeyMap[keyLower];
+        const targetDur = DURATION_KEY_MAP[keyLower];
         setActiveDuration(targetDur);
         handleUpdateBeatDuration(selectedBeatId, targetDur);
         return;
@@ -261,10 +250,7 @@ export const App: React.FC = () => {
           const updatedNotes = [...existingFiltered, newNote];
 
           let updatedChord = b.chord;
-          if (b.chord === undefined) {
-            const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
-            if (autoChord) updatedChord = autoChord;
-          } else if (b.chord && typeof b.chord === 'object') {
+          if (b.chord !== null) {
             const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
             if (autoChord) updatedChord = autoChord;
           }
@@ -582,9 +568,6 @@ export const App: React.FC = () => {
   const handleNewSong = () => {
     if (window.confirm('Create a new blank ukulele tab chart? Unsaved changes will be replaced.')) {
       const blankDoc = createBlankTabDocument();
-      if (!blankDoc.chordPalette || blankDoc.chordPalette.length === 0) {
-        blankDoc.chordPalette = DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
-      }
       setDocument(blankDoc);
       setSelectedBeatId(blankDoc.measures[0]?.beats[0]?.id || null);
     }
@@ -601,10 +584,10 @@ export const App: React.FC = () => {
   };
 
   const handleImportJson = (importedDoc: UkuleleTabDocument) => {
-    if (!importedDoc.chordPalette || importedDoc.chordPalette.length === 0) {
-      importedDoc.chordPalette = DEFAULT_COMPOSITION_CHORD_NAMES.map(name => getChordPreset(name) || createChordMarker(name));
-    }
-    setDocument(importedDoc);
+    setDocument({
+      ...importedDoc,
+      chordPalette: getEffectiveChordPalette(importedDoc.chordPalette)
+    });
     const firstBeat = importedDoc.measures[0]?.beats[0]?.id || null;
     setSelectedBeatId(firstBeat);
   };
@@ -619,14 +602,7 @@ export const App: React.FC = () => {
     for (const m of document.measures) {
       const b = m.beats.find(beat => beat.id === selectedBeatId);
       if (b) {
-        const activeNotes = b.notes.filter(n => !n.isGhost);
-        const s1 = activeNotes.find(n => n.string === 1);
-        const s2 = activeNotes.find(n => n.string === 2);
-        const s3 = activeNotes.find(n => n.string === 3);
-        const s4 = activeNotes.find(n => n.string === 4);
-        if (s1 && s2 && s3 && s4) {
-          selectedBeatInitialFrets = [s4.fret, s3.fret, s2.fret, s1.fret];
-        }
+        selectedBeatInitialFrets = extract4StringFrets(b.notes);
         break;
       }
     }

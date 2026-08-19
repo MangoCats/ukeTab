@@ -18,8 +18,8 @@ For step-by-step instructions on setting up your environment, running the develo
 - 🎼 **4-Line Ukulele Staff**: Engineered specifically for Ukulele with High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), Soprano D ($aDF\#B$), and custom tunings.
 - 🪕 **Ukulele Chord Diagram Charts Above Tabs**: Render 4-line fingering grids with filled dots (frets), open circles `○` (open strings), `✕` (muted strings), base fret indicators (e.g. `3fr`), and chord name labels (`Am`, `E7`, `G`, `D`, `F`, `C`, `Dm`) positioned directly above tabs in both web editor and PDF export.
 - 🎼 **Continuous System Engraving**: Staff lines run continuously across measures with 1 clef string header and 1 time signature per system row.
-- ⏱️ **Traditional Vertically Stacked Time Signatures**: Numerator stacked over denominator ($\mathbf{\frac{4}{4}}$) in bold classical serif engraving typography.
-- ⏱️ **Traditional Rhythm Stems & Flags**: Stem lines, single flags (`1/8`), double flags (`1/16`), horizontal beams, dotted notes, rests, triplets, and ties displayed directly on the staff.
+- ⏱️ **Traditional Vertically Stacked Time Signatures**: Numerator stacked over denominator ($\mathbf{\frac{4}{4}}$) in bold classical serif typography with background masking over staff lines.
+- ⏱️ **Traditional Rhythm Stems, Flags & Beams**: Stem lines, single flags (`1/8`), double flags (`1/16`), horizontal primary/secondary beams, fractional secondary beam stubs (beamlets for 1/16th notes), dotted notes, rests, triplets, and ties displayed directly on the staff.
 - ➕ **In-Measure Beat Event Editing**: Insert new note events / beat columns anywhere inside a measure using **`+ Insert Beat`** or keyboard shortcut **`+`**.
 - 🎤 **Synchronized Lyrics**: Dedicated lyric track aligned column-by-column with note stems.
 - 🖥️ **WYSIWYG Interactive Editor**: Floating context action bar directly over selected notes, touch inspector pad with chord presets, and full keyboard shortcuts (`0-9`, `←/→/↑/↓`, `w/h/q/e/s`, `.`, `r`, `t`, `l`, `+`, `Backspace`).
@@ -27,11 +27,12 @@ For step-by-step instructions on setting up your environment, running the develo
 - 🪕 **Unified Max Fret Limit & Alternate Fret Helper**: Configurable limit (`maxFretLimit`, default 12, user selectable 7..20) applying to both the fret selection button list and equivalent pitch ghost notes `(3)`.
 - 🔄 **Key & Tuning Transposition**: 1-click transposition across keys (+/- semitones) and string tunings with automatic tab recalculation.
 - 📄 **Clean PDF Print Export Engine**:
-  - Displays a large, bold `28pt` Song Title Caption, artist subtitle, and tuning/tempo metadata.
-  - Renders chord diagrams in high-contrast crisp black lines and dots.
+  - Displays a clean Song Title Header, artist subtitle, and tuning/tempo metadata.
+  - Right-justifies measure rows against the right page margin.
+  - Pure black-on-white non-color-based engraving for dots, flags, stems, beams, and chord diagrams.
   - Automatically strips all web UI controls, toolbars, selection rings, and red **✕** deletion badges in PDF mode.
 - 📂 **Digital Storage & File Import**:
-  - Save and Open `.uketab` JSON files.
+  - Save and Open `.uketab` JSON files and Guitar Pro files (`.gp`, `.gp3`–`.gp5`, `.gpx`).
 
 ---
 
