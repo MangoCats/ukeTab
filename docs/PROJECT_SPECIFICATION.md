@@ -87,7 +87,8 @@ Library shapes are fret patterns for the instrument's default tuning. They are o
 
 ### 4.1 Staff & Measures
 - The staff has one horizontal line per string, 24 px apart at 100% zoom.
-- **First measure of the document only**: string labels (from the tuning) at the far left and a heavy double barline. No other measure shows string labels, including measures that start a new row.
+- **First measure of the document only**: string labels (from the tuning) at the far left inside the measure, and a heavy double barline.
+- **Every other row start**: the string labels repeat in a 40 px gutter to the left of the row's first measure, without changing measure widths. On screen the rows are detected after layout; in print the labels show at each printed row start.
 - **Time signature**: shown on the first measure and on every measure whose time signature differs from the previous measure's (either number).
 - Each measure ends with a single barline. The last measure of the document also has a heavy final barline.
 - On screen, each measure shows a small `M{n}` measure-number badge (not printed).
@@ -122,11 +123,11 @@ Stems are drawn below the staff by default; **Stems** toggles them above. For ea
 
 - **Dotted**: a dot beside the stem near the staff. A dotted rest has a dot beside the rest symbol.
 - **Beams**: two adjacent beat columns of the same measure are joined when both are notes (not rests), both are `1/8`, `1/16` or `1/32`, and both start in the same **beat group**:
-  - Beat-group length: in compound time (beat unit 8 or 16 with the number of beats divisible by 3, e.g. 3/8, 6/8, 9/8, 12/8) three beat units, i.e. a dotted quarter for x/8. Otherwise one beat unit, but at least a quarter note (x/4: a quarter; x/2: a half; x/1: a whole; other x/8: a quarter).
+  - Beat groups: in compound time (beat unit 8 or 16 with the number of beats divisible by 3, e.g. 3/8, 6/8, 9/8, 12/8) groups of three beat units, i.e. dotted quarters for x/8. With beat unit 8 or 16 and an odd number of beats of 5 or more (not compound), groups of two units followed by one group of three (5/8 → 2+3, 7/8 → 2+2+3, 11/8 → 2+2+2+2+3). Otherwise one beat unit, but at least a quarter note (x/4: a quarter; x/2: a half; x/1: a whole; other x/8: a quarter). In a measure longer than its time signature the pattern repeats.
   - Positions in the measure count every column, including rests, dotted lengths (×1.5) and triplet lengths (×2/3).
   - Joined columns share one beam per flag they both have (eighth 1, sixteenth 2, thirty-second 3). A further beam level that only one column has is drawn as a 16 px stub pointing toward its previous joined neighbour, or toward the next one if there is no previous one.
   - Beam levels are 6 px apart, the first at the stem end. Beamed columns draw no flags.
-- **Triplets**: consecutive triplet columns are marked in groups of three (a last group may have one or two columns) by a bracket with a "3", drawn on the stem side 14 px beyond the stem ends. Triplets also shorten playback (Section 6).
+- **Triplets**: consecutive triplet columns are marked in groups of three (a last group may have one or two columns) by a bracket with a "3", drawn on the stem side 22 px beyond the stem ends (clear of the on-screen duration badges). With stems below, lyrics in a measure that has triplets sit 14 px further from the staff so they clear the bracket. Triplets also shorten playback (Section 6).
 - **On screen**, a small badge under each stem shows the duration, e.g. `1/8.` for a dotted eighth (not printed).
 
 ### 4.6 Rests
@@ -355,7 +356,7 @@ See Section 8.
 - **Page**: margins 0.5 in top, 0.75 in bottom, 0.25 in left, 0.5 in right.
 - **Header**: song title (18 pt, bold), artist (10 pt, italic, if set), and `Tuning: {tuning name} ({labels joined by -}) • Tempo: {tempo} BPM` (8.5 pt), with a rule below.
 - **Footer**: `{Title} {page} of {pages}` in 9 pt, centred in the bottom margin.
-- **Rows**: measure rows are right-aligned to the right margin, with a 0.5 in left inset and 0.15 in between rows. A measure is never split across pages.
+- **Rows**: measure rows are right-aligned to the right margin, with a 0.5 in left inset and 0.15 in between rows. Every row starts with the string labels. A measure is never split across pages.
 - **Text sizes**: fret numbers 18 pt on white masks, lyrics 14 pt, chord names 20.8 px.
 - **Colour**: all notation (lines, digits, stems, flags, beams, dots, rests, ties, time signature, chord diagrams) is black on white; half-note circles are hollow.
 - **Not printed**: toolbar, inspector, popover, buttons, ghost notes, selection and playhead highlights, delete badges, duration badges and measure-number badges.
@@ -363,9 +364,7 @@ See Section 8.
 ---
 
 ## 10. Known Limitations
-- Only the first measure shows string labels.
-- On screen, a triplet bracket's "3" can overlap the duration badge of the middle column (print is unaffected).
-- Irregular meters such as 5/8 and 7/8 beam in quarter-note groups.
+- In a PDF, the hidden row labels of measures that do not start a row remain in the text layer (invisible, but found by text search or copy).
 - Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.
 - There is no capo setting; imported capos are folded into fret numbers.
 - A document's instrument cannot be changed after creation.

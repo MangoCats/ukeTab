@@ -286,7 +286,9 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
 | Stem | from 6 to 36 beyond the outer string line, on the stem side |
 | Beams | level 1 at the stem end; each further level 6 closer to the staff; stub length 16 |
 | Flags | one per flag count, each 6 closer to the staff than the previous |
-| Triplet bracket | 14 beyond the stem end; end hooks 5 toward the staff; "3" in an 11 px bold italic gap; a one-column bracket spans ±10 |
+| Triplet bracket | 22 beyond the stem end (the screen duration badge spans 4–16); end hooks 5 toward the staff; "3" in an 11 px bold italic gap; a one-column bracket spans ±10 |
+| Triplet measures, stems below | lyrics 14 further from the staff; bottom margin 14 larger |
+| Row-start label gutter | 40 wide, left of the measure block; labels right-aligned 6 from its right edge, at each string line y + 4 |
 
 - `getStringY(s) = topMargin + (s − 1) × 24`.
 - `staffMidY` is the midpoint of String 1 and String N. The time signature numerator baseline is at `staffMidY − 12` and the denominator at `staffMidY + 38`; the masks start at `staffMidY − 34` and `staffMidY + 10`.
@@ -294,11 +296,12 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
 - **Beams** (`notationLayout.computeBeams(beats, timeSignature)` → `{ segments, stubs, beamed, flagCounts }`, index-based; `TabRenderer` converts indices to x and levels to y):
   - `getFlagCount`: `1/8` → 1, `1/16` → 2, `1/32` → 3, else 0. A column is beamable when it is not a rest and has flags.
   - Column start = sum of earlier `getBeatLengthInQuarters` (base length × 1.5 if dotted × 2/3 if triplet, rests included).
-  - `getBeatGroupLength([num, den])`: `3 × 4/den` when `den ∈ {8, 16}` and `num % 3 = 0`, else `max(4/den, 1)` quarters. Group index = `floor(start / group + 1e-9)`.
+  - `getBeatGroupPattern([num, den])` → `{ starts, cycleLength }` in quarters, with unit = 4/den: compound (`den ∈ {8, 16}`, `num % 3 = 0`) groups of 3 units; `den ∈ {8, 16}` with odd `num ≥ 5` groups of 2 units ending in one of 3 (cycle = `num × unit`); otherwise groups of `max(unit, 1)` with the cycle rounded up to whole groups. `getBeatGroupIndex(position, pattern)` gives the group index, repeating the pattern past the cycle (tolerance 1e-9).
   - Adjacent beamable columns in the same group are joined; each joined pair gets a segment at every level up to the smaller flag count.
   - A beamed column gets a stub for each of its levels that no joined neighbour shares, pointing to the previous joined neighbour, else the next. Unbeamed beamable columns draw `flagCount` flags.
 - **Triplets** (`computeTripletGroups(beats)` → `{ startIndex, endIndex }[]`): runs of consecutive `isTriplet` columns split into chunks of three (last chunk 1–2). Brackets are drawn after the columns with pointer events disabled; classes `triplet-bracket` and `triplet-number`.
-- **Time signature** (`shouldShowTimeSignature(measures, index)`): true for index 0 and wherever `[num, den]` differs from the previous measure. String labels and the opening double barline are drawn only for `measures[0]`. The final barline is drawn only on the last measure.
+- **Time signature** (`shouldShowTimeSignature(measures, index)`): true for index 0 and wherever `[num, den]` differs from the previous measure. String labels inside the block and the opening double barline are drawn only for `measures[0]`.
+- **Row-start labels**: other row starts get labels in an absolute `<svg class="string-gutter-labels">` at `right: 100%` of the measure block (`aria-hidden`, no pointer events). On screen, `findRowStartIndices(offsetTops)` (index 0 plus each block lower than the previous by more than 0.5 px) runs in a `useLayoutEffect` on document/zoom changes and on wrapper resize (`ResizeObserver` when available); row-start blocks with index > 0 get `.screen-gutter-labels.no-print`, and the wrapper has a `40 × zoom` left padding. Print cannot be measured from script, so every block with index > 0 also gets `.print-gutter-labels`, hidden on screen and shown in print with `z-index: -1` inside a `.tab-canvas-wrapper` with `isolation: isolate`: the opaque white previous block covers it unless the block starts a printed row. The final barline is drawn only on the last measure.
 
 ### 6.2 Note Cells & Interaction
 - For each string of each column, a transparent hit rectangle selects the beat and string. If the cell is empty, it also calls `onAddNote` with the ghost fret, or 0.
@@ -414,7 +417,7 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 | `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing) |
 | `utils/sampleData.test.ts` | Blank document and sample songs |
 | `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature |
-| `utils/notationLayout.test.ts` | Flag counts, beat lengths and groups, beams and stubs (eighths, sixteenths, dotted, 6/8, 1/32, triplet eighths), triplet chunking, time-signature display; regressions: beams never touch rests and break at beat groups |
+| `utils/notationLayout.test.ts` | Flag counts, beat lengths, beat-group patterns and indices (uniform, irregular, overfull), beams and stubs (eighths, sixteenths, dotted, 6/8, 5/8, 7/8, 1/32, triplet eighths), triplet chunking, time-signature display, row-start detection; regressions: 5/8 beams 2+3, 7/8 beams 2+2+3, beams never touch rests and break at beat groups |
 | `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column |
 | `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry; regressions: Ctrl/Alt/Meta combinations are left to the browser, `d` sets thirty-seconds |
 | `components/ShortcutHelp.test.tsx` | Help panel lists every `SHORTCUTS` entry; close button |
@@ -425,7 +428,7 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile |
 | `instruments/guitar.test.ts`, `bass.test.ts` | Registration; tuning labels match pitches; every library chord sounds exactly its named chord tones with the root in the bass; blank documents; base fret of high barre chords |
 | `instruments/chordSpelling.testUtil.ts` | Shared assertions for the two files above (not a test file) |
-| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration; triplet bracket, 1/32 rest and flags, time-signature change, beam coordinates and stubs |
+| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration; triplet bracket, 1/32 rest and flags, time-signature change, beam coordinates and stubs; row-start gutter labels (print-only for every later measure, screen-only at detected row starts); regression: triplet bracket clears the badge and lyrics clear the "3" |
 | `components/ChordDiagram.test.tsx` | Dots, open circles, muted marks, base fret label |
 | `components/ChordPaletteModal.test.tsx` | Library list, close, tab switching |
 | `components/DuplicateMeasuresModal.test.tsx` | Open/closed rendering, confirm callback |
