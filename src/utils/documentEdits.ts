@@ -1,5 +1,7 @@
-import { BeatColumn, ChordMarker, DurationType, InstrumentProfile, Measure, TabDocument, TabNote } from '../types/tab';
-import { autoDetectChordFromBeatNotes, transposeBeatNotes } from './musicTheory';
+import { BeatColumn, ChordMarker, DurationType, InstrumentProfile, Measure, TabDocument, TabNote, TuningConfig } from '../types/tab';
+import {
+  adaptChordFrets, autoDetectChordFromBeatNotes, createChordMarker, transposeBeatNotes, transposeChordMarker
+} from './musicTheory';
 
 /**
  * Pure document edit operations. Each takes a document and returns a new one without mutating its input,
@@ -176,8 +178,34 @@ export function deleteBeat(doc: TabDocument, beatId: string, makeId: IdFactory =
 }
 
 /**
+ * Applies fn to every chord marker of the song: each beat's chord (unset and cleared chords are kept) and the
+ * chord palette.
+ */
+function mapChordMarkers(doc: TabDocument, fn: (chord: ChordMarker) => ChordMarker): TabDocument {
+  return {
+    ...doc,
+    measures: doc.measures.map(m => ({
+      ...m,
+      beats: m.beats.map(b => (b.chord ? { ...b, chord: fn(b.chord) } : b))
+    })),
+    ...(doc.chordPalette ? { chordPalette: doc.chordPalette.map(fn) } : {})
+  };
+}
+
+/**
+ * Switches the song to a new tuning. Notes keep their strings and frets (so they sound at the new tuning's
+ * pitches); chord diagrams keep sounding the same chord (see adaptChordFrets).
+ */
+export function retuneDocument(doc: TabDocument, newTuning: TuningConfig): TabDocument {
+  const retuned = mapChordMarkers(doc, c => createChordMarker(c.name, adaptChordFrets(c.frets, doc.tuning, newTuning)));
+  return { ...retuned, tuning: newTuning };
+}
+
+/**
  * Shifts every note in the song by the given number of semitones within the profile's fret range
- * (see transposeBeatNotes). inexactCount is the number of notes that could not keep their exact pitch.
+ * (see transposeBeatNotes), and transposes every chord marker's name and diagram (see transposeChordMarker).
+ * The profile should be the document's tuning-adapted profile. inexactCount is the number of notes that could not
+ * keep their exact pitch.
  */
 export function transposeDocument(
   doc: TabDocument,
@@ -185,7 +213,7 @@ export function transposeDocument(
   profile: InstrumentProfile
 ): { document: TabDocument; inexactCount: number } {
   let inexactCount = 0;
-  const document: TabDocument = {
+  const withNotes: TabDocument = {
     ...doc,
     measures: doc.measures.map(m => ({
       ...m,
@@ -196,6 +224,7 @@ export function transposeDocument(
       })
     }))
   };
+  const document = mapChordMarkers(withNotes, c => transposeChordMarker(c, semitones, profile));
   return { document, inexactCount };
 }
 

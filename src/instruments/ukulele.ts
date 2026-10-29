@@ -101,7 +101,7 @@ export const UKULELE_CHORD_LIBRARY: ChordFretLibrary = {
   'Eb': [0, 3, 3, 1],
   'Ab': [5, 3, 4, 3],
   'F#m': [2, 1, 2, 0],
-  'F#m7': [2, 2, 2, 0],
+  'F#m7': [2, 4, 2, 4],
   'C#m': [1, 1, 0, 4],
   'C#m7': [1, 1, 0, 2]
 };

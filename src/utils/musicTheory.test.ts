@@ -13,9 +13,14 @@ import {
   autoDetectChordFromBeatNotes,
   extractChordFrets,
   getDefaultChordPalette,
-  getEffectiveChordPalette
+  getEffectiveChordPalette,
+  adaptChordFrets,
+  transposeChordName,
+  transposeChordMarker
 } from './musicTheory';
 import { TabNote, TuningConfig } from '../types/tab';
+import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
+import { getDocumentProfile } from '../instruments';
 
 describe('musicTheory: Pitch & Tuning Calculations', () => {
   it('calculates exact MIDI pitch across standard High-G tuning (gCEA)', () => {
@@ -314,5 +319,84 @@ describe('musicTheory: Chord Palette, Detection & 4-String Extraction', () => {
 
     const highChord = createChordMarker('HighShape', [5, 6, 7, 8]);
     expect(highChord.baseFret).toBe(5);
+  });
+});
+
+describe('musicTheory: Chord Shapes Across Tunings', () => {
+  it('keeps shapes unchanged for identical tunings and for Low-G (an octave lower String 4)', () => {
+    expect(adaptChordFrets([0, 2, 3, 2], TUNING_PRESETS.gCEA, TUNING_PRESETS.gCEA)).toEqual([0, 2, 3, 2]);
+    expect(adaptChordFrets([0, 2, 3, 2], TUNING_PRESETS.gCEA, TUNING_PRESETS.GCEA)).toEqual([0, 2, 3, 2]);
+  });
+
+  it('raises each string by its pitch difference mod 12, including open strings', () => {
+    // Drop D: String 6 is two semitones lower, so G = 3 2 0 0 0 3 becomes 5 2 0 0 0 3
+    expect(adaptChordFrets([3, 2, 0, 0, 0, 3], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.DADGBE)).toEqual([5, 2, 0, 0, 0, 3]);
+    expect(adaptChordFrets([0, 2, 2, 1, 0, 0], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.DADGBE)).toEqual([2, 2, 2, 1, 0, 0]);
+    // Half-step down: every string one semitone lower
+    expect(adaptChordFrets([0, 2, 2, 0, 0, 0], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.EbAbDbGbBbEb)).toEqual([1, 3, 3, 1, 1, 1]);
+    // Back up again wraps by 11 semitones per string
+    expect(adaptChordFrets([1, 3, 3, 1, 1, 1], GUITAR_TUNINGS.EbAbDbGbBbEb, GUITAR_TUNINGS.EADGBE)).toEqual([0, 2, 2, 0, 0, 0]);
+  });
+
+  it('leaves muted strings muted', () => {
+    expect(adaptChordFrets([-1, -1, 0, 2, 3, 2], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.DADGBE)).toEqual([-1, -1, 0, 2, 3, 2]);
+    expect(adaptChordFrets([-1, 3, 2, 0, 1, 0], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.EbAbDbGbBbEb)).toEqual([-1, 4, 3, 1, 2, 1]);
+    expect(adaptChordFrets([-1, -1, -1, -1], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([-1, -1, -1, -1]);
+  });
+
+  it('drops the shape an octave only when every played fret reaches 12', () => {
+    // D tuning is two semitones above gCEA, so each string rises by 10
+    expect(adaptChordFrets([5, 3, 4, 3], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([3, 1, 2, 1]);
+    expect(adaptChordFrets([0, 0, 0, 3], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([10, 10, 10, 13]);
+    expect(adaptChordFrets([-1, 3, 5, 5], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([-1, 1, 3, 3]);
+  });
+
+  it('regression: chord auto-detection finds G in Drop D', () => {
+    const profile = getDocumentProfile({ instrument: 'guitar', tuning: GUITAR_TUNINGS.DADGBE });
+    const notes: TabNote[] = [5, 2, 0, 0, 0, 3].map((fret, i) => ({ id: `g${i}`, string: 6 - i, fret }));
+    expect(autoDetectChordFromBeatNotes(notes, [], profile)).toEqual({ name: 'G', frets: [5, 2, 0, 0, 0, 3], baseFret: 2 });
+    expect(getChordPreset('G', profile)?.frets).toEqual([5, 2, 0, 0, 0, 3]);
+  });
+});
+
+describe('musicTheory: Chord Transposition', () => {
+  it('transposes chord roots and slash basses, spelled C C# D Eb E F F# G Ab A Bb B, keeping the suffix', () => {
+    expect(transposeChordName('C', 1)).toBe('C#');
+    expect(transposeChordName('Bb', 1)).toBe('B');
+    expect(transposeChordName('E7m', 1)).toBe('F7m');
+    expect(transposeChordName('F#m7', 1)).toBe('Gm7');
+    expect(transposeChordName('F#m7', -11)).toBe('Gm7');
+    expect(transposeChordName('G/B', 1)).toBe('Ab/C');
+    expect(transposeChordName('Db', 2)).toBe('Eb');
+    expect(transposeChordName('C', -1)).toBe('B');
+    expect(transposeChordName('A#sus4', 1)).toBe('Bsus4');
+    expect(transposeChordName('D6/9', 2)).toBe('E6/9');
+    expect(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map(n => transposeChordName(n, 0)))
+      .toEqual(['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']);
+  });
+
+  it('returns unparseable chord names unchanged', () => {
+    expect(transposeChordName('N.C.', 3)).toBe('N.C.');
+    expect(transposeChordName('am', 3)).toBe('am');
+    expect(transposeChordName('', 3)).toBe('');
+  });
+
+  it('uses the library shape for the transposed name when the profile has one', () => {
+    const custom = createChordMarker('C', [5, 4, 3, 3]);
+    expect(transposeChordMarker(custom, 7)).toEqual({ name: 'G', frets: [0, 2, 3, 2], baseFret: 1 });
+    // Matched case-insensitively; the transposed name is kept
+    expect(transposeChordMarker(createChordMarker('BbMIN7', [1, 1, 1, 1]), 1, { ...GUITAR_PROFILE, chordLibrary: { 'Bmin7': [-1, 2, 4, 2, 3, 2] } }))
+      .toEqual({ name: 'BMIN7', frets: [-1, 2, 4, 2, 3, 2], baseFret: 1 });
+    // Guitar in Drop D takes the adapted library shape
+    const dropD = getDocumentProfile({ instrument: 'guitar', tuning: GUITAR_TUNINGS.DADGBE });
+    expect(transposeChordMarker(getChordPreset('F#', dropD)!, 1, dropD).frets).toEqual([5, 2, 0, 0, 0, 3]);
+  });
+
+  it('shifts the frets of chords missing from the library, wrapping up an octave below fret 0', () => {
+    expect(transposeChordMarker(createChordMarker('Xyz', [-1, 3, 5, 5]), 2)).toEqual({ name: 'Xyz', frets: [-1, 5, 7, 7], baseFret: 5 });
+    expect(transposeChordMarker(createChordMarker('C9', [0, 2, 0, 3]), 1)).toEqual({ name: 'C#9', frets: [1, 3, 1, 4], baseFret: 1 });
+    // 0 - 1 would go below the nut: every played string moves up 12, muted strings stay muted
+    expect(transposeChordMarker(createChordMarker('C9', [-1, 2, 0, 3]), -1)).toEqual({ name: 'B9', frets: [-1, 13, 11, 14], baseFret: 11 });
+    expect(transposeChordMarker(createChordMarker('C9', [1, 2, 1, 3]), -1)).toEqual({ name: 'B9', frets: [0, 1, 0, 2], baseFret: 1 });
   });
 });

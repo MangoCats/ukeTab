@@ -72,6 +72,13 @@ describe('guitarProImporter: Guitar Import Keeps Source Fingering', () => {
     expect(calculatePitch(6, 5, doc.tuning)).toBe(43);
   });
 
+  it('builds the chord palette from library shapes adapted to the imported tuning', () => {
+    const doc = parseGuitarProToTab(buildGpBytes(DROP_D_CAPO_TEX), 'riff.gp', GUITAR_PROFILE);
+    expect(doc.chordPalette!.map(c => c.name)).toEqual(GUITAR_PROFILE.defaultChordNames);
+    expect(doc.chordPalette!.find(c => c.name === 'G')?.frets).toEqual([5, 2, 0, 0, 0, 3]);
+    expect(doc.chordPalette!.find(c => c.name === 'D')?.frets).toEqual([-1, -1, 0, 2, 3, 2]);
+  });
+
   it('imports dead notes as muted X and unknown tunings as custom tunings', () => {
     const tex = String.raw`\track "Lead" \tuning e4 b3 g3 d3 a2 c2 3.3.4 0.6.4 r.2 |`;
     const bytes = buildGpBytes(tex, score => {

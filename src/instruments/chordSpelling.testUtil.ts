@@ -11,6 +11,7 @@ const QUALITY_INTERVALS: Record<string, number[]> = {
   'm': [0, 3, 7],
   '7': [0, 4, 7, 10],
   'm7': [0, 3, 7, 10],
+  '7m': [0, 3, 7, 10], // UkuTabs shorthand for m7
   'maj7': [0, 4, 7, 11],
   'sus2': [0, 2, 7],
   'sus4': [0, 5, 7],
@@ -42,9 +43,14 @@ export function expectValidTunings(tunings: TuningConfig[], stringCount: number)
 
 /**
  * Checks every chord shape, played in the given tuning, has the root in the bass, sounds only chord tones,
- * and sounds every chord tone except possibly the fifth.
+ * and sounds every chord tone except possibly the fifth. Pass rootInBass: false for re-entrant tunings
+ * (e.g. High-G ukulele), whose bottom-line string is not the lowest pitch.
  */
-export function expectChordsSpelledCorrectly(library: ChordFretLibrary, tuning: TuningConfig) {
+export function expectChordsSpelledCorrectly(
+  library: ChordFretLibrary,
+  tuning: TuningConfig,
+  { rootInBass = true }: { rootInBass?: boolean } = {}
+) {
   const stringCount = tuning.pitches.length;
 
   Object.entries(library).forEach(([name, frets]) => {
@@ -61,7 +67,7 @@ export function expectChordsSpelledCorrectly(library: ChordFretLibrary, tuning: 
       .filter((p): p is number => p !== null);
     const soundedIntervals = new Set(sounded.map(p => (p - root + 120) % 12));
 
-    expect((sounded[0] - root + 120) % 12, `${name} bass note is the root`).toBe(0);
+    if (rootInBass) expect((sounded[0] - root + 120) % 12, `${name} bass note is the root`).toBe(0);
     soundedIntervals.forEach(iv => expect(intervals, `${name} sounds a non-chord tone`).toContain(iv));
     intervals.filter(iv => iv !== 7).forEach(iv => expect(soundedIntervals.has(iv), `${name} is missing interval ${iv}`).toBe(true));
   });

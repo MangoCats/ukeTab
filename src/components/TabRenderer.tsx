@@ -3,7 +3,7 @@ import { TabDocument, TabNote, DurationType, Measure, ChordMarker, DURATION_OPTI
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
 import { computeBeams, computeTripletGroups, shouldShowTimeSignature } from '../utils/notationLayout';
 import { ChordDiagram, getChordDiagramWidth } from './ChordDiagram';
-import { getInstrumentProfile } from '../instruments';
+import { getDocumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
 
 interface TabRendererProps {
@@ -48,7 +48,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onDeselectBeat
 }) => {
   const { tuning, layout, measures, chordPalette } = document;
-  const profile = getInstrumentProfile(document.instrument);
+  const profile = getDocumentProfile(document);
   const stringCount = tuning.pitches.length;
   const stringNumbers = getStringNumbers(stringCount);
   const chordDiagramWidth = getChordDiagramWidth(stringCount);

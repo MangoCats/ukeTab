@@ -10,7 +10,7 @@ import {
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { getMeasureClickOffsetsMs, getMeasureDurationMs, getColumnStartOffsetMs } from './utils/playbackTiming';
 import { findShortcut, resolveFretDigit } from './utils/shortcuts';
-import { getInstrumentProfile } from './instruments';
+import { getInstrumentProfile, getDocumentProfile } from './instruments';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
 import { InspectorPanel } from './components/InspectorPanel';
@@ -38,7 +38,7 @@ export const App: React.FC = () => {
 
   const playbackTimeoutRef = useRef<number | null>(null);
   const metronomeTimeoutsRef = useRef<number[]>([]);
-  const profile = getInstrumentProfile(document.instrument);
+  const profile = getDocumentProfile(document); // Chord library adapted to the document's tuning
   const lastKeyTimeRef = useRef<number>(0);
   const lastDigitRef = useRef<string>('');
 
@@ -210,7 +210,7 @@ export const App: React.FC = () => {
   }, [selectedBeatId, selectedString, document]);
 
   // Document edits are pure functions in utils/documentEdits; these handlers apply them and manage selection
-  const profileOf = (doc: TabDocument) => getInstrumentProfile(doc.instrument);
+  const profileOf = (doc: TabDocument) => getDocumentProfile(doc);
 
   const handleSelectBeat = (measureIndex: number, beatId: string, stringIndex?: number) => {
     setSelectedBeatId(beatId);
@@ -275,7 +275,8 @@ export const App: React.FC = () => {
     setDocument(prev => setBeatLyric(prev, beatId, lyric));
   };
 
-  // Computed from the current document rather than a functional update, because the inexact count is needed here
+  // Computed from the current document rather than a functional update, because the inexact count is needed here.
+  // The tuning-adapted profile lets transposed chord markers take the library shape for the new chord name.
   const handleTranspose = (semitones: number) => {
     const { document: transposed, inexactCount } = transposeDocument(document, semitones, profile);
     setDocument(transposed);
