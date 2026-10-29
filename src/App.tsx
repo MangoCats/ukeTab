@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TabDocument, InstrumentId, DurationType, TabNote, Measure, BeatColumn, ChordMarker, DURATION_KEY_MAP } from './types/tab';
+import { TabDocument, InstrumentId, DurationType, ChordMarker, DURATION_KEY_MAP } from './types/tab';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
-import { transposePitches, getBeatDurationMs, getEffectiveChordPalette, autoDetectChordFromBeatNotes, extractChordFrets } from './utils/musicTheory';
+import { getBeatDurationMs, getEffectiveChordPalette, extractChordFrets } from './utils/musicTheory';
+import {
+  assignChordOnSelect, addNote, removeNote, insertBeatAfter, toggleRest, toggleTriplet, toggleTie, setBeatChord,
+  setChordPalette, deleteBeat, setBeatDuration, setBeatLyric, transposeDocument, addMeasure, duplicateMeasureRange
+} from './utils/documentEdits';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { getInstrumentProfile } from './instruments';
 import { TabRenderer } from './components/TabRenderer';
@@ -225,62 +229,19 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedBeatId, selectedString, document]);
 
+  // Document edits are pure functions in utils/documentEdits; these handlers apply them and manage selection
+  const profileOf = (doc: TabDocument) => getInstrumentProfile(doc.instrument);
+
   const handleSelectBeat = (measureIndex: number, beatId: string, stringIndex?: number) => {
     setSelectedBeatId(beatId);
     if (stringIndex) {
       setSelectedString(stringIndex);
     }
-
-    // Auto-assign matching chord ONLY if beat.chord is undefined (never set and not explicitly cleared with null)
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          if (b.chord === undefined) {
-            const autoChord = autoDetectChordFromBeatNotes(b.notes, prev.chordPalette, getInstrumentProfile(prev.instrument));
-            if (autoChord) {
-              return { ...b, chord: autoChord };
-            }
-          }
-          return b;
-        })
-      }))
-    }));
+    setDocument(prev => assignChordOnSelect(prev, beatId, profileOf(prev)));
   };
 
   const handleAddNote = (beatId: string, stringIndex: number, fret: number) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          const existingFiltered = b.notes.filter(n => n.string !== stringIndex && !n.isGhost);
-          const newNote: TabNote = {
-            id: `n-${Date.now()}-${stringIndex}`,
-            string: stringIndex,
-            fret: fret
-          };
-          const updatedNotes = [...existingFiltered, newNote];
-
-          let updatedChord = b.chord;
-          if (b.chord !== null) {
-            const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette, getInstrumentProfile(prev.instrument));
-            if (autoChord) updatedChord = autoChord;
-          }
-
-          return {
-            ...b,
-            isRest: false,
-            duration: activeDuration,
-            notes: updatedNotes,
-            chord: updatedChord
-          };
-        })
-      }))
-    }));
+    setDocument(prev => addNote(prev, beatId, stringIndex, fret, profileOf(prev)));
   };
 
   const handleSetFret = (beatId: string, stringIndex: number, fret: number) => {
@@ -288,297 +249,62 @@ export const App: React.FC = () => {
   };
 
   const handleRemoveNote = (beatId: string, stringIndex: number) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          const updatedNotes = b.notes.filter(n => n.string !== stringIndex);
-          const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette, getInstrumentProfile(prev.instrument));
-
-          return {
-            ...b,
-            notes: updatedNotes,
-            chord: autoChord || (updatedNotes.length < prev.tuning.pitches.length ? undefined : b.chord)
-          };
-        })
-      }))
-    }));
+    setDocument(prev => removeNote(prev, beatId, stringIndex, profileOf(prev)));
   };
 
-  const handleInsertBeat = (afterBeatId: string) => {
-    const newId = `b-${Date.now()}`;
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => {
-        const beatIdx = m.beats.findIndex(b => b.id === afterBeatId);
-        if (beatIdx === -1) return m;
-
-        const newBeat: BeatColumn = {
-          id: newId,
-          duration: activeDuration,
-          notes: []
-        };
-
-        const updatedBeats = [...m.beats];
-        updatedBeats.splice(beatIdx + 1, 0, newBeat);
-        return { ...m, beats: updatedBeats };
-      })
-    }));
-    setSelectedBeatId(newId);
+  const insertAfter = (afterBeatId: string, isRest: boolean) => {
+    const result = insertBeatAfter(document, afterBeatId, activeDuration, { isRest });
+    setDocument(result.document);
+    setSelectedBeatId(result.beatId);
   };
 
-  const handleInsertRest = (afterBeatId: string) => {
-    const newId = `b-${Date.now()}`;
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => {
-        const beatIdx = m.beats.findIndex(b => b.id === afterBeatId);
-        if (beatIdx === -1) return m;
+  const handleInsertBeat = (afterBeatId: string) => insertAfter(afterBeatId, false);
 
-        const newBeat: BeatColumn = {
-          id: newId,
-          duration: activeDuration,
-          isRest: true,
-          notes: []
-        };
-
-        const updatedBeats = [...m.beats];
-        updatedBeats.splice(beatIdx + 1, 0, newBeat);
-        return { ...m, beats: updatedBeats };
-      })
-    }));
-    setSelectedBeatId(newId);
-  };
+  const handleInsertRest = (afterBeatId: string) => insertAfter(afterBeatId, true);
 
   const handleToggleRest = (beatId: string) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          return {
-            ...b,
-            isRest: !b.isRest,
-            notes: !b.isRest ? [] : b.notes
-          };
-        })
-      }))
-    }));
+    setDocument(prev => toggleRest(prev, beatId));
   };
 
   const handleToggleTriplet = (beatId: string) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          return {
-            ...b,
-            isTriplet: !b.isTriplet
-          };
-        })
-      }))
-    }));
+    setDocument(prev => toggleTriplet(prev, beatId));
   };
 
   const handleToggleTie = (beatId: string) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          return {
-            ...b,
-            isTied: !b.isTied
-          };
-        })
-      }))
-    }));
+    setDocument(prev => toggleTie(prev, beatId));
   };
 
   const handleSetBeatChord = (beatId: string, chord: ChordMarker | null) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          return {
-            ...b,
-            chord: chord // null explicitly clears the chord
-          };
-        })
-      }))
-    }));
+    setDocument(prev => setBeatChord(prev, beatId, chord));
   };
 
   const handleUpdateChordPalette = (newPalette: ChordMarker[]) => {
-    setDocument(prev => ({
-      ...prev,
-      chordPalette: newPalette
-    }));
+    setDocument(prev => setChordPalette(prev, newPalette));
   };
 
   const handleDeleteBeatColumn = (beatId: string) => {
-    setDocument(prev => {
-      const targetMeasure = prev.measures.find(m => m.beats.some(b => b.id === beatId));
-      if (!targetMeasure) return prev;
-
-      // Deleting the last beat in a measure deletes the measure!
-      if (targetMeasure.beats.length <= 1) {
-        if (prev.measures.length <= 1) {
-          const newMId = `m-${Date.now()}`;
-          return {
-            ...prev,
-            measures: [
-              {
-                id: newMId,
-                index: 1,
-                timeSignature: targetMeasure.timeSignature || [4, 4],
-                beats: [
-                  {
-                    id: `b-${newMId}-1`,
-                    duration: '1/4',
-                    notes: []
-                  }
-                ]
-              }
-            ]
-          };
-        }
-
-        const remainingMeasures = prev.measures
-          .filter(m => m.id !== targetMeasure.id)
-          .map((m, idx) => ({ ...m, index: idx + 1 }));
-
-        return { ...prev, measures: remainingMeasures };
-      }
-
-      const updatedMeasures = prev.measures.map(m => {
-        if (m.id !== targetMeasure.id) return m;
-        return {
-          ...m,
-          beats: m.beats.filter(b => b.id !== beatId)
-        };
-      });
-
-      return { ...prev, measures: updatedMeasures };
-    });
+    setDocument(prev => deleteBeat(prev, beatId));
     setSelectedBeatId(null);
   };
 
   const handleUpdateBeatDuration = (beatId: string, duration: DurationType, isDotted?: boolean) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          return {
-            ...b,
-            duration,
-            isDotted: isDotted !== undefined ? isDotted : b.isDotted
-          };
-        })
-      }))
-    }));
+    setDocument(prev => setBeatDuration(prev, beatId, duration, isDotted));
   };
 
   const handleUpdateBeatLyric = (beatId: string, lyric: string) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => {
-          if (b.id !== beatId) return b;
-          return { ...b, lyric };
-        })
-      }))
-    }));
+    setDocument(prev => setBeatLyric(prev, beatId, lyric));
   };
 
   const handleTranspose = (semitones: number) => {
-    setDocument(prev => ({
-      ...prev,
-      measures: prev.measures.map(m => ({
-        ...m,
-        beats: m.beats.map(b => ({
-          ...b,
-          notes: transposePitches(b.notes, semitones, prev.tuning)
-        }))
-      }))
-    }));
+    setDocument(prev => transposeDocument(prev, semitones));
   };
 
   const handleAddMeasure = () => {
-    setDocument(prev => {
-      const nextIndex = prev.measures.length + 1;
-      const mId = `m-${Date.now()}`;
-      const newMeasure: Measure = {
-        id: mId,
-        index: nextIndex,
-        timeSignature: [4, 4],
-        beats: ([1, 2, 3, 4] as const).map(bNum => ({
-          id: `b-${mId}-${bNum}`,
-          duration: '1/4',
-          notes: []
-        }))
-      };
-      return {
-        ...prev,
-        measures: [...prev.measures, newMeasure]
-      };
-    });
+    setDocument(prev => addMeasure(prev));
   };
 
   const handleDuplicateMeasureRange = (startIdx: number, endIdx: number) => {
-    setDocument(prev => {
-      const total = prev.measures.length;
-      if (total === 0) return prev;
-
-      const validStart = Math.max(1, Math.min(startIdx, total));
-      const validEnd = Math.max(validStart, Math.min(endIdx, total));
-
-      const targetMeasures = prev.measures.slice(validStart - 1, validEnd);
-
-      const duplicatedMeasures: Measure[] = targetMeasures.map((m, mOffset) => {
-        const newMeasureId = `m-${Date.now()}-${mOffset}-${Math.random().toString(36).substring(2, 6)}`;
-        const newBeats: BeatColumn[] = m.beats.map((b, bOffset) => {
-          const newBeatId = `b-${newMeasureId}-${bOffset}`;
-          const newNotes: TabNote[] = b.notes.map((n, nOffset) => ({
-            ...n,
-            id: `n-${Date.now()}-${bOffset}-${nOffset}-${Math.random().toString(36).substring(2, 5)}`
-          }));
-          return {
-            ...b,
-            id: newBeatId,
-            notes: newNotes,
-            chord: b.chord ? { ...b.chord } : b.chord
-          };
-        });
-
-        return {
-          ...m,
-          id: newMeasureId,
-          beats: newBeats
-        };
-      });
-
-      const combinedMeasures = [...prev.measures, ...duplicatedMeasures].map((m, idx) => ({
-        ...m,
-        index: idx + 1
-      }));
-
-      return {
-        ...prev,
-        measures: combinedMeasures
-      };
-    });
+    setDocument(prev => duplicateMeasureRange(prev, startIdx, endIdx));
   };
 
   const handleNewSong = (instrumentId: InstrumentId) => {
@@ -792,6 +518,7 @@ export const App: React.FC = () => {
           onToggleTie={handleToggleTie}
           onDeleteBeatColumn={handleDeleteBeatColumn}
           onUpdateBeatDuration={handleUpdateBeatDuration}
+          onSelectActiveDuration={setActiveDuration}
           onUpdateBeatLyric={handleUpdateBeatLyric}
           onSetBeatChord={handleSetBeatChord}
           onDeselectBeat={() => setSelectedBeatId(null)}

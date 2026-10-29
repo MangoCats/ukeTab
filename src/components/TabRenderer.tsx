@@ -21,6 +21,7 @@ interface TabRendererProps {
   onDeleteBeatColumn: (beatId: string) => void;
   onUpdateBeatDuration: (beatId: string, duration: DurationType, isDotted?: boolean) => void;
   onUpdateBeatLyric: (beatId: string, lyric: string) => void;
+  onSelectActiveDuration?: (duration: DurationType) => void; // Popover duration choice also becomes the active duration
   onSetBeatChord?: (beatId: string, chord: ChordMarker | null) => void;
   onDeselectBeat?: () => void;
 }
@@ -41,6 +42,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onDeleteBeatColumn,
   onUpdateBeatDuration,
   onUpdateBeatLyric,
+  onSelectActiveDuration,
   onSetBeatChord,
   onDeselectBeat
 }) => {
@@ -719,6 +721,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onUpdateBeatDuration(beat.id, d.value, currentBeatDotted);
+                                      onSelectActiveDuration?.(d.value);
                                     }}
                                     className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition ${
                                       currentBeatDuration === d.value

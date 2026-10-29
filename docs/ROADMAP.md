@@ -19,7 +19,7 @@ Status of the work that fixes the application problems found while bringing the 
 | Phase | Work | Owner | Status |
 |---|---|---|---|
 | 0 | Commit the documentation rewrite and this roadmap | lead | done |
-| 1 | Move document edit operations from `App.tsx` into pure functions (`src/utils/documentEdits.ts`) with unit tests; fix problem 1 | lead | planned |
+| 1 | Move document edit operations from `App.tsx` into pure functions (`src/utils/documentEdits.ts`) with unit tests; fix problem 1 | lead | done |
 | 2a | Notation: problems 3, 5 and the display part of 4 (`TabRenderer.tsx`, new `src/utils/notationLayout.ts`) | agent | planned |
 | 2b | Editing: problem 2 and the editing part of 4 (`documentEdits.ts`, `musicTheory.ts`, profiles, `InspectorPanel.tsx`) | agent | planned |
 | 2c | Playback & shortcuts: problems 6 and 7 (`App.tsx`, new `src/utils/shortcuts.ts`, new `src/utils/playbackTiming.ts`) | agent | planned |

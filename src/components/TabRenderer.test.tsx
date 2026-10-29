@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import { TabRenderer } from './TabRenderer';
 import { TabDocument } from '../types/tab';
 import { TUNING_PRESETS, getDefaultChordPalette } from '../utils/musicTheory';
@@ -90,5 +90,32 @@ describe('TabRenderer Component', () => {
     // Verify synchronized lyrics track
     expect(allTextContents).toContain('Hel-');
     expect(allTextContents).toContain('-lo');
+  });
+
+  it('makes a popover duration choice the active duration as well as the beat duration', () => {
+    const noop = vi.fn();
+    const onUpdateBeatDuration = vi.fn();
+    const onSelectActiveDuration = vi.fn();
+    const { getAllByText } = render(
+      <TabRenderer
+        document={mockTabDocument}
+        selectedBeatId="b1"
+        selectedString={1}
+        playingBeatId={null}
+        onSelectBeat={noop}
+        onAddNote={noop}
+        onRemoveNote={noop}
+        onInsertBeat={noop}
+        onDeleteBeatColumn={noop}
+        onUpdateBeatDuration={onUpdateBeatDuration}
+        onSelectActiveDuration={onSelectActiveDuration}
+        onUpdateBeatLyric={noop}
+      />
+    );
+
+    const sixteenthButton = getAllByText('1/16').find(el => el.tagName === 'BUTTON')!;
+    fireEvent.click(sixteenthButton);
+    expect(onUpdateBeatDuration).toHaveBeenCalledWith('b1', '1/16', false);
+    expect(onSelectActiveDuration).toHaveBeenCalledWith('1/16');
   });
 });
