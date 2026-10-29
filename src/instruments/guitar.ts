@@ -131,6 +131,7 @@ export const GUITAR_PROFILE: InstrumentProfile = {
   importMaxFret: 24,
   importKeepsSourceFingering: true,
   importTrackKeywords: ['guitar', 'acoustic'],
+  exportMidiProgram: 25, // Acoustic Guitar (steel)
   synthVoice: {
     // Steel-string pluck: brighter sawtooth with a closing low-pass filter and longer sustain
     oscillatorType: 'sawtooth',

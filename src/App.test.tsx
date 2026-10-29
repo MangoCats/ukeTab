@@ -168,6 +168,27 @@ describe('App: opening files', () => {
   });
 });
 
+describe('App: opening and saving files', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('drops the unused keySignature of older files instead of saving it again', async () => {
+    const oldFile = { ...createBlankTabDocument(GUITAR_PROFILE), keySignature: 'C' };
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const { container, getByText, getByDisplayValue } = render(<App />);
+    const input = container.querySelector<HTMLInputElement>('input[accept=".uketab,.json"]')!;
+    fireEvent.change(input, { target: { files: [new File([JSON.stringify(oldFile)], 'old.uketab')] } });
+    await waitFor(() => expect(getByDisplayValue('Untitled Guitar Tab')).not.toBeNull());
+
+    fireEvent.click(getByText('Save .uketab'));
+    const href = (click.mock.contexts[0] as HTMLAnchorElement).getAttribute('href')!;
+    const saved = JSON.parse(decodeURIComponent(href.replace('data:text/json;charset=utf-8,', '')));
+    expect(saved.title).toBe('Untitled Guitar Tab');
+    expect('keySignature' in saved).toBe(false);
+  });
+});
+
 describe('App: capo', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -232,5 +253,78 @@ describe('App: converting to another instrument', () => {
     fireEvent.click(getByText('Convert'));
     fireEvent.click(getByText('Convert to Guitar'));
     expect(getByText(/4-Line Ukulele Tab Chart/)).not.toBeNull();
+  });
+});
+
+describe('App: printing and Guitar Pro export', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const exportPdf = (getByText: (text: string) => HTMLElement, option: string) => {
+    fireEvent.click(getByText('Export PDF'));
+    fireEvent.click(getByText(option));
+  };
+
+  it('prints the tab alone straight away, without notation', () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { container, getByText } = render(<App />);
+    exportPdf(getByText, 'Tab only');
+    expect(print).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('.notation-print')).toBeNull();
+  });
+
+  it('prints the piano grand staff above the tab, with the key in the header, and removes it after printing', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { container, getByText } = render(<App />);
+    const meta = () => container.querySelector('.print-title-header .meta')!.textContent;
+
+    exportPdf(getByText, 'Piano grand staff + tab');
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+
+    const notation = container.querySelector('.notation-print')!;
+    expect(notation.getAttribute('data-mode')).toBe('grandStaff');
+    expect(notation.querySelectorAll('svg').length).toBeGreaterThan(0);
+    // The sample song's chords (G, Em, C, Am, D7) put it in G
+    expect(meta()).toContain('Key: G major / E minor •');
+    // alphaTab's credit line is drawn but marked for the print CSS to hide
+    const credit = notation.querySelectorAll('.notation-print-credit');
+    expect(credit).toHaveLength(1);
+    expect(credit[0].textContent!.trim()).toBe('rendered by alphaTab');
+    // The editor's own tab is left out of this printout
+    expect(container.querySelector('.tab-canvas-wrapper')!.closest('.no-print')).not.toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new Event('afterprint'));
+    });
+    expect(container.querySelector('.notation-print')).toBeNull();
+    expect(meta()).not.toContain('Key:');
+    expect(container.querySelector('.tab-canvas-wrapper')!.closest('.no-print')).toBeNull();
+  });
+
+  it('prints the instrument staff with the chosen key', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { container, getByText, getByLabelText } = render(<App />);
+    fireEvent.change(getByLabelText('Key'), { target: { value: 'Eb' } });
+    exportPdf(getByText, 'Instrument staff + tab');
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    expect(container.querySelector('.notation-print')!.getAttribute('data-mode')).toBe('instrumentStaff');
+    expect(container.querySelector('.print-title-header .meta')!.textContent).toContain('Key: Eb major / C minor •');
+  });
+
+  it('downloads the song as a Guitar Pro file named after the title', () => {
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:uketab-test');
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const { getByText } = render(<App />);
+
+    fireEvent.click(getByText('Save Guitar Pro'));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = createObjectURL.mock.calls[0][0];
+    expect(blob.size).toBeGreaterThan(0);
+    const anchor = click.mock.contexts[0] as HTMLAnchorElement;
+    expect(anchor.getAttribute('download')).toBe('conjunction_junction.gp');
+    expect(anchor.getAttribute('href')).toBe('blob:uketab-test');
   });
 });

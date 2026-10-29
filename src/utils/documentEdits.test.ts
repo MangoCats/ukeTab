@@ -9,7 +9,7 @@ import { calculatePitch, createChordMarker, getChordPreset, getDefaultChordPalet
 import {
   IdFactory, assignChordOnSelect, addNote, removeNote, insertBeatAfter, toggleRest, toggleTriplet, toggleTie,
   setBeatChord, setBeatDuration, setBeatLyric, setChordPalette, deleteBeat, transposeDocument, retuneDocument,
-  addMeasure, duplicateMeasureRange, setMeasureTimeSignature, setCapo, convertInstrument
+  addMeasure, duplicateMeasureRange, setMeasureTimeSignature, setCapo, convertInstrument, setKey
 } from './documentEdits';
 
 const sequentialIds = (): IdFactory => {
@@ -339,6 +339,30 @@ describe('documentEdits: capo', () => {
   });
 });
 
+describe('documentEdits: notation key', () => {
+  it('sets a key and returns to guessing it', () => {
+    const doc = setKey(makeDoc(), 'Eb');
+    expect(doc.key).toBe('Eb');
+    expect('key' in setKey(doc, undefined)).toBe(false);
+    expect('key' in setKey(doc, 'H' as never)).toBe(false);
+  });
+
+  it('moves a chosen key with transposition and capo changes, and leaves a guessed key to the chords', () => {
+    const chosen = setKey(makeDoc(), 'G');
+    expect(transposeDocument(chosen, 2, UKULELE_PROFILE).document.key).toBe('A');
+    expect(transposeDocument(chosen, -1, UKULELE_PROFILE).document.key).toBe('F#');
+    expect(setCapo(chosen, 3).key).toBe('Bb');
+    expect(setCapo(setCapo(chosen, 3), 1).key).toBe('Ab');
+
+    expect('key' in transposeDocument(makeDoc(), 2, UKULELE_PROFILE).document).toBe(false);
+    expect('key' in setCapo(makeDoc(), 2)).toBe(false);
+  });
+
+  it('keeps the key when converting to another instrument, since the pitches stay', () => {
+    expect(convertInstrument(setKey(setCapo(makeDoc(), 2), 'D'), GUITAR_PROFILE).document.key).toBe('D');
+  });
+});
+
 describe('documentEdits: converting to another instrument', () => {
   const allNotes = (doc: TabDocument) => doc.measures.flatMap(m => m.beats.flatMap(b => b.notes));
   const soundingPitches = (doc: TabDocument) => {
@@ -393,6 +417,14 @@ describe('documentEdits: converting to another instrument', () => {
     expect(beat(document, 'b1').chord).toBeUndefined();
     // The ukulele default palette without E7m, which the guitar library lacks
     expect(document.chordPalette).toEqual(['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7'].map(n => getChordPreset(n, GUITAR_PROFILE)));
+  });
+
+  it('regression: chord shapes under a capo become the chords they sound', () => {
+    // Capo 2 with a G shape sounds A; the converted song has no capo, so its chord is A
+    const doc = setCapo(setBeatChord(makeDoc(), 'b1', getChordPreset('G')), 2);
+    const { document } = convertInstrument({ ...doc, chordPalette: [getChordPreset('G')!] }, GUITAR_PROFILE);
+    expect(beat(document, 'b1').chord).toEqual(getChordPreset('A', GUITAR_PROFILE));
+    expect(document.chordPalette).toEqual([getChordPreset('A', GUITAR_PROFILE)]);
   });
 
   it('includes the capo in the sounding pitch and removes it', () => {

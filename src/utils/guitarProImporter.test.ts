@@ -149,6 +149,23 @@ describe('guitarProImporter: Bass Import', () => {
   });
 });
 
+describe('guitarProImporter: ukulele tracks', () => {
+  it('keeps the strings and frets of a ukulele track, as for guitar and bass', () => {
+    // alphaTex strings count from the top line: G4 is played on the E string (2) at fret 3, not the open g string
+    const tex = String.raw`\track "Ukulele" \tuning a4 e4 c4 g4 3.2.4 x.1.4 2.4.2 |`;
+    const doc = parseGuitarProToTab(buildGpBytes(tex), 'uke.gp', UKULELE_PROFILE);
+    expect(doc.tuning.key).toBe('gCEA');
+    expect(doc.measures[0].beats.map(b => b.notes.map(n => [n.string, n.fret]))).toEqual([[[2, 3]], [[1, -1]], [[4, 2]]]);
+  });
+
+  it('regression: re-voiced dead notes stay muted on their string number', () => {
+    const tex = String.raw`\track "Guitar" \tuning (e4 b3 g3 d3 a2 e2) (x.1 x.2 3.5).4 |`;
+    const [beat] = parseGuitarProToTab(buildGpBytes(tex), 'muted.gp', UKULELE_PROFILE).measures[0].beats;
+    expect(beat.notes.filter(n => n.fret === -1).map(n => n.string).sort()).toEqual([1, 2]);
+    expect(beat.notes.filter(n => n.fret >= 0).map(n => calculatePitch(n.string, n.fret, UKULELE_PROFILE.defaultTuning))).toEqual([60]);
+  });
+});
+
 describe('guitarProImporter: Ukulele Import Re-voices Guitar Tracks', () => {
   it('places sounding pitches with the shared assignNotesToStrings solver and sets no capo', () => {
     const bytes = buildGpBytes(DROP_D_CAPO_TEX);

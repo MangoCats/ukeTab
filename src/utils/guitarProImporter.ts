@@ -1,6 +1,10 @@
 import * as alphaTab from '@coderline/alphatab';
-import { TabDocument, Measure, BeatColumn, TabNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/tab';
-import { assignNotesToStrings, autoDetectChordFromBeatNotes, getDefaultChordPalette, midiToNoteName } from './musicTheory';
+import { TabDocument, Measure, BeatColumn, TabNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile, NotationKey } from '../types/tab';
+import {
+  assignNotesToStrings, autoDetectChordFromBeatNotes, createChordMarker, getChordPreset, getDefaultChordPalette, midiToNoteName,
+  transposeChordName
+} from './musicTheory';
+import { NOTATION_KEYS } from './musicKeys';
 import { MAX_CAPO } from './documentEdits';
 import { getInstrumentProfile, getTuningProfile } from '../instruments';
 
@@ -26,6 +30,36 @@ export function cleanGpLyric(lyrics: string[] | null | undefined): string | unde
   if (!lyrics || lyrics.length === 0) return undefined;
   const raw = lyrics.join('').replace(/,/g, '').trim();
   return raw || undefined;
+}
+
+/**
+ * The document key for a source key signature (sharps positive, flats negative), or undefined for no sharps or
+ * flats, which files also use when no key was chosen (the key is then guessed from the chords).
+ */
+export function convertGpKeySignature(keySignature: number): NotationKey | undefined {
+  if (!keySignature) return undefined;
+  return NOTATION_KEYS[(((keySignature * 7) % 12) + 12) % 12]; // Each sharp moves the tonic up a fifth
+}
+
+/**
+ * A chord named in the source file. A kept fingering keeps the source diagram (listed highest string first) when it
+ * has one fret per string; otherwise the chord is the library shape of that name, renamed by soundingShift (the
+ * source capo, since re-voiced notes have none), or null when the library has no such chord.
+ */
+export function convertGpChord(
+  chord: alphaTab.model.Chord,
+  keepSourceFingering: boolean,
+  stringCount: number,
+  soundingShift: number,
+  profile: InstrumentProfile
+): ChordMarker | null {
+  if (!chord.name) return null;
+  if (keepSourceFingering && chord.strings.length === stringCount) {
+    return createChordMarker(chord.name, [...chord.strings].reverse(), undefined, profile);
+  }
+  const name = keepSourceFingering ? chord.name : transposeChordName(chord.name, soundingShift);
+  const preset = getChordPreset(name, profile);
+  return preset ? { ...preset, name } : null;
 }
 
 /**
@@ -179,26 +213,40 @@ export function parseGuitarProToTab(
               }
             });
           } else {
-            // Sounding pitches (capo included) folded into the instrument's range and placed on its strings
+            // Dead notes stay muted on the same string number when the instrument has it, claimed first; sounding
+            // pitches (capo included) are folded into the instrument's range and placed on the other strings
+            const mutedStrings = new Set<number>();
+            gpBeat.notes.forEach((gpNote, nIdx) => {
+              const sourceString = staff.tuning.length - gpNote.string + 1;
+              if (!gpNote.isDead || sourceString < 1 || sourceString > stringCount || mutedStrings.has(sourceString)) return;
+              mutedStrings.add(sourceString);
+              tabNotes.push({ id: `gp-n-${mIdx}-${bIdx}-${nIdx}`, string: sourceString, fret: -1, isTied: isTiedNote(gpNote) });
+            });
+
+            const sounding = gpBeat.notes.map((gpNote, nIdx) => ({ gpNote, nIdx })).filter(({ gpNote }) => !gpNote.isDead);
             const placements = assignNotesToStrings(
-              gpBeat.notes.map(n => n.realValue),
+              sounding.map(({ gpNote }) => gpNote.realValue),
               tuning,
               profile.importMaxFret,
-              { pitchRange: profile.importPitchRange }
+              { pitchRange: profile.importPitchRange, usedStrings: mutedStrings }
             );
-            placements.forEach((placement, nIdx) => {
+            placements.forEach((placement, i) => {
               if (!placement) return; // More notes than strings
+              const { gpNote, nIdx } = sounding[i];
               tabNotes.push({
                 id: `gp-n-${mIdx}-${bIdx}-${nIdx}`,
                 string: placement.string,
                 fret: placement.fret,
-                isTied: isTiedNote(gpBeat.notes[nIdx])
+                isTied: isTiedNote(gpNote)
               });
             });
           }
         }
 
-        const autoChord = autoDetectChordFromBeatNotes(tabNotes, chordPalette, chordProfile);
+        // A chord named in the file wins over one detected from the notes
+        const gpChord = gpBeat.chordId ? staff.chords?.get(gpBeat.chordId) : undefined;
+        const sourceChord = gpChord ? convertGpChord(gpChord, keepSourceFingering, stringCount, staff.capo, chordProfile) : null;
+        const chord = sourceChord || autoDetectChordFromBeatNotes(tabNotes, chordPalette, chordProfile);
 
         // Synchronize lyric syllable using exact measure index + playbackStart tick timestamp
         const tickKey = `${mIdx}-${gpBeat.playbackStart}`;
@@ -208,10 +256,11 @@ export function parseGuitarProToTab(
           id: `b-gp-${mIdx + 1}-${bIdx + 1}`,
           duration: duration,
           isDotted: isDotted,
+          ...(gpBeat.tupletNumerator === 3 && gpBeat.tupletDenominator === 2 ? { isTriplet: true } : {}),
           isRest: isRest,
           isTied: hasTiedNote, // Mark BeatColumn as tied/continued note
           notes: tabNotes,
-          chord: autoChord || undefined,
+          chord: chord || undefined,
           lyric: beatLyric
         });
       });
@@ -241,7 +290,7 @@ export function parseGuitarProToTab(
     artist: artist,
     instrument: profile.id,
     tempo: tempo,
-    keySignature: 'C',
+    ...(convertGpKeySignature(staff.bars[0]?.keySignature ?? 0) ? { key: convertGpKeySignature(staff.bars[0].keySignature) } : {}),
     tuning: tuning,
     capo: capo,
     layout: {

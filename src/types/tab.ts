@@ -90,6 +90,7 @@ export interface InstrumentProfile {
   importMaxFret: number;                  // Highest fret the Guitar Pro importer will assign (<= maxFret)
   importKeepsSourceFingering: boolean;    // Matching Guitar Pro tracks (same string count, lowest string within an octave) keep their own tuning, strings and frets
   importTrackKeywords: string[];          // Preferred Guitar Pro track name keywords (lowercase)
+  exportMidiProgram: number;              // General MIDI program written to Guitar Pro exports
   synthVoice: SynthVoice;
 }
 
@@ -100,13 +101,16 @@ export interface LayoutOptions {
   maxFretLimit: number;              // Default: 12 (user selectable 7..20)
 }
 
+// Key signature for standard notation, named by its major tonic (the relative minor shares it)
+export type NotationKey = 'C' | 'Db' | 'D' | 'Eb' | 'E' | 'F' | 'F#' | 'G' | 'Ab' | 'A' | 'Bb' | 'B';
+
 export interface TabDocument {
   id: string;
   title: string;
   artist: string;
   instrument?: InstrumentId; // Absent in older .uketab files, which are always ukulele
   tempo: number;
-  keySignature: string;     // Stored only; not displayed or used by any engine
+  key?: NotationKey;        // Key signature of the sounding music for standard notation; absent = guessed from the chords
   tuning: TuningConfig;
   capo?: number;            // Capo fret 0..12 (absent = 0, no capo); fret numbers are relative to the capo
   layout: LayoutOptions;

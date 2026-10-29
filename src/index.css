@@ -282,7 +282,30 @@ body {
 }
 
 /* Dedicated High-Quality Print & PDF Output Engine */
+/* Standard notation (alphaTab) is drawn only for printing */
+.notation-print {
+  display: none;
+}
+
 @media print {
+  .notation-print {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Each laid-out part (chord diagram list, one system of staves) stays on one page */
+  .notation-print-part {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* alphaTab always draws a closing "rendered by alphaTab" line; the printout leaves it out */
+  .notation-print-credit {
+    display: none !important;
+  }
+
   @page {
     size: auto;
     margin-top: 0.5in !important;

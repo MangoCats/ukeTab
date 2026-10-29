@@ -2,7 +2,7 @@
 
 > **Interactive Ukulele, Guitar & Bass Tab Creator, Player and Printer**
 
-UkeTab is a browser application for writing, editing, playing back, printing and importing tablature for **ukulele (4 strings), guitar (6 strings) and bass (4 strings)**, with rhythm notation, chord diagrams and lyrics.
+UkeTab is a browser application for writing, editing, playing back, printing, importing and exporting tablature for **ukulele (4 strings), guitar (6 strings) and bass (4 strings)**, with rhythm notation, chord diagrams and lyrics, and printouts that can add standard music notation for piano players.
 
 ---
 
@@ -29,10 +29,11 @@ Full setup, test and build instructions: **[HOWTO.md](HOWTO.md)**.
 - 🖥️ **Editing**: click a string to enter a note; a popover above the selected beat and an inspector panel at the bottom; full keyboard control (`0`–`9` frets, `x` muted, `w h q e s` durations, `.` dot, `r` rest, `t` triplet, `l` tie, `+` insert beat, arrows, `Backspace`, `Space`).
 - 🪄 **Alternate fret helper**: suggests the same pitch on other strings, up to a configurable Max Fret Limit (7, 10, 12, 15, 20).
 - 🔊 **Playback**: Web Audio synthesizer with a per-instrument voice, metronome, playhead highlight and speed 0.5×–1.25×.
-- 🔄 **Transpose** the whole song ±1 semitone at a time.
-- 📂 **Files**: save and open `.uketab` (JSON); import Guitar Pro `.gp`, `.gp3`–`.gp5`, `.gpx`. Guitar and bass imports keep the source tuning and fingering; ukulele imports re-fit the notes onto 4 strings.
-- 📄 **Print / PDF**: black-on-white output with a title header, `{Title} X of Y` page footer and right-aligned measure rows, without editor controls.
-- 🧪 **Automated tests** for music theory, instruments, chord shapes, Guitar Pro import and UI components.
+- 🔄 **Transpose** the whole song ±1 semitone at a time; set a **capo** (1–12); **Convert** a song to another instrument.
+- 🎹 **Key**: guessed from the song's chords (C when there are none) or chosen from the **Key** menu; used for standard notation.
+- 📂 **Files**: save and open `.uketab` (JSON); import Guitar Pro `.gp`, `.gp3`–`.gp5`, `.gpx` (a track for the same instrument keeps its tuning and fingering; others are re-fitted onto the instrument's strings); **Save Guitar Pro** writes a `.gp` file with notation, tab, chords and lyrics.
+- 📄 **Print / PDF**: **Tab only** (black-on-white tab with a title header, `{Title} X of Y` page footer and right-aligned measure rows), or the tab with standard notation above it: a **piano grand staff** at sounding pitch for following along on piano, or the **instrument's own staff**.
+- 🧪 **Automated tests** for music theory, keys, instruments, chord shapes, Guitar Pro import and export, standard notation and UI components.
 
 ---
 
@@ -46,9 +47,9 @@ Full setup, test and build instructions: **[HOWTO.md](HOWTO.md)**.
 
 ## 🚀 Technology Stack
 
-- **Frontend**: React 18, TypeScript, hand-written SVG notation
+- **Frontend**: React 18, TypeScript, hand-written SVG tab notation
 - **Audio**: Web Audio API
-- **Guitar Pro parsing**: `@coderline/alphatab`
+- **Guitar Pro import/export and standard notation**: `@coderline/alphatab`
 - **Print / PDF**: browser print with CSS print rules
 - **Build & tests**: Vite, Vitest (jsdom)
 
@@ -75,3 +76,4 @@ npm run preview     # Serve the production build
 - [x] Phase 5: PDF output, chord diagrams & `.uketab` storage
 - [x] Phase 6: Automated test suite & high-contrast print notation
 - [x] Phase 7: Instrument profiles, 6-string guitar and 4-string bass modes
+- [x] Phase 8: Standard notation printouts (piano grand staff, instrument staff), notation keys and Guitar Pro export

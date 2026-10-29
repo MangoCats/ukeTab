@@ -93,7 +93,6 @@ describe('Components: N-String Rendering', () => {
       title: 'Six String Song',
       artist: '',
       tempo: 100,
-      keySignature: 'C',
       tuning: SIX_STRING_TUNING,
       chordPalette: [],
       layout: { stemsPlacement: 'below', zoomScale: 1.0, measuresPerSystem: 4, maxFretLimit: 12 },

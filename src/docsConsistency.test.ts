@@ -94,13 +94,13 @@ describe('docs: Software Architecture matches the code', () => {
     listed.forEach(name => expect(testFiles.map(f => basename(f)), `${name} listed but missing`).toContain(name));
   });
 
-  it('§4 profile table matches numeric profile fields and library sizes', () => {
+  it('§4 profile table matches numeric and flag profile fields and library sizes', () => {
     const rows = tableRows(section(ARCH, '## 4.'));
-    const numericFields: (keyof InstrumentProfile)[] = ['stringCount', 'defaultMaxFretLimit', 'maxFret', 'importMaxFret'];
-    numericFields.forEach(field => {
+    const fields: (keyof InstrumentProfile)[] = ['stringCount', 'defaultMaxFretLimit', 'maxFret', 'importMaxFret', 'exportMidiProgram', 'importKeepsSourceFingering'];
+    fields.forEach(field => {
       const row = rows.find(r => r[0] === `\`${field}\``);
       expect(row, `${field} row`).toBeDefined();
-      INSTRUMENT_LIST.forEach((p, i) => expect(Number(row![i + 1]), `${field} for ${p.name}`).toBe(p[field]));
+      INSTRUMENT_LIST.forEach((p, i) => expect(row![i + 1], `${field} for ${p.name}`).toBe(String(p[field])));
     });
     const libraryRow = rows.find(r => r[0] === '`chordLibrary`')!;
     INSTRUMENT_LIST.forEach((p, i) => expect(libraryRow[i + 1]).toBe(`${Object.keys(p.chordLibrary).length} entries`));

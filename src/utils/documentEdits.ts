@@ -1,8 +1,9 @@
-import { BeatColumn, ChordMarker, DurationType, InstrumentProfile, Measure, TabDocument, TabNote, TuningConfig } from '../types/tab';
+import { BeatColumn, ChordMarker, DurationType, InstrumentProfile, Measure, NotationKey, TabDocument, TabNote, TuningConfig } from '../types/tab';
 import {
   adaptChordFrets, assignNotesToStrings, autoDetectChordFromBeatNotes, calculatePitch, createChordMarker,
-  getChordPreset, getDefaultChordPalette, getSoundingTuning, transposeBeatNotes, transposeChordMarker
+  getChordPreset, getDefaultChordPalette, getSoundingTuning, transposeBeatNotes, transposeChordMarker, transposeChordName
 } from './musicTheory';
+import { isNotationKey, transposeKey } from './musicKeys';
 
 /**
  * Pure document edit operations. Each takes a document and returns a new one without mutating its input,
@@ -206,18 +207,35 @@ export function retuneDocument(doc: TabDocument, newTuning: TuningConfig): TabDo
 export const MAX_CAPO = 12;
 
 /**
+ * Moves a chosen notation key by the given semitones; a guessed key (no key set) follows the chords by itself.
+ */
+function shiftKey(doc: TabDocument, semitones: number): TabDocument {
+  return isNotationKey(doc.key) ? { ...doc, key: transposeKey(doc.key, semitones) } : doc;
+}
+
+/**
+ * Sets the key signature used for standard notation; undefined (or an unknown name) returns to guessing it from
+ * the chords.
+ */
+export function setKey(doc: TabDocument, key: NotationKey | undefined): TabDocument {
+  const { key: _previous, ...rest } = doc;
+  return isNotationKey(key) ? { ...rest, key } : rest;
+}
+
+/**
  * Sets the capo fret (0 = no capo). Notes keep their fret numbers, which are relative to the capo, so the song
- * sounds higher or lower; chord diagrams and names are capo-relative shapes and stay as they are. Ignored unless
- * the capo is an integer 0..MAX_CAPO.
+ * sounds higher or lower, and a chosen notation key moves with it; chord diagrams and names are capo-relative
+ * shapes and stay as they are. Ignored unless the capo is an integer 0..MAX_CAPO.
  */
 export function setCapo(doc: TabDocument, capo: number): TabDocument {
   if (!Number.isInteger(capo) || capo < 0 || capo > MAX_CAPO) return doc;
-  return { ...doc, capo };
+  return { ...shiftKey(doc, capo - (doc.capo ?? 0)), capo };
 }
 
 /**
  * Shifts every note in the song by the given number of semitones within the profile's fret range
- * (see transposeBeatNotes), and transposes every chord marker's name and diagram (see transposeChordMarker).
+ * (see transposeBeatNotes), transposes every chord marker's name and diagram (see transposeChordMarker), and moves
+ * a chosen notation key by the same amount.
  * The fret range ends capo frets lower, since frets count from the capo. The profile should be the document's
  * tuning-adapted profile. inexactCount is the number of notes that could not keep their exact pitch.
  */
@@ -239,7 +257,7 @@ export function transposeDocument(
       })
     }))
   };
-  const document = mapChordMarkers(withNotes, c => transposeChordMarker(c, semitones, profile));
+  const document = mapChordMarkers(shiftKey(withNotes, semitones), c => transposeChordMarker(c, semitones, profile));
   return { document, inexactCount };
 }
 
@@ -248,9 +266,11 @@ export function transposeDocument(
  * notes are re-voiced like a Guitar Pro import (see assignNotesToStrings): sounding pitch folded into the target's
  * importPitchRange, placed on the free string with the lowest fret up to importMaxFret. Muted notes keep their
  * string number when the target has that string, and claim it before the sounding notes are placed. Note ids and
- * ties are kept. Beat and palette chords become the target library's chord of the same name; other beat chords
+ * ties are kept. Beat and palette chords are renamed to the chord they sound (capo-relative shape names are raised
+ * by the capo, since the result has none) and become the target library's chord of that name; other beat chords
  * are unset (so auto-detection can apply) and cleared ones stay cleared; a palette left empty becomes the
- * target's default palette. droppedCount is the number of notes no target string could take.
+ * target's default palette. The notation key is unchanged, since the pitches are. droppedCount is the number of
+ * notes no target string could take.
  */
 export function convertInstrument(
   doc: TabDocument,
@@ -283,8 +303,9 @@ export function convertInstrument(
     return stored.filter(n => placed.has(n)).map(n => placed.get(n)!);
   };
 
-  // Chords are kept by name only when the target library has them
-  const targetChord = (chord: ChordMarker): ChordMarker | null => getChordPreset(chord.name, target);
+  // Chords are kept by their sounding name only when the target library has them
+  const capo = doc.capo ?? 0;
+  const targetChord = (chord: ChordMarker): ChordMarker | null => getChordPreset(transposeChordName(chord.name, capo), target);
 
   const palette: ChordMarker[] = [];
   (doc.chordPalette ?? []).forEach(c => {

@@ -53,3 +53,14 @@ The limitations left in the specification after the follow-ups are resolved:
 - Print row labels are images, so hidden ones no longer appear in the PDF text layer.
 - A capo setting (0–12): frets relative to the capo; imported capos are kept as the document capo.
 - **Convert** changes a song's instrument, keeping note pitches and mapping chords by name.
+
+## Standard Notation & Guitar Pro Export (done)
+
+Printing for piano players following along, and writing Guitar Pro files, both through alphaTab (already used for import):
+- **Export PDF** is a menu: Tab only, Piano grand staff + tab, Instrument staff + tab. Notation is engraved by alphaTab's SVG renderer only while printing.
+- The grand staff is at sounding pitch (capo included), split at middle C, with unisons merged, muted notes left out, whole-bar rests on silent staves and the sounding chord names.
+- The instrument staff uses treble clef for ukuleles, treble-8 for guitars and baritone ukulele, and bass-8 for basses.
+- A **Key** setting: guessed from the chords (C when there are none) or chosen; it moves with Transpose and capo changes. Notes outside the key use the usual chromatic spellings.
+- **Save Guitar Pro** writes a `.gp` file; a round trip through the importer is tested.
+- Found along the way and fixed, with regression tests: Convert kept capo-relative chord names after removing the capo; the importer dropped triplets and the file's chords, and re-fitted dead notes as sounding notes. Ukulele imports now keep the fingering of a matching 4-string ukulele track, as guitar and bass do.
+- Known limitations of the notation printouts are listed in the specification (§10).

@@ -17,6 +17,10 @@ import { InspectorPanel } from './components/InspectorPanel';
 import { ChordPaletteModal } from './components/ChordPaletteModal';
 import { DuplicateMeasuresModal } from './components/DuplicateMeasuresModal';
 import { ShortcutHelp } from './components/ShortcutHelp';
+import { NotationPrint, NOTATION_FONT_FAMILY } from './components/NotationPrint';
+import { NotationStaffMode } from './utils/alphaTabScore';
+import { exportGuitarPro, getExportFileName } from './utils/guitarProExporter';
+import { getKeyName, getNotationKey } from './utils/musicKeys';
 import { Sparkles, Keyboard, Music2 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -35,6 +39,7 @@ export const App: React.FC = () => {
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showChordPaletteModal, setShowChordPaletteModal] = useState<boolean>(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false);
+  const [printNotation, setPrintNotation] = useState<NotationStaffMode | null>(null); // Notation shown while printing
 
   const playbackTimeoutRef = useRef<number | null>(null);
   const metronomeTimeoutsRef = useRef<number[]>([]);
@@ -321,20 +326,37 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleExportJson = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(document, null, 2));
+  const downloadFile = (href: string, fileName: string) => {
     const downloadAnchor = window.document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `${document.title.toLowerCase().replace(/\s+/g, '_')}.uketab`);
+    downloadAnchor.setAttribute("href", href);
+    downloadAnchor.setAttribute("download", fileName);
     window.document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
   };
 
+  const handleExportJson = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(document, null, 2));
+    downloadFile(dataStr, getExportFileName(document, 'uketab'));
+  };
+
+  const handleExportGuitarPro = () => {
+    try {
+      const bytes = exportGuitarPro(document);
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' }));
+      downloadFile(url, getExportFileName(document, 'gp'));
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      window.alert(`Could not write the Guitar Pro file: ${err instanceof Error ? err.message : err}`);
+    }
+  };
+
   const handleImportJson = (importedDoc: TabDocument) => {
     const importedProfile = getDocumentProfile(importedDoc); // Default palette shapes follow the file's tuning
+    // Files from before notation keys stored an unused keySignature; it is dropped rather than saved again
+    const { keySignature: _legacyKeySignature, ...current } = importedDoc as TabDocument & { keySignature?: unknown };
     setDocument({
-      ...importedDoc,
+      ...current,
       instrument: importedProfile.id,
       chordPalette: getEffectiveChordPalette(importedDoc.chordPalette, importedProfile)
     });
@@ -343,9 +365,29 @@ export const App: React.FC = () => {
     setSelectedString(prev => Math.min(prev, importedDoc.tuning.pitches.length));
   };
 
-  const handleExportPdf = () => {
-    window.print();
+  // Tab only prints straight away; with notation, the notation is drawn first (see the effect below)
+  const handleExportPdf = (mode: NotationStaffMode | null) => {
+    if (mode) setPrintNotation(mode);
+    else window.print();
   };
+
+  // Prints once the drawn notation's music font has loaded, and removes the notation after the print dialog closes
+  useEffect(() => {
+    if (!printNotation) return;
+    let cancelled = false;
+    const finish = () => setPrintNotation(null);
+    const fonts = window.document.fonts;
+    const fontReady = fonts?.load ? fonts.load(`34px ${NOTATION_FONT_FAMILY}`).catch(() => undefined) : Promise.resolve();
+    fontReady.then(() => {
+      if (cancelled) return;
+      window.addEventListener('afterprint', finish, { once: true });
+      window.print();
+    });
+    return () => {
+      cancelled = true;
+      window.removeEventListener('afterprint', finish);
+    };
+  }, [printNotation]);
 
   // Calculate initial chord frets for selected beat if every string is defined
   let selectedBeatInitialFrets: number[] | null = null;
@@ -445,6 +487,7 @@ export const App: React.FC = () => {
             onExportJson={handleExportJson}
             onImportJson={handleImportJson}
             onExportPdf={handleExportPdf}
+            onExportGuitarPro={handleExportGuitarPro}
             onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
           />
         </div>
@@ -471,11 +514,17 @@ export const App: React.FC = () => {
           {document.artist && <p className="artist">{document.artist}</p>}
           <p className="meta">
             Tuning: {document.tuning.name} ({document.tuning.stringsDisplay.join('-')}) &bull;{' '}
-            {document.capo ? <>Capo {document.capo} &bull;{' '}</> : null}Tempo: {document.tempo} BPM
+            {document.capo ? <>Capo {document.capo} &bull;{' '}</> : null}
+            {printNotation ? <>Key: {getKeyName(getNotationKey(document).key)} &bull;{' '}</> : null}
+            Tempo: {document.tempo} BPM
           </p>
         </div>
 
-        {/* Tab Notation Canvas (Visible in Web and Print) */}
+        {/* Standard notation with tab, drawn only while printing with notation (Print Only) */}
+        {printNotation && <NotationPrint document={document} mode={printNotation} />}
+
+        {/* Tab Notation Canvas (Visible in Web, and in Print unless notation is printed instead) */}
+        <div className={printNotation ? 'no-print' : undefined}>
         <TabRenderer
           document={document}
           selectedBeatId={selectedBeatId}
@@ -496,6 +545,7 @@ export const App: React.FC = () => {
           onSetBeatChord={handleSetBeatChord}
           onDeselectBeat={() => setSelectedBeatId(null)}
         />
+        </div>
 
         {/* Fixed Viewport Bottom Edit Dock (Hidden in Print) */}
         <div className="no-print fixed bottom-0 left-0 right-0 z-50 p-3 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 shadow-2xl">

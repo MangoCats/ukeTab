@@ -41,7 +41,7 @@ cd ukeTab
 ```
 
 ### 2. Install Dependencies
-Install all required Node.js packages and dependencies (React, Vite, TypeScript, Lucide Icons, alphaTab Guitar Pro parser):
+Install all required Node.js packages and dependencies (React, Vite, TypeScript, Lucide Icons, and alphaTab for Guitar Pro files and standard notation):
 ```bash
 npm install
 ```

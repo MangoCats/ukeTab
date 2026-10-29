@@ -10,7 +10,6 @@ const mockTabDocument: TabDocument = {
   title: 'Test Song',
   artist: 'Test Artist',
   tempo: 120,
-  keySignature: 'C',
   tuning: TUNING_PRESETS.gCEA,
   chordPalette: getDefaultChordPalette(),
   layout: {

@@ -12,9 +12,9 @@ UkeTab is a browser application for writing, editing, playing back, printing and
 | Guitar | 6 | 6 |
 | Bass | 4 | 4 |
 
-A tab shows fret numbers on staff lines, rhythm stems/flags/beams, rests, lyrics and chord diagrams. It can be played through a built-in synthesizer, saved and reopened as a `.uketab` file, imported from Guitar Pro files, and printed or saved as PDF through the browser's print dialog.
+A tab shows fret numbers on staff lines, rhythm stems/flags/beams, rests, lyrics and chord diagrams. It can be played through a built-in synthesizer, saved and reopened as a `.uketab` file, imported from and saved as Guitar Pro files, and printed or saved as PDF through the browser's print dialog, either as the tab alone or with standard music notation above it (a piano grand staff for following along on piano, or the instrument's own staff).
 
-On startup the application shows the built-in ukulele sample song "Conjunction Junction" with its first beat selected.
+On startup the application shows the built-in ukulele sample song "Conjunction Junction" with its first beat selected. Its chord markers (G, Em, C, Am, D7) name the shapes its tab strums, so its key is guessed as G.
 
 ---
 
@@ -68,8 +68,13 @@ Selecting a different tuning changes the open-string pitches:
 A document may have a **capo** at fret 1–12 (none by default), set with the **Capo** menu next to **Tuning**:
 - Fret numbers in the tab are **relative to the capo** (fret 0 = the capo), as in standard capo tabs. A note sounds at open string + capo + fret.
 - Chord names and diagrams are **shapes relative to the capo**, as in capo chord charts ("Capo 2, G shape" sounds as A).
-- Changing the capo keeps fret numbers and chord diagrams, so the sound shifts.
-- Playback and the inspector's pitch display use the sounding pitch; alternate frets, chord detection and transposition work on the capo-relative frets.
+- Changing the capo keeps fret numbers and chord diagrams, so the sound shifts; a chosen key (Section 3.1.2) moves by the same number of frets.
+- Playback, the inspector's pitch display and standard notation use the sounding pitch; alternate frets, chord detection and transposition work on the capo-relative frets.
+
+### 3.1.2 Key
+Standard notation (Section 9.3) and Guitar Pro export (Section 9.4) are written in a key signature, set with the **Key** menu next to **Capo**. The key is that of the music as it sounds (capo included).
+- **Auto ({key} major)** (default): the key is guessed from the song's chord markers in playing order, each named as it sounds (a shape name under a capo is raised by the capo: capo 2 + `G` = `A`). A chord's root is its first letter and optional `#`/`b`; its quality is **minor** if the name continues with `m` or `min` (but not `maj`), **diminished** with `dim`, `°`, `m7b5` or `ø`, **either** with `5` or `sus`, otherwise **major**. Repeated consecutive chords count once. Each of the 12 major keys scores 1 per chord whose root is in the key's scale with the quality of that scale degree (major on degrees 1, 4, 5; minor on 2, 3, 6; diminished on 7; "either" fits any), plus ½ if the first chord and ½ if the last chord is the key's tonic (a major or "either" chord on degree 1, or a minor or "either" chord on degree 6, the relative minor). The highest score wins; ties go to the key with fewer sharps or flats, then to the earlier key in C, Db, D, Eb, E, F, F#, G, Ab, A, Bb, B. A song without chord markers is in **C**. Examples: G C D Em → G; Am Dm E Am → C (A minor); A7 D7 E7 → A.
+- **A chosen key**: one of 12 signatures, shown as `{major} major / {minor} minor ({signature})` (e.g. `G major / E minor (1♯)`, `C major / A minor (no ♯/♭)`) and listed C, G, D, A, E, B, F#, F, Bb, Eb, Ab, Db. Transpose (Section 7) and capo changes move a chosen key with the music; **Convert** (Section 5.4) keeps it, since the pitches stay. Choosing **Auto** returns to guessing.
 
 ### 3.2 Chord Libraries & Default Palettes
 
@@ -88,7 +93,8 @@ Library shapes are defined for the instrument's default tuning. In any other tun
 | Default Max Fret Limit | 12 | 12 | 12 |
 | Highest fret (transposition range) | 20 | 24 | 24 |
 | Playback voice (longest a note rings) | triangle-wave pluck, 1.5 s | sawtooth pluck, 3 s | sawtooth pluck, 3 s |
-| Guitar Pro import | re-fits all notes onto the ukulele | keeps a matching 6-string track's fingering | keeps a matching 4-string bass track's fingering |
+| Guitar Pro import | keeps a matching 4-string ukulele track's fingering | keeps a matching 6-string track's fingering | keeps a matching 4-string bass track's fingering |
+| Guitar Pro export sound (General MIDI program, 0-based) | 24, nylon-string guitar (General MIDI has no ukulele) | 25, steel-string guitar | 33, fingered electric bass |
 
 ---
 
@@ -197,13 +203,15 @@ Fixed at the bottom of the window. It can be collapsed, and is closed by deselec
 - **Convert**: a menu of the *other* instruments ("Convert to Guitar · 6 strings"). After confirming (`Convert this tab to {Instrument} ({n} strings, {default tuning})? Notes are moved onto the new strings at the same pitch where possible.`) the song is converted:
   - Instrument, its default tuning, no capo, and its default Max Fret Limit.
   - **Notes**: each sounding note keeps its pitch, moved by octaves into the new instrument's range and placed on strings exactly like a re-fitted Guitar Pro import (Section 9.2, "all other cases"). Muted notes keep their string number if the new instrument has it. Notes that find no string are removed, and an alert reports how many (`{n} note(s) did not fit on the {Instrument} and were removed.`). Ties, rhythm, lyrics, time signatures, title and tempo are unchanged.
-  - **Chords**: a beat chord whose name is in the new instrument's library becomes that library shape; other beat chords become unset (auto-detection can apply later); explicitly cleared chords stay cleared. The palette keeps the chords the new library has, or becomes the new instrument's default palette if none remain.
+  - **Chords**: each beat and palette chord is first renamed to the chord it sounds (a shape under a capo is raised by the capo, since the converted song has none: capo 2 + `G` → `A`). A beat chord whose name is in the new instrument's library becomes that library shape; other beat chords become unset (auto-detection can apply later); explicitly cleared chords stay cleared. The palette keeps the chords the new library has, or becomes the new instrument's default palette if none remain.
+  - The key (Section 3.1.2) is unchanged.
   - The selected beat stays selected; the selected string is limited to the new string count.
-- **Open .uketab**, **Open Guitar Pro** (a menu of instruments to import as), **Save .uketab**, **Export PDF** (Section 9).
+- **Open .uketab**, **Open Guitar Pro** (a menu of instruments to import as), **Save .uketab**, **Save Guitar Pro**, **Export PDF** (a menu: **Tab only**, **Piano grand staff + tab**, **Instrument staff + tab**) (Section 9).
 - **+ Beat**: insert a beat after the selected beat. **Add Measure**: append a measure with the last measure's time signature (4/4 if the song is empty), holding one empty beat per beat unit (e.g. 3/4: three quarters; 6/8: six eighths; 2/2: two halves). **Duplicate Measures**: copy measures *start*–*end* (1-based, clamped to the song) and append the copies to the end of the song.
 - Settings row:
   - **Tuning** (Section 3.1).
   - **Capo** (`None`, `1`–`12`; Section 3.1.1).
+  - **Key** (`Auto ({key} major)` or one of 12 keys; Section 3.1.2).
   - **Stems** (below / above).
   - **Zoom** (75% / 100% / 150%).
   - **Max Fret Limit** (7, 10, 12, 15, 20).
@@ -261,6 +269,7 @@ Shortcuts are ignored while typing in a text field or menu, and whenever Ctrl, A
   2. Otherwise, in the order of the notes in the beat, it moves to a string that has no note in that beat, choosing the lowest valid fret (ties: the lower string number).
   3. A note that no free string can play stays on its string with its fret clamped to the valid range; an alert then reports how many notes could not be transposed exactly.
 - Muted notes are unchanged. Note ties are kept. Two notes never end up on one string.
+- A chosen key (Section 3.1.2) moves by the same number of semitones; a guessed key follows the transposed chords.
 - **Chords** move with the song: every beat chord (except unset or explicitly cleared ones) and every palette chord is renamed by the same number of semitones. The root and an optional slash bass are respelled as C, C#, D, Eb, E, F, F#, G, Ab, A, Bb, B, keeping the rest of the name (e.g. `F#m7` + 1 → `Gm7`, `G/B` + 1 → `Ab/C`); names that do not start with A–G are kept. The diagram becomes the (tuning-adapted) library shape of the new name if there is one; otherwise every played fret moves by the same number of semitones, and if one would go below 0 all played frets move up 12.
 
 ---
@@ -276,7 +285,7 @@ A `.uketab` file is the document saved as JSON (2-space indented). The file name
   "artist": "",
   "instrument": "guitar",
   "tempo": 120,
-  "keySignature": "C",
+  "key": "G",
   "tuning": {
     "key": "EADGBE",
     "name": "Standard (EADGBE)",
@@ -308,7 +317,7 @@ A `.uketab` file is the document saved as JSON (2-space indented). The file name
 | `tuning.stringsDisplay` | String labels, String 1 first |
 | `capo` | Capo fret 0–12 (Section 3.1.1). Optional; missing means no capo. |
 | `tempo` | Beats (quarter notes) per minute |
-| `keySignature` | Stored only; not displayed or used |
+| `key` | Key signature for standard notation and Guitar Pro export (Section 3.1.2): `C`, `Db`, `D`, `Eb`, `E`, `F`, `F#`, `G`, `Ab`, `A`, `Bb` or `B`, named by its major key. Optional; missing means guessed from the chords. |
 | `layout.stemsPlacement` | `"below"` or `"above"` |
 | `layout.zoomScale` | `0.75`, `1` or `1.5` |
 | `layout.measuresPerSystem` | Stored only; wrapping depends on available width |
@@ -323,7 +332,7 @@ A `.uketab` file is the document saved as JSON (2-space indented). The file name
 | `beats[].chord` | Chord marker, `null` (explicitly cleared), or absent (never set) |
 | `beats[].lyric` | Optional syllable |
 
-**Opening a file**: the file must be JSON with a `title` and a `measures` array; otherwise it is rejected with an alert. A missing `instrument` becomes `"ukulele"`, and an empty or missing `chordPalette` becomes the instrument's default palette with shapes adapted to the file's tuning. The opened document replaces the current one and its first beat is selected.
+**Opening a file**: the file must be JSON with a `title` and a `measures` array; otherwise it is rejected with an alert. A missing `instrument` becomes `"ukulele"`, and an empty or missing `chordPalette` becomes the instrument's default palette with shapes adapted to the file's tuning. Files from earlier versions may contain a `keySignature` field, which was never used; it is dropped on opening. The opened document replaces the current one and its first beat is selected.
 
 ---
 
@@ -339,50 +348,86 @@ See Section 8.
 - Title: from the file, otherwise the file name with its extension removed and `-`/`_` replaced by spaces.
 - Artist: from the file, otherwise `Guitar Pro Import`.
 - Tempo: rounded, otherwise 120.
-- Key: `C`. Stems below, zoom 100%, the instrument's default Max Fret Limit and default chord palette (with shapes adapted to the imported tuning).
+- Key: the chosen track's first-bar key signature when it has sharps or flats (counted around the circle of fifths: 1♯ = G … 7♯ = Db; 1♭ = F … 7♭ = B); with none the key is not set, so it is guessed (Section 3.1.2).
+- Stems below, zoom 100%, the instrument's default Max Fret Limit and default chord palette (with shapes adapted to the imported tuning).
 
 **Track choice**:
-- **Guitar and bass**: a track is *matching* if it has the instrument's string count and its lowest open string is within an octave of the instrument's default lowest string (E2 for guitar, E1 for bass). A 4-string ukulele track therefore never matches bass. The first matching track whose name contains the instrument's keyword is used (guitar: "guitar" or "acoustic"; bass: "bass"), otherwise the first matching track.
-- If no track matches, or for ukulele: the first track whose name contains a keyword is used (ukulele: "guitar", "ukulele" or "acoustic"), otherwise the first track.
+- A track is *matching* if it has the instrument's string count and its lowest open string is within an octave of the instrument's default lowest string (C4 for ukulele, E2 for guitar, E1 for bass). A 4-string ukulele track therefore never matches bass, and a bass track never matches ukulele. The first matching track whose name contains one of the instrument's keywords is used (ukulele: "guitar", "ukulele" or "acoustic"; guitar: "guitar" or "acoustic"; bass: "bass"), otherwise the first matching track.
+- If no track matches: the first track whose name contains a keyword is used, otherwise the first track.
 - Only the first staff and first voice of the chosen track are imported.
 
-**Notes, matching track (guitar, bass)**:
+**Notes, matching track**:
 - The track's tuning is kept: the matching preset if the pitches are identical, otherwise a custom tuning (Section 3.1).
 - Every note keeps its string and fret.
 - The track's capo becomes the document's capo and notes keep their written frets (a capo above 12, outside the editor's range, is instead added to the fret numbers with no document capo).
 - Dead notes become muted `X`.
 
-**Notes, all other cases (always for ukulele)**:
+**Notes, no matching track**:
 - The document uses the instrument's default tuning and no capo (a source capo is already part of each note's pitch).
-- Each note's sounding pitch is moved by whole octaves into the instrument's range: ukulele C4–C6, guitar E2–E6, bass E1–G3.
+- Dead notes become muted `X` on the same string number (counted from the top line) when the instrument has that string, before the other notes are placed; otherwise they are dropped.
+- Each other note's sounding pitch is moved by whole octaves into the instrument's range: ukulele C4–C6, guitar E2–E6, bass E1–G3.
 - The beat's notes are placed together on distinct strings at frets between 0 and the import fret limit (ukulele 15, guitar and bass 24), choosing the most playable fingering: as many notes placed as possible, then the smallest distance between fretted notes (open strings don't count), then the lowest frets.
 - A note no free string can play goes on the first unused string with its fret clamped into that range.
 - A beat cannot hold more notes than the instrument has strings; extra notes are dropped.
 
 **Rhythm, ties & lyrics**:
 - Each Guitar Pro bar becomes one measure with that bar's time signature.
-- Durations map to `1/1` … `1/32`; any number of dots becomes a single dot. Tuplets are not imported (notes keep their written duration).
+- Durations map to `1/1` … `1/32`; any number of dots becomes a single dot. Triplets (3 in the time of 2) are imported as triplets; other tuplets are not imported (notes keep their written duration).
 - An empty beat becomes a rest. An empty bar becomes one quarter rest per beat of its time signature.
 - A note that continues a tie is marked tied, and its whole beat column is marked tied, so the column does not re-sound in playback.
 - Lyrics from all tracks are matched to beats by measure and time position; the first lyric found for a position is used.
-- Each beat is checked for an automatic chord match (Section 5.1).
+- **Chords**: a beat with a chord in the file gets that chord. With a matching track it keeps the file's diagram when the diagram has one fret per string; otherwise it becomes the library shape of the chord's name (for a non-matching track, the name raised by the source capo, as the notes are), or no chord if the library has no such name. Every other beat is checked for an automatic chord match (Section 5.1).
 
 ### 9.3 Print & PDF Export
-**Export PDF** opens the browser's print dialog; choosing "Save as PDF" produces a PDF. In print:
+**Export PDF** is a menu of three printouts. Each opens the browser's print dialog; choosing "Save as PDF" produces a PDF. Printing from the browser's own menu (e.g. Ctrl+P) prints **Tab only**.
+
+**All printouts**:
 - **Page**: margins 0.5 in top, 0.75 in bottom, 0.25 in left, 0.5 in right.
-- **Header**: song title (18 pt, bold), artist (10 pt, italic, if set), and `Tuning: {tuning name} ({labels joined by -}) • Capo {n} • Tempo: {tempo} BPM` (8.5 pt; the `Capo {n} •` part only with a capo), with a rule below.
+- **Header**: song title (18 pt, bold), artist (10 pt, italic, if set), and `Tuning: {tuning name} ({labels joined by -}) • Capo {n} • Key: {major} major / {minor} minor • Tempo: {tempo} BPM` (8.5 pt; the `Capo {n} •` part only with a capo, the `Key: … •` part only in notation printouts), with a rule below.
 - **Footer**: `{Title} {page} of {pages}` in 9 pt, centred in the bottom margin.
+- **Not printed**: toolbar, inspector, popover, buttons, ghost notes, selection and playhead highlights, delete badges, duration badges and measure-number badges.
+
+**Tab only** prints the tab as drawn in the editor:
 - **Rows**: measure rows are right-aligned to the right margin, with a 0.5 in left inset and 0.15 in between rows. Every row starts with the string labels. A measure is never split across pages.
 - **Text sizes**: fret numbers 18 pt on white masks, lyrics 14 pt, chord names 20.8 px.
 - **Colour**: all notation (lines, digits, stems, flags, beams, dots, rests, ties, time signature, chord diagrams) is black on white; half-note circles are hollow.
-- **Not printed**: toolbar, inspector, popover, buttons, ghost notes, selection and playhead highlights, delete badges, duration badges and measure-number badges.
+
+**Piano grand staff + tab** and **Instrument staff + tab** print standard music notation with the tab joined below it, engraved by the alphaTab library instead of the editor's tab drawing:
+- **Layout**: 7.5 in (720 px) wide at 85% of alphaTab's standard staff size. Measures flow into systems (rows of joined staves, each starting with clef and key signature) and every measure is numbered; a system is never split across pages. Everything is black on white. alphaTab's closing credit line ("rendered by alphaTab") is left out of the printout.
+- **Chord diagrams**: every chord shape used in the song is drawn once, in a row at the top, named as in the tab.
+- **Time and key**: time signatures where they change; the key signature (Section 3.1.2) on every system. Notes outside the key are spelled as the raised 1st and 4th or the lowered 3rd, 6th and 7th of the key (in C: C#, Eb, F#, Ab, Bb; in G: G#, Bb, C#, Eb, F♮), unless that would need a double sharp or flat.
+- **Rhythm**: each beat column is one chord with its written duration, dot and triplet bracket; rest columns are rests.
+- **Ties**: a note marked tied, or in a column marked **Tie**, is tied to the same note in the previous column (across bar lines too); if there is none, it is drawn as a new note. A tied column without notes repeats the previous column's notes, tied.
+- **Tab staff**: fret numbers on the instrument's staff lines (`x` for muted notes), with the instrument's name at the left.
+- **Not shown** (already in the header or not used): title, artist, tuning list, tempo marking, capo marking, dynamics.
+
+**Piano grand staff + tab**, for following along on piano:
+- A treble and a bass staff joined by a brace, labelled `Piano`, at **sounding pitch** (capo included). Notes from middle C (C4) up are on the treble staff, lower notes on the bass staff.
+- Strings sounding the same pitch are one note. Muted notes are left out; a column without sounding notes on a staff is a rest there. A measure with no notes, lyrics or chord names on a staff is one whole-measure rest.
+- Chord names above the treble staff are the chords as they sound (a shape under a capo is raised by the capo). Lyrics are between the two staves.
+- Below, the tab staff. With a capo, the shape names are shown above it.
+
+**Instrument staff + tab**:
+- One notation staff for the instrument, joined to its tab. Its clef depends on the lowest open string: below C2 (basses) a bass clef with a small 8 below, below G3 (guitars, baritone ukulele) a treble clef with a small 8 below (both written an octave above sounding pitch, as is standard for these instruments), otherwise (ukuleles) a treble clef at sounding pitch.
+- Every note of the tab is shown, including two strings in unison; muted notes are `x` noteheads. Chord names are as in the tab (shapes relative to any capo). Lyrics are below the notation staff.
+
+### 9.4 Guitar Pro Export (`.gp`)
+**Save Guitar Pro** downloads the song as a Guitar Pro 7 file named like a `.uketab` file but ending in `.gp`. It holds one track named after the instrument, with the instrument's sound (Section 3.3), tuning and capo, shown as a notation staff (clef as in **Instrument staff + tab**) with tab, and:
+- title, artist and tempo; each measure's time signature; the key signature (Section 3.1.2, so a guessed key is written too);
+- every beat column with its duration, dot, triplet and rest; notes with their strings and frets, muted notes as dead notes; ties as in Section 9.3 (a tied column without notes holds tied copies of the previous column's notes);
+- chord names and diagrams, and lyrics.
+
+Opening the file with **Open Guitar Pro** as the same instrument gives back the same song, except that ids are new, columns holding a whole chord shape also get a detected chord (Section 9.2), the key comes back as a chosen key unless it is C, and tied columns without notes come back holding their tied notes.
 
 ---
 
 ## 10. Known Limitations
-None currently known. Behaviour changes and newly found limitations are recorded here and in [ROADMAP.md](ROADMAP.md).
+Behaviour changes and newly found limitations are recorded here and in [ROADMAP.md](ROADMAP.md).
+- Notation printouts use alphaTab's own page layout: systems break differently from the editor's rows, chord diagrams are listed at the top rather than above each beat, and the tab staff's string names are not repeated.
+- Standard notation writes each beat column as one chord; separate melody and accompaniment voices, and notes left ringing past their written length, are not notated.
+- The guessed key comes from chord markers only; a song without them is written in C until a key is chosen.
 
 ---
 
 ## 11. Quality Assurance
-Automated tests (Vitest) cover music theory, instrument profiles, chord shapes, the Guitar Pro importer and the main UI components. The test inventory is in the [Software Architecture Document](SOFTWARE_ARCHITECTURE.md#10-automated-testing). Run them with `npm test` (once) or `npm run test:watch` (watch mode).
+Automated tests (Vitest) cover music theory, keys, instrument profiles, chord shapes, the Guitar Pro importer and exporter (including a round trip), the standard-notation score and its rendering, and the main UI components. The test inventory is in the [Software Architecture Document](SOFTWARE_ARCHITECTURE.md#10-automated-testing). Run them with `npm test` (once) or `npm run test:watch` (watch mode).

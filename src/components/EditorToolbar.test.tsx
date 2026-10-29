@@ -140,3 +140,83 @@ describe('EditorToolbar Component: Capo & Instrument Conversion', () => {
     expect(queryByRole('menu')).toBeNull();
   });
 });
+
+describe('EditorToolbar Component: Key, PDF and Guitar Pro export', () => {
+  const renderWith = (document: TabDocument, props: Partial<React.ComponentProps<typeof EditorToolbar>>) => {
+    const noop = vi.fn();
+    return render(
+      <EditorToolbar
+        document={document}
+        isPlaying={false}
+        activeDuration="1/4"
+        enableMetronome={false}
+        playbackSpeed={1}
+        onUpdateDocument={noop}
+        onTogglePlayback={noop}
+        onToggleMetronome={noop}
+        onChangeSpeed={noop}
+        onSelectDuration={noop}
+        onAddMeasure={noop}
+        onTranspose={noop}
+        onExportJson={noop}
+        onImportJson={noop}
+        onExportPdf={noop}
+        {...props}
+      />
+    );
+  };
+
+  // Guitar song whose chords (G C D) are in G
+  const songInG = (): TabDocument => {
+    const doc = createBlankTabDocument(GUITAR_PROFILE);
+    doc.measures[0].beats = ['G', 'C', 'D'].map((name, i) => ({ id: `b${i}`, duration: '1/4', notes: [], chord: getChordPreset(name, GUITAR_PROFILE)! }));
+    return doc;
+  };
+
+  it('offers Auto (the guessed key) and every key around the circle of fifths', () => {
+    const select = renderWith(songInG(), {}).getByLabelText('Key') as HTMLSelectElement;
+    expect(select.value).toBe('');
+    expect(Array.from(select.options).map(o => o.textContent)).toEqual([
+      'Auto (G major)',
+      'C major / A minor (no ♯/♭)', 'G major / E minor (1♯)', 'D major / B minor (2♯)', 'A major / F# minor (3♯)',
+      'E major / C# minor (4♯)', 'B major / G# minor (5♯)', 'F# major / D# minor (6♯)', 'F major / D minor (1♭)',
+      'Bb major / G minor (2♭)', 'Eb major / C minor (3♭)', 'Ab major / F minor (4♭)', 'Db major / Bb minor (5♭)'
+    ]);
+  });
+
+  it('sets a chosen key and returns to Auto', () => {
+    const onUpdateDocument = vi.fn();
+    const doc = songInG();
+    const select = renderWith({ ...doc, key: 'D' }, { onUpdateDocument }).getByLabelText('Key') as HTMLSelectElement;
+    expect(select.value).toBe('D');
+
+    fireEvent.change(select, { target: { value: 'Bb' } });
+    expect(onUpdateDocument.mock.calls[0][0](doc).key).toBe('Bb');
+    fireEvent.change(select, { target: { value: '' } });
+    expect('key' in onUpdateDocument.mock.calls[1][0]({ ...doc, key: 'Bb' })).toBe(false);
+  });
+
+  it('exports a PDF of the tab alone or with either notation staff', () => {
+    const onExportPdf = vi.fn();
+    const { getByText, getAllByRole, queryByRole } = renderWith(songInG(), { onExportPdf });
+
+    fireEvent.click(getByText('Export PDF'));
+    expect(getAllByRole('menuitem').map(el => el.textContent)).toEqual(['Tab only', 'Piano grand staff + tab', 'Instrument staff + tab']);
+    fireEvent.click(getByText('Piano grand staff + tab'));
+    expect(onExportPdf).toHaveBeenLastCalledWith('grandStaff');
+    expect(queryByRole('menu')).toBeNull();
+
+    fireEvent.click(getByText('Export PDF'));
+    fireEvent.click(getByText('Instrument staff + tab'));
+    expect(onExportPdf).toHaveBeenLastCalledWith('instrumentStaff');
+    fireEvent.click(getByText('Export PDF'));
+    fireEvent.click(getByText('Tab only'));
+    expect(onExportPdf).toHaveBeenLastCalledWith(null);
+  });
+
+  it('saves a Guitar Pro file', () => {
+    const onExportGuitarPro = vi.fn();
+    fireEvent.click(renderWith(songInG(), { onExportGuitarPro }).getByText('Save Guitar Pro'));
+    expect(onExportGuitarPro).toHaveBeenCalledTimes(1);
+  });
+});

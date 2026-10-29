@@ -11,6 +11,7 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | UI (React components)                                                      |
 |  EditorToolbar | TabRenderer (SVG staff + popover) | InspectorPanel        |
 |  ChordPaletteModal | DuplicateMeasuresModal | ChordDiagram | ShortcutHelp  |
+|  NotationPrint (alphaTab SVG, print only)                                  |
 +---------------------------------------------------------------------------+
 | App.tsx: document state, selection, playback loop, keyboard shortcuts,    |
 |          edit handlers                                                     |
@@ -18,20 +19,22 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | Domain logic                                                               |
 |  instruments/ (profiles) | utils/musicTheory | utils/documentEdits        |
 |  utils/notationLayout | utils/playbackTiming | utils/shortcuts            |
-|  utils/audioSynth | utils/guitarProImporter | utils/sampleData            |
+|  utils/audioSynth | utils/guitarProImporter | utils/guitarProExporter     |
+|  utils/musicKeys | utils/alphaTabScore | utils/notationRender            |
+|  utils/sampleData                                                         |
 +---------------------------------------------------------------------------+
 | Platform: React 18, SVG, Web Audio API, CSS print media, FileReader,      |
-|           @coderline/alphatab (Guitar Pro parsing)                         |
+|           @coderline/alphatab (Guitar Pro I/O, standard notation)         |
 +---------------------------------------------------------------------------+
 ```
 
 | Concern | Technology |
 |---|---|
 | UI | React 18, TypeScript 5 (strict), lucide-react icons |
-| Notation | Hand-written SVG (no notation library) |
+| Notation | Tab: hand-written SVG. Standard notation for printing: alphaTab's SVG renderer (§8.3) |
 | Styling | `src/index.css`: a hand-written subset of Tailwind-style utility classes plus print rules. Tailwind itself is **not** installed; a class missing from `index.css` has no effect. |
 | Audio | Web Audio API oscillators |
-| Guitar Pro | `@coderline/alphatab` 1.8 (`ScoreLoader.loadScoreFromBytes`) |
+| Guitar Pro | `@coderline/alphatab` 1.8 (`ScoreLoader.loadScoreFromBytes`, `Gp7Exporter`) |
 | Build / dev server | Vite 5 (`npm run dev` serves on port 3000) |
 | Tests | Vitest 4 with jsdom and Testing Library |
 
@@ -42,7 +45,7 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | Path | Responsibility |
 |---|---|
 | `src/main.tsx` | Mounts `<App/>` and loads `index.css` |
-| `src/App.tsx` | Owns all application state; playback scheduler (notes and metronome clicks); keyboard dispatch via `findShortcut`; edit handlers that apply `documentEdits` operations and manage selection; print header and footer |
+| `src/App.tsx` | Owns all application state; playback scheduler (notes and metronome clicks); keyboard dispatch via `findShortcut`; edit handlers that apply `documentEdits` operations and manage selection; file downloads; print flow, header and footer |
 | `src/types/tab.ts` | Domain types and duration constants (§3) |
 | `src/instruments/ukulele.ts`, `guitar.ts`, `bass.ts` | Instrument profiles: tunings, chord libraries, default palettes, import and synth settings (§4) |
 | `src/instruments/index.ts` | Profile registry, `getInstrumentProfile`, menu order `INSTRUMENT_LIST` |
@@ -53,8 +56,13 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | `src/utils/shortcuts.ts` | The keyboard shortcut table `SHORTCUTS`, `findShortcut` and two-digit fret entry (§9) |
 | `src/utils/audioSynth.ts` | Pluck, muted-click and metronome synthesis (§7) |
 | `src/utils/guitarProImporter.ts` | Guitar Pro → `TabDocument` conversion (§8.2) |
+| `src/utils/guitarProExporter.ts` | `TabDocument` → Guitar Pro 7 bytes, download file names (§8.4) |
+| `src/utils/musicKeys.ts` | Notation keys: signatures, labels, transposition, chord qualities, key guessing (§5.8) |
+| `src/utils/alphaTabScore.ts` | `TabDocument` → alphaTab score for standard notation and export: grand staff or instrument staff, clefs, spelling, ties (§8.3) |
+| `src/utils/notationRender.ts` | alphaTab print settings and synchronous SVG rendering (§8.3) |
 | `src/utils/sampleData.ts` | Built-in sample songs and `createBlankTabDocument(profile)` |
-| `src/components/EditorToolbar.tsx` | Title/artist, action buttons, instrument menus, settings row, file inputs |
+| `src/components/EditorToolbar.tsx` | Title/artist, action buttons, instrument and Export PDF menus, settings row (including Key), file inputs |
+| `src/components/NotationPrint.tsx` | Print-only standard notation: renders the alphaTab SVG parts and the music font CSS (§8.3) |
 | `src/components/TabRenderer.tsx` | Staff SVG per measure, rhythm, rests, beams, ghost notes, chord diagrams, floating popover |
 | `src/components/InspectorPanel.tsx` | Bottom inspector (beat actions, lyric, measure time signature, chord editing, fret pad, alternate frets) |
 | `src/components/ChordDiagram.tsx` | Chord diagram SVG and `getChordDiagramWidth` |
@@ -130,13 +138,15 @@ export interface TabDocument {
   instrument?: InstrumentId; // Missing in pre-instrument files = 'ukulele'
   capo?: number;             // 0–12; frets are relative to it; missing = 0
   tempo: number;
-  keySignature: string;      // Stored only; not used
+  key?: NotationKey;         // Notation key of the sounding music; missing = guessed from the chords (§5.8)
   tuning: TuningConfig;
   layout: LayoutOptions;
   measures: Measure[];
   chordPalette?: ChordMarker[];
 }
 ```
+
+`NotationKey` is `'C' | 'Db' | 'D' | 'Eb' | 'E' | 'F' | 'F#' | 'G' | 'Ab' | 'A' | 'Bb' | 'B'`, a key signature named by its major tonic. Files from before notation keys may contain a `keySignature` string; `App.handleImportJson` drops it.
 
 `DURATION_OPTIONS` (`1/1` … `1/32`) drives the popover duration buttons. `DURATION_KEY_MAP` maps `w h q e s d` to `1/1` … `1/32`.
 
@@ -173,6 +183,7 @@ export interface InstrumentProfile {
   importMaxFret: number;                     // <= maxFret
   importKeepsSourceFingering: boolean;
   importTrackKeywords: string[];             // Lowercase track-name keywords
+  exportMidiProgram: number;                 // General MIDI program (0-based) of Guitar Pro exports
   synthVoice: SynthVoice;
 }
 ```
@@ -187,8 +198,9 @@ export interface InstrumentProfile {
 | `maxFret` | 20 | 24 | 24 |
 | `importPitchRange` | `[60, 84]` | `[40, 88]` | `[28, 55]` |
 | `importMaxFret` | 15 | 24 | 24 |
-| `importKeepsSourceFingering` | false | true | true |
+| `importKeepsSourceFingering` | true | true | true |
 | `importTrackKeywords` | guitar, ukulele, acoustic | guitar, acoustic | bass |
+| `exportMidiProgram` | 24 | 25 | 33 |
 | `synthVoice` (type, start, end, gain, attack, max sustain) | triangle, 3.5, 0.4, 0.4, 0.008 s, 1.5 s | sawtooth, 5, 0.6, 0.22, 0.004 s, 3 s | sawtooth, 8, 1.0, 0.35, 0.006 s, 3 s |
 
 The full preset list with names and labels is in Spec §3.1.
@@ -200,6 +212,7 @@ The full preset list with names and labels is in Spec §3.1.
 **Profile-aware functions** (the profile parameter defaults to ukulele, so older call sites keep their behaviour):
 - in `musicTheory`: `getDefaultChordPalette`, `getEffectiveChordPalette`, `getChordPreset`, `findExistingChordsByFrets`, `autoDetectChordFromBeatNotes`, `createChordMarker`;
 - in `documentEdits`: `assignChordOnSelect`, `addNote`, `removeNote`, `transposeDocument` (uses `maxFret`), `convertInstrument` (target profile);
+- `buildAlphaTabScore` (instrument name and `exportMidiProgram`), `convertGpChord`;
 - `createBlankTabDocument`;
 - `parseGuitarProToTab`, `selectImportTrack`, `isCompatibleSourceTuning`, `resolveSourceTuning`;
 - `playBeatChord` / `playPluck`, which take a `SynthVoice`.
@@ -221,9 +234,9 @@ No renderer or editor changes are needed.
 ### 5.1 Pitch
 `calculatePitch(string, fret, tuning) = tuning.pitches[string − 1] + fret`, or −1 for a muted note. `midiToNoteName` uses sharps and scientific octave numbering (MIDI 60 = `C4`).
 
-`getSoundingTuning(doc)` returns `doc.tuning` when there is no capo, otherwise a copy (same key, name and labels) with every pitch raised by `doc.capo`. Sounding pitch = `calculatePitch(string, fret, getSoundingTuning(doc))`; it is used for playback, the inspector pitch display and instrument conversion. Everything relative to the fingering (alternate frets, chord shapes and detection, transposition string choice) uses `doc.tuning`.
+`getSoundingTuning(doc)` returns `doc.tuning` when there is no capo, otherwise a copy (same key, name and labels) with every pitch raised by `doc.capo`. Sounding pitch = `calculatePitch(string, fret, getSoundingTuning(doc))`; it is used for playback, the inspector pitch display, instrument conversion and standard notation. Everything relative to the fingering (alternate frets, chord shapes and detection, transposition string choice) uses `doc.tuning`.
 
-`assignNotesToStrings(pitches, tuning, maxFret, { pitchRange?, usedStrings? })` → `({ string, fret } | null)[]` (input order) folds each pitch by octaves into `pitchRange` (if given), then searches every way to put the pitches on distinct unused strings at frets `0 … maxFret` (each pitch may also stay unplaced) and keeps the one that places the most pitches, then has the smallest span between fretted (> 0) frets, then the lowest total fret; ties keep the first found (lower strings, in pitch order). An unplaced pitch goes on the first unused string with its fret clamped, else `null`. Strings in `usedStrings` are never chosen. It is shared by the Guitar Pro re-voice path and `convertInstrument`.
+`assignNotesToStrings(pitches, tuning, maxFret, { pitchRange?, usedStrings? })` → `({ string, fret } | null)[]` (input order) folds each pitch by octaves into `pitchRange` (if given), then searches every way to put the pitches on distinct unused strings at frets `0 … maxFret` (each pitch may also stay unplaced) and keeps the one that places the most pitches, then has the smallest span between fretted (> 0) frets, then the lowest total fret; ties keep the first found (lower strings, in pitch order). An unplaced pitch goes on the first unused string with its fret clamped, else `null`. Strings in `usedStrings` are never chosen. It is shared by the Guitar Pro re-voice path and `convertInstrument`, which both claim muted notes' strings through `usedStrings` first.
 
 ### 5.2 String Numbers
 `getStringNumbers(n)` returns `[1 … n]`. Every per-string loop (staff lines, labels, note cells, solver candidates) iterates it.
@@ -272,13 +285,21 @@ Every change to a document goes through a pure function that returns a new docum
 | `toggleRest`, `toggleTriplet`, `toggleTie` | Flip the flag; making a beat a rest removes its notes |
 | `setBeatChord`, `setBeatDuration`, `setBeatLyric`, `setChordPalette` | Set the value; `setBeatDuration` keeps the dot unless one is given |
 | `deleteBeat(doc, beatId)` | Removes the beat; an emptied measure is removed and measures renumbered; the last beat of the last measure becomes one empty quarter beat |
-| `transposeDocument(doc, semitones, profile)` | Applies `transposeBeatNotes` with `profile.maxFret` to every beat and `transposeChordMarker` to every non-null beat chord and palette entry; returns `{ document, inexactCount }` (App alerts when the count is above 0) |
+| `transposeDocument(doc, semitones, profile)` | Applies `transposeBeatNotes` with `profile.maxFret` to every beat and `transposeChordMarker` to every non-null beat chord and palette entry, and moves a set `key` by `semitones` (`transposeKey`); returns `{ document, inexactCount }` (App alerts when the count is above 0) |
 | `retuneDocument(doc, newTuning)` | Sets the tuning; notes keep their frets; every non-null beat chord and palette entry is re-fingered with `adaptChordFrets(old → new)` and its base fret recomputed (used by the toolbar Tuning menu) |
 | `setMeasureTimeSignature(doc, measureId, [num, den])` | Sets one measure's time signature when `num` is an integer 1–16 and `den` ∈ {1, 2, 4, 8, 16, 32}; otherwise returns the document unchanged; beats are untouched |
-| `setCapo(doc, capo)` | Sets the capo when it is an integer `0 … MAX_CAPO` (12); otherwise returns the document unchanged; frets and chords are untouched |
-| `convertInstrument(doc, target)` | Returns `{ document, droppedCount }`: target id, default tuning, capo 0, target default Max Fret Limit; muted notes keep their string if it exists (claimed first), sounding notes (pitch from `getSoundingTuning`) are placed with `assignNotesToStrings(…, target.importMaxFret, { pitchRange: target.importPitchRange, usedStrings })`; unplaced notes are dropped and counted; ids, ties and order are kept; ghost notes are discarded. Beat chords map by name to target presets, else `undefined`; `null` stays; the palette keeps target presets (deduplicated) or falls back to the target default palette |
+| `setCapo(doc, capo)` | Sets the capo when it is an integer `0 … MAX_CAPO` (12); otherwise returns the document unchanged; frets and chords are untouched; a set `key` moves by the capo change |
+| `setKey(doc, key)` | Sets `key` to a `NotationKey`; `undefined` or any other value removes the field (guessing) |
+| `convertInstrument(doc, target)` | Returns `{ document, droppedCount }`: target id, default tuning, capo 0, target default Max Fret Limit; muted notes keep their string if it exists (claimed first), sounding notes (pitch from `getSoundingTuning`) are placed with `assignNotesToStrings(…, target.importMaxFret, { pitchRange: target.importPitchRange, usedStrings })`; unplaced notes are dropped and counted; ids, ties and order are kept; ghost notes are discarded. Beat and palette chords are renamed with `transposeChordName(name, capo)` (the sounding chord, as the result has no capo), then map by name to target presets, else `undefined`; `null` stays; the palette keeps target presets (deduplicated) or falls back to the target default palette; `key` is kept |
 | `addMeasure(doc)` | Appends a measure with the last measure's time signature (4/4 for an empty song) and `num` empty beats of the duration matching `den` |
 | `duplicateMeasureRange(doc, start, end)` | Copies the clamped 1-based range with fresh ids and appends it |
+
+### 5.8 Notation Keys (`src/utils/musicKeys.ts`)
+- `NOTATION_KEYS` lists one key per pitch class (index = pitch class); `KEY_SIGNATURE_ACCIDENTALS` gives each key's sharps (positive) or flats (negative), with `(accidentals × 7) mod 12` = the tonic's pitch class. `getKeyName` (`G major / E minor`), `getKeyLabel` (adds `(1♯)`, `(2♭)` or `(no ♯/♭)`), `transposeKey`, `isNotationKey`.
+- `parseChordQuality(name)` → `{ root, quality } | null`: root from `^[A-G][#b]?`; the rest of the name before any `/` is `diminished` if it starts with `dim`, `°`, `m7b5` or `ø`, `minor` if it starts with `m` not followed by `aj`, `neutral` if it starts with `5` or `sus`, else `major`.
+- `guessKeyFromChords(names)` (Spec §3.1.2): parses the names, drops unparseable ones, merges consecutive repeats; returns `null` if none remain. For each key (in `NOTATION_KEYS` order) the score is the number of chords whose degree `(root − tonic) mod 12` is in `{0: major, 2: minor, 4: minor, 5: major, 7: major, 9: minor, 11: diminished}` with that quality or `neutral`, plus 0.5 each when the first and last chords are tonic chords (degree 0 major/neutral, or degree 9 minor/neutral). A later key replaces the best only with a higher score, or an equal score and fewer accidentals.
+- `getSoundingChordNames(doc)`: every beat chord's name in order, `transposeChordName(name, capo)`.
+- `getNotationKey(doc)` → `{ key, isGuessed }`: `doc.key` if valid, else the guess from the sounding names, else `C`.
 
 ---
 
@@ -366,8 +387,8 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 ## 8. Import & Export
 
 ### 8.1 `.uketab`
-- **Save** (`App.handleExportJson`): `JSON.stringify(document, null, 2)` downloaded as `<title lower-cased, whitespace → _>.uketab`.
-- **Open** (`EditorToolbar.handleJsonFileChange` → `App.handleImportJson`): the JSON is parsed and must have `title` and an array `measures`. The handler then sets `instrument` to the resolved profile id and sets `chordPalette` with `getEffectiveChordPalette`. It selects the first beat and clamps `selectedString` to the new string count.
+- **Save** (`App.handleExportJson`): `JSON.stringify(document, null, 2)` downloaded (as a data URL, through `App.downloadFile`'s temporary anchor) as `getExportFileName(doc, 'uketab')` = `<title lower-cased, whitespace → _, or "untitled">.uketab`.
+- **Open** (`EditorToolbar.handleJsonFileChange` → `App.handleImportJson`): the JSON is parsed and must have `title` and an array `measures`. The handler drops a legacy `keySignature` field, sets `instrument` to the resolved profile id and sets `chordPalette` with `getEffectiveChordPalette`. It selects the first beat and clamps `selectedString` to the new string count.
 - The two native `<input type="file">` elements use the HTML `hidden` attribute (there is no `.hidden` class in `index.css`) and are opened by `ref.click()`.
 
 ### 8.2 Guitar Pro (`guitarProImporter.ts`)
@@ -380,24 +401,44 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 4. `isCompatibleSourceTuning(staffTuning, profile)`: `importKeepsSourceFingering` is set, the length equals `stringCount`, and `|min(staffTuning) − min(defaultTuning.pitches)| ≤ 12`.
 5. When compatible, `resolveSourceTuning` returns the preset with identical pitches, or `{ key: 'custom', name: 'Custom (<labels low→high>)', pitches, stringsDisplay: midiToNoteName(...) }`. Otherwise the document uses `profile.defaultTuning`.
 6. For each bar of the first staff, only voice 0 is read. For each beat:
-   - `convertGpDuration` maps 1/2/4/8/16/32 to `DurationType` (anything else → `1/4`); `dots > 0` → dotted. Tuplets are ignored.
+   - `convertGpDuration` maps 1/2/4/8/16/32 to `DurationType` (anything else → `1/4`); `dots > 0` → dotted. A 3:2 tuplet (`tupletNumerator` 3, `tupletDenominator` 2) sets `isTriplet`; other tuplets are ignored.
    - A beat is a rest if it is flagged as one or has no notes.
    - **Compatible path**: string = `stringCount − gpNote.string + 1` (alphaTab string 1 is the bottom line); fret = `isDead ? −1 : gpNote.fret` (plus `staff.capo` only when it exceeds `MAX_CAPO`); the document's `capo` = `staff.capo` when ≤ 12. Notes on an already-used string are dropped.
-   - **Re-voice path**: pitches = each note's `realValue` (which includes the source capo), placed with `assignNotesToStrings(pitches, tuning, importMaxFret, { pitchRange: importPitchRange })`; notes that get `null` are dropped; the document has no capo.
+   - **Re-voice path**: dead notes first become fret −1 on string `staff.tuning.length − gpNote.string + 1` when that is within `1 … stringCount` and not yet taken (others are dropped); the other notes' pitches = `realValue` (which includes the source capo), placed with `assignNotesToStrings(pitches, tuning, importMaxFret, { pitchRange: importPitchRange, usedStrings: mutedStrings })`; notes that get `null` are dropped; the document has no capo.
    - Tie: `isTieDestination` (or `tie`) sets `note.isTied`, and the column's `isTied` if any note is tied.
-   - Lyric from the map, else the beat's own lyrics. Chord from `autoDetectChordFromBeatNotes`.
+   - Lyric from the map, else the beat's own lyrics.
+   - Chord: when `gpBeat.chordId` names a chord in `staff.chords`, `convertGpChord(chord, keepSourceFingering, stringCount, staff.capo, chordProfile)`: on the compatible path with `strings.length === stringCount`, `createChordMarker(name, reversed strings)` (alphaTab lists the highest string first); otherwise the tuning-adapted preset of the name (re-voice path: `transposeChordName(name, staff.capo)`), else `null`. Without a file chord, or when that gives `null`, `autoDetectChordFromBeatNotes`.
    - An empty bar becomes `timeSignatureNumerator` quarter rests.
-7. The result has `instrument: profile.id`, `keySignature: 'C'`, `layout: { stemsPlacement: 'below', zoomScale: 1, measuresPerSystem: 4, maxFretLimit: profile.defaultMaxFretLimit }` and `chordPalette: getDefaultChordPalette(getTuningProfile(profile, tuning))`, so the palette uses shapes for the imported tuning.
+7. The result has `instrument: profile.id`, `key: convertGpKeySignature(staff.bars[0].keySignature)` when that is defined (`NOTATION_KEYS[(ks × 7) mod 12]` for a non-zero signature; 0 gives no key), `layout: { stemsPlacement: 'below', zoomScale: 1, measuresPerSystem: 4, maxFretLimit: profile.defaultMaxFretLimit }` and `chordPalette: getDefaultChordPalette(getTuningProfile(profile, tuning))`, so the palette uses shapes for the imported tuning.
 
 `EditorToolbar` stores the instrument chosen in the **Open Guitar Pro** menu in a ref before opening the file picker, and passes it as `profile`.
 
-### 8.3 Print (`index.css` `@media print`, `App.tsx`)
+### 8.3 Print (`index.css` `@media print`, `App.tsx`, `NotationPrint.tsx`)
 - `window.print()` is the whole export path. The `@page` rule sets `size: auto` and margins 0.5 in top, 0.75 in bottom, 0.25 in left, 0.5 in right.
 - The footer is an `@page @bottom-center` rule generated in `App` (`"{title} " counter(page) " of " counter(pages)`). It overrides the static `"UkeTab …"` footer in `index.css`.
-- `.print-title-header` (hidden on screen) is shown with title 18 pt / weight 800, artist 10 pt italic, metadata 8.5 pt (`Tuning: … • Capo N • Tempo: …`, the capo part only when set), and a bottom rule.
+- `.print-title-header` (hidden on screen) is shown with title 18 pt / weight 800, artist 10 pt italic, metadata 8.5 pt (`Tuning: … • Capo N • Key: … • Tempo: …`, the capo part only when set, the key part (`getKeyName(getNotationKey(doc).key)`) only while `printNotation` is set), and a bottom rule.
 - `.tab-canvas-wrapper` becomes `justify-content: flex-end` with a 0.5 in left margin and 0.15 in row gap. `.measure-svg-block` and `svg` use `break-inside: avoid`.
 - Recolouring: fret numbers 18 pt black on white masks; lyrics 14 pt; chord titles 20.8 px. Stems, flags, beams, dots, rests, ties, rings, chord diagrams and the time signature are black, and the half-note ring is filled white.
 - Hidden in print: `.no-print`, `.EditorToolbar`, `.InspectorPanel`, `header`, `footer`, `foreignObject`, `.floating-popover`, `.ghost-fret`, `.delete-badge`, `.selection-ring`, `.playhead-highlight` and every `button`.
+
+**Print flow** (`App`): the toolbar's Export PDF menu (`PDF_EXPORT_OPTIONS`) calls `onExportPdf(notation)` with `null`, `'grandStaff'` or `'instrumentStaff'`. `null` calls `window.print()` at once. Otherwise `printNotation` is set, which renders `<NotationPrint document mode>` and wraps `TabRenderer` in a `.no-print` div; an effect waits for `document.fonts.load('34px alphaTab')` (skipped when the Font Loading API is missing; a failure is ignored), registers a one-time `afterprint` listener that clears `printNotation`, and calls `window.print()`. The effect's cleanup removes the listener.
+
+**Notation score** (`alphaTabScore.buildAlphaTabScore(doc, mode, settings?)` → `alphaTab.model.Score`, after `score.finish(settings)`):
+- Score title and artist; one `MasterBar` per measure with its time signature; the first has a tempo automation `buildTempoAutomation(false, 0, tempo, 2)`.
+- `'grandStaff'`: track `Piano` (program 0, channels 2/3) with a treble staff (`Clef.G2`) and a bass staff (`Clef.F4`), both notation only, then the instrument track (`profile.name`, `exportMidiProgram`, channels 0/1) with one tab-only staff (`stringTuning` = `doc.tuning.pitches`, `capo`). Piano notes: non-ghost, non-muted notes at `calculatePitch(…, getSoundingTuning(doc))`, one per pitch (tied if any source note is), sorted, on treble when ≥ `GRAND_STAFF_SPLIT_PITCH` (60) else bass; `note.octave = ⌊p / 12⌋`, `note.tone = p mod 12` (alphaTab's piano value is `octave × 12 + tone`). Treble beats carry the lyrics and a chord named `transposeChordName(chord.name, capo)` without a diagram; tab beats carry the written chord only when `capo > 0`.
+- `'instrumentStaff'`: the instrument track alone, one staff with notation and tab. `getInstrumentStaffClef(doc.tuning)`: lowest open pitch < 36 → `F4` + `Ottavia._8vb`; < 55 → `G2` + `_8vb`; else `G2` regular (alphaTab raises the displayed notes by 12 for `_8vb`; no `displayTranspositionPitch` is used). Beats carry lyrics and the written chord.
+- Tab notes: alphaTab string = `stringCount − string + 1`, fret as written (relative to the staff's `capo`), muted notes as `isDead` with fret 0.
+- Chords: one `Chord` per distinct `name|frets` per staff (`strings` = frets reversed, highest string first; `firstFret` = `baseFret ?? 1`). On the staff that shows diagrams (tab staff, or the instrument staff), every beat chord of the song is registered with `showDiagram`, so alphaTab lists each shape once at the top even when no beat on that staff references it.
+- Every bar: the clef, `keySignature = KEY_SIGNATURE_ACCIDENTALS[getNotationKey(doc).key]`, `KeySignatureType.Major`. Non-muted notes get `accidentalMode` from `getChromaticAccidental(pitch, key)`: degrees 1, 3, 6, 8, 10 semitones above the tonic are spelled on the tonic's letter +0, +2, +3, +5, +6 letters; the resulting offset −1/0/+1 maps to `ForceFlat`/`ForceNatural`/`ForceSharp`; in-key notes and spellings needing a double accidental use `Default`.
+- Beats: `Duration` from the column duration, `dots` 0/1, triplet → `tupletNumerator 3`, `tupletDenominator 2`; a rest column, or a column without notes for the staff, has no notes. On notation staves a column with `isTied`, no notes for the staff and not a rest takes the previous column's non-muted notes, all tied. A note is `isTieDestination` when it (or its column) is tied and the previous column on the staff has a note with the same pitch, string and fret (both not muted); alphaTab resolves `tieOrigin` itself, across bars.
+- On the piano staves, a measure whose columns give no notes, lyrics or chords on that staff is one whole-duration rest beat (alphaTab's `isFullBarRest`). A measure without columns is one on every staff.
+
+**Rendering** (`notationRender.ts`): `createNotationSettings(scale)` sets the SVG engine, no lazy loading, no workers, `LayoutMode.Page`, `display.scale`, hides `ScoreTitle`, `ScoreSubTitle`, `ScoreArtist`, `ScoreAlbum`, `ScoreWords`, `ScoreMusic`, `ScoreWordsAndMusic`, `ScoreCopyright`, `GuitarTuning`, `EffectCapo`, `EffectDynamics` and `EffectTempo`, and makes every rendering colour black. `renderNotationSvg(score, settings, width)` runs a `ScoreRenderer` (it lays out and draws synchronously with these settings), collects each `partialRenderFinished` result `{ svg, x, y, width, height, isCredit }` (`isCredit` marks the part holding alphaTab's always-drawn "rendered by alphaTab" text), sorts them by position and throws on an alphaTab error or a missing `renderFinished`.
+
+**`NotationPrint`** renders `buildAlphaTabScore` at `NOTATION_PRINT_WIDTH` (720 px) and `NOTATION_PRINT_SCALE` (0.85), memoised on document and mode; an error is shown as a message instead. Each part is a `.notation-print-part` block (`break-inside: avoid`) of the part's height, separated by the vertical gap alphaTab left, with the SVG placed at the part's x; the credit part also gets `.notation-print-credit`, which the print CSS hides. A `<style>` declares `@font-face 'alphaTab'` from `@coderline/alphatab/font/Bravura.woff2?url` (bundled by Vite) and gives `.at` glyph text that family at 34 px (alphaTab writes glyph sizes as percentages of it). `.notation-print` is `display: none` on screen and shown in print.
+
+### 8.4 Guitar Pro Export (`guitarProExporter.ts`)
+`exportGuitarPro(doc)` builds `buildAlphaTabScore(doc, 'instrumentStaff', new Settings())` and returns `new Gp7Exporter().export(score, settings)`. `App.handleExportGuitarPro` wraps the bytes in a `Blob`, downloads it through an object URL as `getExportFileName(doc, 'gp')` (revoked a second later) and alerts on an exception. Re-importing with `parseGuitarProToTab` and the same profile reproduces the columns, notes, ties, chords, lyrics, meter, tempo, tuning and capo (tested); a guessed key comes back as `key` unless it is C.
 
 ---
 
@@ -409,6 +450,7 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 | `selectedBeatId`, `selectedString` | Current selection (initially the sample's first beat and String 1); `selectedString` is clamped to the string count on open and New Tab |
 | `activeDuration` | Duration given to inserted beats and rests; set by `w h q e s d` and by the popover duration buttons (`TabRenderer` `onSelectActiveDuration`) |
 | `isPlaying`, `playingBeatId`, `enableMetronome`, `playbackSpeed` | Playback |
+| `printNotation` | `null`, or the notation staff mode while a notation printout is being printed (§8.3) |
 | `showHelpModal`, `showChordPaletteModal`, `showDuplicateModal` | Dialog visibility |
 
 All document changes go through `setDocument` with immutable updates.
@@ -430,16 +472,19 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom, after `src/testSetup.ts` 
 |---|---|
 | `utils/musicTheory.test.ts` | Pitch across ukulele tunings, note names, beat durations (dotted, triplet, speed), alternate frets and `maxFretLimit`, exact-pitch transposition (relocation, tie-break, occupied strings, clamping and count, `maxFret`), chord extraction/detection/lookup, palettes, base fret; regressions: transposition keeps pitch and never doubles a string; chord shapes across tunings (`adaptChordFrets`), chord name and marker transposition; regressions: G detected in Drop D, adapting any library shape and back is exact; sounding tuning with a capo; `assignNotesToStrings`; regression: re-voiced chords use the most compact fingering |
 | `utils/multiString.test.tsx` | 6-string theory functions; 6-string `ChordDiagram` and `TabRenderer` output |
-| `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing); palette shapes adapted to the imported tuning; source capo kept as the document capo, capo above 12 folded into frets, re-voicing via the shared solver |
-| `utils/sampleData.test.ts` | Blank document and sample songs |
-| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature; retuning re-fingers beat and palette chords; regression: transposing a song transposes its chord names and diagrams; `setCapo` validation, transposition limit with a capo, instrument conversions (pitches, strings, muted notes, chords, palette, dropped count); regression: a song's instrument can be changed after creation |
+| `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing); palette shapes adapted to the imported tuning; source capo kept as the document capo, capo above 12 folded into frets, re-voicing via the shared solver; ukulele tracks keep their fingering; regression: re-voiced dead notes stay muted |
+| `utils/sampleData.test.ts` | Blank document and sample songs (the startup song's chord markers match its strummed shapes and give key G) |
+| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature; retuning re-fingers beat and palette chords; regression: transposing a song transposes its chord names and diagrams; `setCapo` validation, transposition limit with a capo, instrument conversions (pitches, strings, muted notes, chords, palette, dropped count); regression: a song's instrument can be changed after creation; `setKey`; a chosen key moves with transposition and capo changes and survives conversion; regression: chord shapes under a capo become the chords they sound when converting |
 | `utils/notationLayout.test.ts` | Flag counts, beat lengths, beat-group patterns and indices (uniform, irregular, overfull), beams and stubs (eighths, sixteenths, dotted, 6/8, 5/8, 7/8, 1/32, triplet eighths), triplet chunking, time-signature display, row-start detection; regressions: 5/8 beams 2+3, 7/8 beams 2+2+3, beams never touch rests and break at beat groups |
 | `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column; written note length with tie chains; regression: note length follows the written duration, capped by the sustain |
 | `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry; regressions: Ctrl/Alt/Meta combinations are left to the browser, `d` sets thirty-seconds |
 | `components/ShortcutHelp.test.tsx` | Help panel lists every `SHORTCUTS` entry; close button |
 | `components/InspectorPanel.test.tsx` | Measure time-signature control: current values, options, out-of-list values, callback, hidden without a callback; sounding pitch with a capo |
-| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop; regression: an opened file without a palette gets default shapes for its own tuning; regression: notes are played for their written length; print header with and without a capo; playback uses the capo; convert flow and cancel |
-| `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table |
+| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop; regression: an opened file without a palette gets default shapes for its own tuning; regression: notes are played for their written length; print header with and without a capo; playback uses the capo; convert flow and cancel; Tab only prints at once; notation printouts (grand staff, instrument staff with a chosen key) render the notation, add the key to the header, hide the editor tab and are removed after printing; Guitar Pro download; legacy `keySignature` dropped on open |
+| `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table (numeric and flag fields) |
+| `utils/musicKeys.test.ts` | Key signatures and pitch classes, labels, key transposition, chord qualities, key guessing (common progressions, repeats, ties, no chords), sounding chord names with a capo, chosen vs guessed vs default key |
+| `utils/alphaTabScore.test.ts` | Instrument-staff clefs per tuning; chromatic spelling; grand staff tracks, middle-C split at sounding pitch, unisons merged, muted notes left out, whole-bar rests, sounding chord names and capo shapes, diagram order, lyrics placement; durations, dots, triplets, rests, time signatures; ties within and across bars and empty tied columns; key signature and accidentals; tempo and empty measures; instrument staff tuning, capo, clef, octave, strings, dead notes and chords; SVG rendering of both modes and hidden header elements |
+| `utils/guitarProExporter.test.ts` | Round trips through the importer (ukulele with triplets, rests, ties, muted notes, chords, lyrics, meter, tempo and key; guitar with capo, DADGAD and a custom chord; bass); guessed and C keys; empty tied columns; file names; importer key-signature and chord conversion |
 | `types/tab.test.ts` | `DURATION_OPTIONS`, `DURATION_KEY_MAP` |
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile; every library chord spelled correctly in every tuning of every instrument; tuning-adapted profile passthrough and memoisation |
 | `instruments/guitar.test.ts`, `bass.test.ts` | Registration; tuning labels match pitches; every library chord sounds exactly its named chord tones with the root in the bass; blank documents; base fret of high barre chords |
@@ -448,4 +493,4 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom, after `src/testSetup.ts` 
 | `components/ChordDiagram.test.tsx` | Dots, open circles, muted marks, base fret label |
 | `components/ChordPaletteModal.test.tsx` | Library list, close, tab switching |
 | `components/DuplicateMeasuresModal.test.tsx` | Open/closed rendering, confirm callback |
-| `components/EditorToolbar.test.tsx` | Instrument menus, menu order, hidden file inputs, custom tuning option; changing the tuning re-fingers chords and keeps notes; Capo menu; Convert menu lists only other instruments |
+| `components/EditorToolbar.test.tsx` | Instrument menus, menu order, hidden file inputs, custom tuning option; changing the tuning re-fingers chords and keeps notes; Capo menu; Convert menu lists only other instruments; Key menu (Auto with the guessed key, circle-of-fifths order, set and clear); Export PDF menu; Save Guitar Pro |

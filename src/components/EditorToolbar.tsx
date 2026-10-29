@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { TabDocument, DurationType, TuningPresetKey, InstrumentId, InstrumentProfile } from '../types/tab';
+import { TabDocument, DurationType, TuningPresetKey, InstrumentId, InstrumentProfile, NotationKey } from '../types/tab';
 import { getInstrumentProfile, INSTRUMENT_LIST } from '../instruments';
 import { parseGuitarProToTab } from '../utils/guitarProImporter';
-import { retuneDocument, setCapo, MAX_CAPO } from '../utils/documentEdits';
+import { retuneDocument, setCapo, setKey, MAX_CAPO } from '../utils/documentEdits';
+import { NotationStaffMode } from '../utils/alphaTabScore';
+import { KEY_SIGNATURE_ACCIDENTALS, NOTATION_KEYS, getKeyLabel, getNotationKey, isNotationKey } from '../utils/musicKeys';
 import {
   Play,
   Pause,
@@ -45,9 +47,23 @@ interface EditorToolbarProps {
   onConvertInstrument?: (instrument: InstrumentId) => void;
   onExportJson: () => void;
   onImportJson: (doc: TabDocument) => void;
-  onExportPdf: () => void;
+  onExportPdf: (notation: NotationStaffMode | null) => void;
+  onExportGuitarPro?: () => void;
   onOpenChordPaletteModal?: () => void;
 }
+
+// Export PDF menu entries: tablature alone, or with standard notation above it
+export const PDF_EXPORT_OPTIONS: { notation: NotationStaffMode | null; label: string; title: string }[] = [
+  { notation: null, label: 'Tab only', title: 'Print the tab as shown in the editor' },
+  { notation: 'grandStaff', label: 'Piano grand staff + tab', title: 'Treble and bass staves at sounding pitch, for following along on piano, above the tab' },
+  { notation: 'instrumentStaff', label: 'Instrument staff + tab', title: "The instrument's own notation staff above the tab" }
+];
+
+// Key menu order: circle of fifths, sharps then flats
+const KEY_MENU_ORDER = [...NOTATION_KEYS].sort((a, b) => {
+  const rank = (k: NotationKey) => (KEY_SIGNATURE_ACCIDENTALS[k] >= 0 ? KEY_SIGNATURE_ACCIDENTALS[k] : 6 - KEY_SIGNATURE_ACCIDENTALS[k]);
+  return rank(a) - rank(b);
+});
 
 /**
  * Dropdown list of instruments shown under a toolbar button; the current document's instrument is listed first,
@@ -105,6 +121,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onExportJson,
   onImportJson,
   onExportPdf,
+  onExportGuitarPro,
   onOpenChordPaletteModal
 }) => {
   const { tuning, layout, tempo } = document;
@@ -112,7 +129,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const gpFileInputRef = useRef<HTMLInputElement>(null);
   const gpImportProfileRef = useRef<InstrumentProfile>(profile);
-  const [openMenu, setOpenMenu] = useState<'new' | 'convert' | 'gp' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'new' | 'convert' | 'gp' | 'pdf' | null>(null);
+  const guessedKey = getNotationKey({ ...document, key: undefined }).key;
 
   const handleTuningChange = (key: TuningPresetKey) => {
     // Notes keep their frets; chord diagrams are re-fingered to sound the same chords in the new tuning
@@ -122,6 +140,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const handleCapoChange = (capo: number) => {
     // Notes keep their frets (relative to the capo), so the song sounds at the new capo position
     onUpdateDocument(prev => setCapo(prev, capo));
+  };
+
+  const handleKeyChange = (value: string) => {
+    // An empty value returns to guessing the key from the chords
+    onUpdateDocument(prev => setKey(prev, isNotationKey(value) ? value : undefined));
   };
 
   const handleStemsToggle = () => {
@@ -366,14 +389,54 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <span>Save .uketab</span>
           </button>
 
-          <button
-            onClick={onExportPdf}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
-            title="Export Clean Print PDF Sheet Music"
-          >
-            <FileText className="w-4 h-4 text-sky-400" />
-            <span>Export PDF</span>
-          </button>
+          {/* Save Guitar Pro (.gp) Document */}
+          {onExportGuitarPro && (
+            <button
+              onClick={onExportGuitarPro}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+              title="Save the tab as a Guitar Pro 7 (.gp) file with notation, chords and lyrics"
+            >
+              <Download className="w-4 h-4 text-amber-400" />
+              <span>Save Guitar Pro</span>
+            </button>
+          )}
+
+          {/* Print / Save as PDF (choose tab only, or tab with standard notation) */}
+          <div className="relative">
+            <button
+              onClick={() => setOpenMenu(openMenu === 'pdf' ? null : 'pdf')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+              title="Print or save as PDF: the tab alone, or with standard notation"
+              aria-haspopup="menu"
+              aria-expanded={openMenu === 'pdf'}
+            >
+              <FileText className="w-4 h-4 text-sky-400" />
+              <span>Export PDF</span>
+            </button>
+            {openMenu === 'pdf' && (
+              <div
+                role="menu"
+                className="absolute left-0 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1"
+                style={{ top: '100%', marginTop: 4, minWidth: 210 }}
+              >
+                {PDF_EXPORT_OPTIONS.map(option => (
+                  <button
+                    key={option.label}
+                    role="menuitem"
+                    title={option.title}
+                    onClick={() => {
+                      setOpenMenu(null);
+                      onExportPdf(option.notation);
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800 transition flex items-center"
+                    style={{ background: 'transparent', border: 'none', whiteSpace: 'nowrap', cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Insert Beat in Measure Button */}
           {onInsertBeat && (
@@ -410,7 +473,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </div>
       </div>
 
-      {/* Secondary Settings Row: Tuning, Capo, Stems, Zoom, Metronome, Transposition, Max Fret Limit */}
+      {/* Secondary Settings Row: Tuning, Capo, Key, Stems, Zoom, Metronome, Transposition, Max Fret Limit */}
       <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-4">
           {/* Tuning Preset Selector */}
@@ -442,6 +505,23 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               <option value={0}>None</option>
               {Array.from({ length: MAX_CAPO }, (_, i) => i + 1).map(fret => (
                 <option key={fret} value={fret}>{fret}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Key Signature for Standard Notation (Auto = guessed from the chords) */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 font-medium">Key:</span>
+            <select
+              aria-label="Key"
+              value={document.key ?? ''}
+              onChange={(e) => handleKeyChange(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-amber-400 font-semibold rounded-lg px-2 py-1 focus:border-amber-500 outline-none cursor-pointer"
+              title="Key signature used for standard notation in PDF and Guitar Pro exports"
+            >
+              <option value="">Auto ({guessedKey} major)</option>
+              {KEY_MENU_ORDER.map(key => (
+                <option key={key} value={key}>{getKeyLabel(key)}</option>
               ))}
             </select>
           </div>

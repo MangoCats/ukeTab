@@ -120,8 +120,9 @@ export const UKULELE_PROFILE: InstrumentProfile = {
   maxFret: 20,
   importPitchRange: [60, 84], // High-G Ukulele pitch range
   importMaxFret: 15,
-  importKeepsSourceFingering: false, // Re-voice every source note onto the ukulele's strings
+  importKeepsSourceFingering: true, // 4-string ukulele tracks keep their fingering; other tracks are re-voiced
   importTrackKeywords: ['guitar', 'ukulele', 'acoustic'],
+  exportMidiProgram: 24, // Acoustic Guitar (nylon); General MIDI has no ukulele
   synthVoice: {
     // Acoustic ukulele pluck: triangle wave with a closing low-pass filter
     oscillatorType: 'triangle',

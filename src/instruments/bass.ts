@@ -65,6 +65,7 @@ export const BASS_PROFILE: InstrumentProfile = {
   importMaxFret: 24,
   importKeepsSourceFingering: true,
   importTrackKeywords: ['bass'],
+  exportMidiProgram: 33, // Electric Bass (finger)
   synthVoice: {
     // Round electric bass pluck: sawtooth harmonics keep low notes audible on small speakers
     oscillatorType: 'sawtooth',

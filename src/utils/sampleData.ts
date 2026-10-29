@@ -1,5 +1,5 @@
 import { TabDocument, InstrumentProfile } from '../types/tab';
-import { TUNING_PRESETS, getChordPreset, getDefaultChordPalette } from './musicTheory';
+import { TUNING_PRESETS, createChordMarker, getChordPreset, getDefaultChordPalette } from './musicTheory';
 import { getInstrumentProfile } from '../instruments';
 
 export const THREE_IS_A_MAGIC_NUMBER_TAB: TabDocument = {
@@ -8,7 +8,6 @@ export const THREE_IS_A_MAGIC_NUMBER_TAB: TabDocument = {
   artist: 'Bob Dorough (Schoolhouse Rock!)',
   instrument: 'ukulele',
   tempo: 112,
-  keySignature: 'G',
   tuning: TUNING_PRESETS.gCEA,
   layout: {
     stemsPlacement: 'below',
@@ -356,7 +355,6 @@ export const ALOHA_GROOVE_TAB: TabDocument = {
   artist: 'Traditional Ukulele Spec',
   instrument: 'ukulele',
   tempo: 100,
-  keySignature: 'C',
   tuning: TUNING_PRESETS.gCEA,
   layout: {
     stemsPlacement: 'below',
@@ -476,7 +474,6 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
   artist: 'Bob Dorough (Schoolhouse Rock!)',
   instrument: 'ukulele',
   tempo: 120,
-  keySignature: 'G',
   tuning: TUNING_PRESETS.gCEA,
   layout: {
     stemsPlacement: 'below',
@@ -493,13 +490,14 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
         {
           id: 'cj-b1-1',
           duration: '1/4',
+          chord: getChordPreset('G') || undefined,
           notes: [
             { id: 'cj-n1-1', string: 4, fret: 0 },
             { id: 'cj-n1-2', string: 3, fret: 2 },
             { id: 'cj-n1-3', string: 2, fret: 3 },
             { id: 'cj-n1-4', string: 1, fret: 2 }
           ],
-          lyric: 'Intro (G)'
+          lyric: 'Intro'
         },
         { id: 'cj-b1-2', duration: '1/4', notes: [{ id: 'cj-n1-5', string: 4, fret: 0 }] },
         { id: 'cj-b1-3', duration: '1/4', notes: [{ id: 'cj-n1-6', string: 2, fret: 3 }] },
@@ -514,13 +512,13 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
         {
           id: 'cj-b2-1',
           duration: '1/4',
+          chord: createChordMarker('Em', [0, 4, 0, 2]),
           notes: [
             { id: 'cj-n2-1', string: 4, fret: 0 },
             { id: 'cj-n2-2', string: 3, fret: 4 },
             { id: 'cj-n2-3', string: 2, fret: 0 },
             { id: 'cj-n2-4', string: 1, fret: 2 }
-          ],
-          lyric: '(Em7)'
+          ]
         },
         { id: 'cj-b2-2', duration: '1/4', notes: [{ id: 'cj-n2-5', string: 2, fret: 0 }] },
         { id: 'cj-b2-3', duration: '1/4', notes: [{ id: 'cj-n2-6', string: 4, fret: 0 }] },
@@ -535,13 +533,13 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
         {
           id: 'cj-b3-1',
           duration: '1/4',
+          chord: getChordPreset('C') || undefined,
           notes: [
             { id: 'cj-n3-1', string: 4, fret: 0 },
             { id: 'cj-n3-2', string: 3, fret: 0 },
             { id: 'cj-n3-3', string: 2, fret: 0 },
             { id: 'cj-n3-4', string: 1, fret: 3 }
-          ],
-          lyric: '(C)'
+          ]
         },
         { id: 'cj-b3-2', duration: '1/4', notes: [{ id: 'cj-n3-5', string: 2, fret: 0 }] },
         { id: 'cj-b3-3', duration: '1/4', notes: [{ id: 'cj-n3-6', string: 4, fret: 0 }] },
@@ -556,18 +554,19 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
         {
           id: 'cj-b4-1',
           duration: '1/4',
+          chord: getChordPreset('Am') || undefined,
           notes: [
             { id: 'cj-n4-1', string: 4, fret: 2 },
             { id: 'cj-n4-2', string: 3, fret: 0 },
             { id: 'cj-n4-3', string: 2, fret: 0 },
             { id: 'cj-n4-4', string: 1, fret: 0 }
-          ],
-          lyric: '(Am7 / D9)'
+          ]
         },
         { id: 'cj-b4-2', duration: '1/4', notes: [{ id: 'cj-n4-5', string: 1, fret: 3 }] },
         {
           id: 'cj-b4-3',
           duration: '1/4',
+          chord: getChordPreset('D7') || undefined,
           notes: [
             { id: 'cj-n4-6', string: 4, fret: 2 },
             { id: 'cj-n4-7', string: 3, fret: 2 },
@@ -586,6 +585,7 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
         {
           id: 'cj-b5-1',
           duration: '1/4',
+          chord: getChordPreset('G') || undefined,
           notes: [
             { id: 'cj-n5-1', string: 4, fret: 0 },
             { id: 'cj-n5-2', string: 3, fret: 2 },
@@ -625,7 +625,7 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
       index: 8,
       timeSignature: [4, 4],
       beats: [
-        { id: 'cj-b8-1', duration: '1/4', notes: [{ id: 'cj-n8-1', string: 1, fret: 3 }], lyric: 'phra-ses' },
+        { id: 'cj-b8-1', duration: '1/4', chord: getChordPreset('C') || undefined, notes: [{ id: 'cj-n8-1', string: 1, fret: 3 }], lyric: 'phra-ses' },
         { id: 'cj-b8-2', duration: '1/4', notes: [{ id: 'cj-n8-2', string: 2, fret: 3 }], lyric: 'and' },
         { id: 'cj-b8-3', duration: '1/4', notes: [{ id: 'cj-n8-3', string: 4, fret: 2 }], lyric: 'clau-' },
         { id: 'cj-b8-4', duration: '1/4', notes: [{ id: 'cj-n8-4', string: 4, fret: 0 }], lyric: '-ses.' }
@@ -639,6 +639,7 @@ export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
         {
           id: 'cj-b9-1',
           duration: '1/4',
+          chord: getChordPreset('G') || undefined,
           notes: [
             { id: 'cj-n9-1', string: 4, fret: 0 },
             { id: 'cj-n9-2', string: 3, fret: 2 },
@@ -661,7 +662,6 @@ export const createBlankTabDocument = (profile: InstrumentProfile = getInstrumen
   artist: '',
   instrument: profile.id,
   tempo: 120,
-  keySignature: 'C',
   tuning: profile.defaultTuning,
   chordPalette: getDefaultChordPalette(profile),
   layout: {

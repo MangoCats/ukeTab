@@ -6,6 +6,8 @@ import {
   THREE_IS_A_MAGIC_NUMBER_TAB,
   ALOHA_GROOVE_TAB
 } from './sampleData';
+import { extractChordFrets } from './musicTheory';
+import { getNotationKey } from './musicKeys';
 
 describe('sampleData: Tab Document Models & Blank Document Generator', () => {
   it('generates a valid blank document with initialized chord palette and 1 measure', () => {
@@ -30,5 +32,14 @@ describe('sampleData: Tab Document Models & Blank Document Generator', () => {
     // Verify sample tab has valid 4-string beats
     const firstBeatNotes = CONJUNCTION_JUNCTION_TAB.measures[0].beats[0].notes;
     expect(firstBeatNotes.length).toBe(4);
+  });
+
+  it('marks the startup song chords, matching each strummed chord shape, so it prints in G', () => {
+    const beats = SAMPLE_TAB_DOCUMENT.measures.flatMap(m => m.beats);
+    expect(beats.filter(b => b.chord).map(b => b.chord!.name)).toEqual(['G', 'Em', 'C', 'Am', 'D7', 'G', 'C', 'G']);
+    beats.filter(b => b.chord && b.notes.length === 4).forEach(b => {
+      expect(b.chord!.frets).toEqual(extractChordFrets(b.notes, 4));
+    });
+    expect(getNotationKey(SAMPLE_TAB_DOCUMENT)).toEqual({ key: 'G', isGuessed: true });
   });
 });
