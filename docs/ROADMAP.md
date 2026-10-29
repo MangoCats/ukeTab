@@ -1,6 +1,6 @@
 # UkeTab Roadmap: Correctness & Notation Fixes
 
-Status of the work that fixes the application problems found while bringing the documentation in line with the implementation. Each item lists the decided behaviour, where it lives, and the tests that guard it.
+All phases below are complete. This records the work that fixed the application problems found while bringing the documentation in line with the implementation. Each item lists the decided behaviour, where it lives, and the tests that guard it.
 
 ## Problems Addressed
 
@@ -20,10 +20,10 @@ Status of the work that fixes the application problems found while bringing the 
 |---|---|---|---|
 | 0 | Commit the documentation rewrite and this roadmap | lead | done |
 | 1 | Move document edit operations from `App.tsx` into pure functions (`src/utils/documentEdits.ts`) with unit tests; fix problem 1 | lead | done |
-| 2a | Notation: problems 3, 5 and the display part of 4 (`TabRenderer.tsx`, new `src/utils/notationLayout.ts`) | agent | planned |
-| 2b | Editing: problem 2 and the editing part of 4 (`documentEdits.ts`, `musicTheory.ts`, profiles, `InspectorPanel.tsx`) | agent | planned |
-| 2c | Playback & shortcuts: problems 6 and 7 (`App.tsx`, new `src/utils/shortcuts.ts`, new `src/utils/playbackTiming.ts`) | agent | planned |
-| 3 | Merge; update the specification and architecture documents; add documentation consistency tests; browser and print verification | lead | planned |
+| 2a | Notation: problems 3, 5 and the display part of 4 (`TabRenderer.tsx`, new `src/utils/notationLayout.ts`) | agent | done |
+| 2b | Editing: problem 2 and the editing part of 4 (`documentEdits.ts`, `musicTheory.ts`, profiles, `InspectorPanel.tsx`) | agent | done |
+| 2c | Playback & shortcuts: problems 6 and 7 (`App.tsx`, new `src/utils/shortcuts.ts`, new `src/utils/playbackTiming.ts`) | agent | done |
+| 3 | Merge; update the specification and architecture documents; add documentation consistency tests; browser and print verification | lead | done |
 
 ## Regression Protection
 
@@ -33,3 +33,15 @@ Status of the work that fixes the application problems found while bringing the 
   - the specification's tuning table, chord-library counts or shortcut table differ from the code;
   - the architecture document's source layout or test inventory omits a file.
 - **Render equivalence**: notation changes are checked against the previous renderer output, so only the intended differences change.
+
+## Follow-ups (not yet scheduled)
+
+Found while doing the work above; each is also listed in the specification's Known Limitations or noted here.
+
+- Shortcuts ignore Ctrl/Alt/Meta, so with a beat selected Ctrl+R and Ctrl+S toggle a rest / set a sixteenth instead of reloading / saving.
+- The app starts with `selectedBeatId = 'b1-1'`, which does not exist in the startup sample, so nothing is selected until a beat is clicked.
+- On screen, a triplet bracket's "3" can overlap the middle column's duration badge (print is unaffected).
+- `1/32` has no duration button or shortcut.
+- Irregular meters (5/8, 7/8) beam in quarter-note groups.
+- Only the first measure shows string labels.
+- Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.
