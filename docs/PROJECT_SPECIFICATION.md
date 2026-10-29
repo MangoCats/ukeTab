@@ -149,8 +149,8 @@ Each beat column may carry one lyric syllable, centred under the column. It sits
 
 ### 5.1 Selecting & Entering Notes
 - Clicking a string at a beat column selects that beat and string. If the string has no note there, a note is added immediately: the suggested alternate fret shown there, if any, otherwise fret 0.
-- Entering a note (by click, keyboard, popover or inspector) sets the beat's duration to the **active duration** and clears its rest flag. Any existing note on that string is replaced.
-- The active duration is set by the duration keyboard shortcuts (Section 5.5). It starts as `1/4`.
+- Entering a note (by click, keyboard, popover or inspector) replaces any existing note on that string and clears the beat's rest flag. The beat **keeps its duration**.
+- The **active duration** is the duration given to newly inserted beats and rests. It starts as `1/4` and is set by the duration keyboard shortcuts (Section 5.5) and by the popover duration buttons (Section 5.2).
 - **Chord auto-detection**: when every string of a beat column has a note (muted `X` counts), the column's fret pattern is looked up in the instrument's chord library together with the document's chord palette. If the matching chord name is in the palette, the palette's chord is used. A match is assigned as the column's chord:
   - when a note is added, unless the chord was explicitly cleared;
   - when the column is selected, if it has never had a chord set;
@@ -160,7 +160,7 @@ Each beat column may carry one lyric syllable, centred under the column. It sits
 
 ### 5.2 Floating Beat Popover (screen only)
 Shown above the selected beat column:
-- Duration buttons `1`, `1/2`, `1/4`, `1/8`, `1/16` and a **Dot** toggle. These change the selected beat only, not the active duration.
+- Duration buttons `1`, `1/2`, `1/4`, `1/8`, `1/16`: set the selected beat's duration and the active duration. A **Dot** toggle changes the selected beat only.
 - **+ Beat** (insert a beat after it), **Del Beat**, and close (deselect).
 - **Chord** dropdown: `(None)` clears the chord; the other entries are the palette chords, plus the beat's current chord if it is not in the palette.
 - **Fret** buttons `X`, `0` … Max Fret Limit for the selected string, and a delete-note button.

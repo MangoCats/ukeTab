@@ -41,11 +41,12 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | Path | Responsibility |
 |---|---|
 | `src/main.tsx` | Mounts `<App/>` and loads `index.css` |
-| `src/App.tsx` | Owns all application state; playback scheduler; keyboard shortcuts; every document edit handler; help panel; print header and footer |
+| `src/App.tsx` | Owns all application state; playback scheduler; keyboard shortcuts; edit handlers that apply `documentEdits` operations and manage selection; help panel; print header and footer |
 | `src/types/tab.ts` | Domain types and duration constants (§3) |
 | `src/instruments/ukulele.ts`, `guitar.ts`, `bass.ts` | Instrument profiles: tunings, chord libraries, default palettes, import and synth settings (§4) |
 | `src/instruments/index.ts` | Profile registry, `getInstrumentProfile`, menu order `INSTRUMENT_LIST` |
 | `src/utils/musicTheory.ts` | Pitch maths, alternate frets, transposition, chord lookup/detection, palette resolution, beat durations (§5) |
+| `src/utils/documentEdits.ts` | Pure, non-mutating document edit operations (notes, chords, beats, measures, transposition) with an injectable id factory (§5.7) |
 | `src/utils/audioSynth.ts` | Pluck, muted-click and metronome synthesis (§7) |
 | `src/utils/guitarProImporter.ts` | Guitar Pro → `TabDocument` conversion (§8.2) |
 | `src/utils/sampleData.ts` | Built-in sample songs and `createBlankTabDocument(profile)` |
@@ -227,10 +228,26 @@ No renderer or editor changes are needed.
 - **Base fret** (`getChordPreset`, `createChordMarker`): an explicit `baseFret` wins. Otherwise, if the highest fretted value exceeds 4, use the lowest fretted value; otherwise use 1.
 - `createChordMarker(name)` with no frets returns the library preset, or an all-open marker with `profile.stringCount` entries.
 - **Palette resolution**: `getEffectiveChordPalette(palette, profile)` returns the palette if it is non-empty, else the presets for `profile.defaultChordNames`.
-- **App call sites**: `handleSelectBeat` auto-detects only when `chord === undefined`. `handleAddNote` auto-detects unless `chord === null`, and keeps the old chord when nothing matches. `handleRemoveNote` uses the detected chord, else unsets the chord when fewer notes than strings remain.
+- **Edit operations** (§5.7): `assignChordOnSelect` auto-detects only when `chord === undefined`. `addNote` auto-detects unless `chord === null`, and keeps the old chord when nothing matches. `removeNote` uses the detected chord, else unsets the chord when fewer notes than strings remain.
 
 ### 5.6 Beat Duration
 `getBeatDurationMs(beat, tempo, speed) = (60000 / tempo) × m × (1.5 if dotted) × (2/3 if triplet) / speed`, with m = 4, 2, 1, 0.5, 0.25, 0.125 for `1/1` … `1/32`.
+
+### 5.7 Document Edit Operations (`src/utils/documentEdits.ts`)
+Every change to a document goes through a pure function that returns a new document and never mutates its input. `App.tsx` applies them with `setDocument(prev => op(prev, ...))` and handles selection itself. Functions that create beats, measures or notes take an optional `IdFactory` (`prefix => id`; the default combines time, a counter and random characters), so tests can supply predictable ids.
+
+| Operation | Behaviour |
+|---|---|
+| `assignChordOnSelect(doc, beatId, profile)` | Auto-detects a chord for a beat whose chord is `undefined` |
+| `addNote(doc, beatId, string, fret, profile)` | Replaces the note on that string, clears the rest flag, **keeps the beat's duration**, re-detects the chord unless it is `null` |
+| `removeNote(doc, beatId, string, profile)` | Removes the note on that string and updates the chord (§5.5) |
+| `insertBeatAfter(doc, afterBeatId, duration, { isRest })` | Inserts an empty beat or rest after a beat in the same measure; returns `{ document, beatId }` |
+| `toggleRest`, `toggleTriplet`, `toggleTie` | Flip the flag; making a beat a rest removes its notes |
+| `setBeatChord`, `setBeatDuration`, `setBeatLyric`, `setChordPalette` | Set the value; `setBeatDuration` keeps the dot unless one is given |
+| `deleteBeat(doc, beatId)` | Removes the beat; an emptied measure is removed and measures renumbered; the last beat of the last measure becomes one empty quarter beat |
+| `transposeDocument(doc, semitones)` | Applies `transposePitches` to every beat |
+| `addMeasure(doc)` | Appends a 4/4 measure of four empty quarter beats |
+| `duplicateMeasureRange(doc, start, end)` | Copies the clamped 1-based range with fresh ids and appends it |
 
 ---
 
@@ -343,7 +360,7 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 |---|---|
 | `document` | The `TabDocument` being edited (initially the "Conjunction Junction" sample with its effective palette) |
 | `selectedBeatId`, `selectedString` | Current selection; `selectedString` is clamped to the string count on open and New Tab |
-| `activeDuration` | Duration given to entered notes and inserted beats; set only by `w h q e s` |
+| `activeDuration` | Duration given to inserted beats and rests; set by `w h q e s` and by the popover duration buttons (`TabRenderer` `onSelectActiveDuration`) |
 | `isPlaying`, `playingBeatId`, `enableMetronome`, `playbackSpeed` | Playback |
 | `showHelpModal`, `showChordPaletteModal`, `showDuplicateModal` | Dialog visibility |
 
@@ -361,11 +378,13 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 | `utils/multiString.test.tsx` | 6-string theory functions; 6-string `ChordDiagram` and `TabRenderer` output |
 | `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing) |
 | `utils/sampleData.test.ts` | Blank document and sample songs |
+| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, regression: entering a note keeps the beat duration |
+| `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table |
 | `types/tab.test.ts` | `DURATION_OPTIONS`, `DURATION_KEY_MAP` |
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile |
 | `instruments/guitar.test.ts`, `bass.test.ts` | Registration; tuning labels match pitches; every library chord sounds exactly its named chord tones with the root in the bass; blank documents; base fret of high barre chords |
 | `instruments/chordSpelling.testUtil.ts` | Shared assertions for the two files above (not a test file) |
-| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics |
+| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration |
 | `components/ChordDiagram.test.tsx` | Dots, open circles, muted marks, base fret label |
 | `components/ChordPaletteModal.test.tsx` | Library list, close, tab switching |
 | `components/DuplicateMeasuresModal.test.tsx` | Open/closed rendering, confirm callback |
