@@ -89,6 +89,14 @@ describe('musicTheory: Capo & String Assignment', () => {
     expect(assignNotesToStrings([69], TUNING_PRESETS.GCEA, 12, { usedStrings: [1] })).toEqual([{ string: 2, fret: 5 }]);
   });
 
+  it('regression: re-voiced chords use the most compact fingering instead of taking strings note by note', () => {
+    // Ukulele G (g4 D4 G4 B4) on guitar: note-by-note lowest frets gave 3 3 12 21; the compact choice spans 7–12
+    const placement = assignNotesToStrings([67, 62, 67, 71], GUITAR_TUNINGS.EADGBE, 24, { pitchRange: [40, 88] });
+    expect(placement).toEqual([{ string: 2, fret: 8 }, { string: 4, fret: 12 }, { string: 3, fret: 12 }, { string: 1, fret: 7 }]);
+    // Open strings do not count toward the span: an open E chord stays open
+    expect(assignNotesToStrings([40, 47, 52, 56, 59, 64], GUITAR_TUNINGS.EADGBE, 24).map(p => p!.fret)).toEqual([0, 2, 2, 1, 0, 0]);
+  });
+
   it('clamps a pitch no free string can play onto the first free string, and gives null once every string is taken', () => {
     const tuning = TUNING_PRESETS.gCEA;
     expect(assignNotesToStrings([40], tuning, 15)).toEqual([{ string: 1, fret: 0 }]);

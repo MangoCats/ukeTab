@@ -128,6 +128,7 @@ export interface TabDocument {
   title: string;
   artist: string;
   instrument?: InstrumentId; // Missing in pre-instrument files = 'ukulele'
+  capo?: number;             // 0–12; frets are relative to it; missing = 0
   tempo: number;
   keySignature: string;      // Stored only; not used
   tuning: TuningConfig;
@@ -198,7 +199,7 @@ The full preset list with names and labels is in Spec §3.1.
 
 **Profile-aware functions** (the profile parameter defaults to ukulele, so older call sites keep their behaviour):
 - in `musicTheory`: `getDefaultChordPalette`, `getEffectiveChordPalette`, `getChordPreset`, `findExistingChordsByFrets`, `autoDetectChordFromBeatNotes`, `createChordMarker`;
-- in `documentEdits`: `assignChordOnSelect`, `addNote`, `removeNote`, `transposeDocument` (uses `maxFret`);
+- in `documentEdits`: `assignChordOnSelect`, `addNote`, `removeNote`, `transposeDocument` (uses `maxFret`), `convertInstrument` (target profile);
 - `createBlankTabDocument`;
 - `parseGuitarProToTab`, `selectImportTrack`, `isCompatibleSourceTuning`, `resolveSourceTuning`;
 - `playBeatChord` / `playPluck`, which take a `SynthVoice`.
@@ -220,6 +221,10 @@ No renderer or editor changes are needed.
 ### 5.1 Pitch
 `calculatePitch(string, fret, tuning) = tuning.pitches[string − 1] + fret`, or −1 for a muted note. `midiToNoteName` uses sharps and scientific octave numbering (MIDI 60 = `C4`).
 
+`getSoundingTuning(doc)` returns `doc.tuning` when there is no capo, otherwise a copy (same key, name and labels) with every pitch raised by `doc.capo`. Sounding pitch = `calculatePitch(string, fret, getSoundingTuning(doc))`; it is used for playback, the inspector pitch display and instrument conversion. Everything relative to the fingering (alternate frets, chord shapes and detection, transposition string choice) uses `doc.tuning`.
+
+`assignNotesToStrings(pitches, tuning, maxFret, { pitchRange?, usedStrings? })` → `({ string, fret } | null)[]` (input order) folds each pitch by octaves into `pitchRange` (if given), then searches every way to put the pitches on distinct unused strings at frets `0 … maxFret` (each pitch may also stay unplaced) and keeps the one that places the most pitches, then has the smallest span between fretted (> 0) frets, then the lowest total fret; ties keep the first found (lower strings, in pitch order). An unplaced pitch goes on the first unused string with its fret clamped, else `null`. Strings in `usedStrings` are never chosen. It is shared by the Guitar Pro re-voice path and `convertInstrument`.
+
 ### 5.2 String Numbers
 `getStringNumbers(n)` returns `[1 … n]`. Every per-string loop (staff lines, labels, note cells, solver candidates) iterates it.
 
@@ -232,7 +237,7 @@ No renderer or editor changes are needed.
 ### 5.4 Transposition
 `transposeBeatNotes(notes, shift, tuning, maxFret): { notes, inexactCount }` transposes one beat's notes, keeping exact pitch where possible:
 1. Muted notes are unchanged and keep their string.
-2. Each other note whose `fret + shift` is in `0 … maxFret` keeps its string.
+2. Each other note whose `fret + shift` is in `0 … maxFret` keeps its string (`transposeDocument` passes `maxFret = max(0, profile.maxFret − capo)`).
 3. Each remaining note, in beat order, moves to a string not used by any note already placed in the beat (muted notes count), choosing the lowest valid fret for its exact new pitch; ties go to the lower string number.
 4. A note no free string can play is kept on its own string, clamped to `0 … maxFret`, and counted in `inexactCount`. Such a note's string is reserved before placement is redone, so two notes never share a string.
 
@@ -270,6 +275,8 @@ Every change to a document goes through a pure function that returns a new docum
 | `transposeDocument(doc, semitones, profile)` | Applies `transposeBeatNotes` with `profile.maxFret` to every beat and `transposeChordMarker` to every non-null beat chord and palette entry; returns `{ document, inexactCount }` (App alerts when the count is above 0) |
 | `retuneDocument(doc, newTuning)` | Sets the tuning; notes keep their frets; every non-null beat chord and palette entry is re-fingered with `adaptChordFrets(old → new)` and its base fret recomputed (used by the toolbar Tuning menu) |
 | `setMeasureTimeSignature(doc, measureId, [num, den])` | Sets one measure's time signature when `num` is an integer 1–16 and `den` ∈ {1, 2, 4, 8, 16, 32}; otherwise returns the document unchanged; beats are untouched |
+| `setCapo(doc, capo)` | Sets the capo when it is an integer `0 … MAX_CAPO` (12); otherwise returns the document unchanged; frets and chords are untouched |
+| `convertInstrument(doc, target)` | Returns `{ document, droppedCount }`: target id, default tuning, capo 0, target default Max Fret Limit; muted notes keep their string if it exists (claimed first), sounding notes (pitch from `getSoundingTuning`) are placed with `assignNotesToStrings(…, target.importMaxFret, { pitchRange: target.importPitchRange, usedStrings })`; unplaced notes are dropped and counted; ids, ties and order are kept; ghost notes are discarded. Beat chords map by name to target presets, else `undefined`; `null` stays; the palette keeps target presets (deduplicated) or falls back to the target default palette |
 | `addMeasure(doc)` | Appends a measure with the last measure's time signature (4/4 for an empty song) and `num` empty beats of the duration matching `den` |
 | `duplicateMeasureRange(doc, start, end)` | Copies the clamped 1-based range with fresh ids and appends it |
 
@@ -333,7 +340,7 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
 - The effect depends on `document`, so any edit restarts playback from the selected beat.
 - `playingBeatId` drives the highlight.
 
-**Per column**: unless the column is a rest or `isTied`, `playBeatChord(beat, tuning, false, isFirst, profile.synthVoice, writtenSec)` runs, where `writtenSec = getWrittenNoteDurationMs(allBeats, index, tempo, speed) / 1000` (the column's duration plus every directly following `isTied` column, across measures). It:
+**Per column**: unless the column is a rest or `isTied`, `playBeatChord(beat, getSoundingTuning(document), false, isFirst, profile.synthVoice, writtenSec)` runs, where `writtenSec = getWrittenNoteDurationMs(allBeats, index, tempo, speed) / 1000` (the column's duration plus every directly following `isTied` column, across measures). It:
 - skips ghost notes;
 - calls `playMutedClick()` for fret −1;
 - calls `playPluck(midi, getNoteSoundSec(voice, writtenSec), voice)` for every other note, where `getNoteSoundSec` = `min(writtenSec, voice.maxSustainSec)` (the full sustain when no written length is given).
@@ -375,8 +382,8 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 6. For each bar of the first staff, only voice 0 is read. For each beat:
    - `convertGpDuration` maps 1/2/4/8/16/32 to `DurationType` (anything else → `1/4`); `dots > 0` → dotted. Tuplets are ignored.
    - A beat is a rest if it is flagged as one or has no notes.
-   - **Compatible path**: string = `stringCount − gpNote.string + 1` (alphaTab string 1 is the bottom line); fret = `isDead ? −1 : gpNote.fret + staff.capo`. Notes on an already-used string are dropped.
-   - **Re-voice path**: pitch = `gpNote.realValue`, folded by octaves into `importPitchRange` when set. Choose the unused string with the smallest fret in `0 … importMaxFret`; else the first unused string with the fret clamped to that range; else drop the note.
+   - **Compatible path**: string = `stringCount − gpNote.string + 1` (alphaTab string 1 is the bottom line); fret = `isDead ? −1 : gpNote.fret` (plus `staff.capo` only when it exceeds `MAX_CAPO`); the document's `capo` = `staff.capo` when ≤ 12. Notes on an already-used string are dropped.
+   - **Re-voice path**: pitches = each note's `realValue` (which includes the source capo), placed with `assignNotesToStrings(pitches, tuning, importMaxFret, { pitchRange: importPitchRange })`; notes that get `null` are dropped; the document has no capo.
    - Tie: `isTieDestination` (or `tie`) sets `note.isTied`, and the column's `isTied` if any note is tied.
    - Lyric from the map, else the beat's own lyrics. Chord from `autoDetectChordFromBeatNotes`.
    - An empty bar becomes `timeSignatureNumerator` quarter rests.
@@ -387,7 +394,7 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 ### 8.3 Print (`index.css` `@media print`, `App.tsx`)
 - `window.print()` is the whole export path. The `@page` rule sets `size: auto` and margins 0.5 in top, 0.75 in bottom, 0.25 in left, 0.5 in right.
 - The footer is an `@page @bottom-center` rule generated in `App` (`"{title} " counter(page) " of " counter(pages)`). It overrides the static `"UkeTab …"` footer in `index.css`.
-- `.print-title-header` (hidden on screen) is shown with title 18 pt / weight 800, artist 10 pt italic, metadata 8.5 pt, and a bottom rule.
+- `.print-title-header` (hidden on screen) is shown with title 18 pt / weight 800, artist 10 pt italic, metadata 8.5 pt (`Tuning: … • Capo N • Tempo: …`, the capo part only when set), and a bottom rule.
 - `.tab-canvas-wrapper` becomes `justify-content: flex-end` with a 0.5 in left margin and 0.15 in row gap. `.measure-svg-block` and `svg` use `break-inside: avoid`.
 - Recolouring: fret numbers 18 pt black on white masks; lyrics 14 pt; chord titles 20.8 px. Stems, flags, beams, dots, rests, ties, rings, chord diagrams and the time signature are black, and the half-note ring is filled white.
 - Hidden in print: `.no-print`, `.EditorToolbar`, `.InspectorPanel`, `header`, `footer`, `foreignObject`, `.floating-popover`, `.ghost-fret`, `.delete-badge`, `.selection-ring`, `.playhead-highlight` and every `button`.
@@ -421,17 +428,17 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom, after `src/testSetup.ts` 
 
 | File | Covers |
 |---|---|
-| `utils/musicTheory.test.ts` | Pitch across ukulele tunings, note names, beat durations (dotted, triplet, speed), alternate frets and `maxFretLimit`, exact-pitch transposition (relocation, tie-break, occupied strings, clamping and count, `maxFret`), chord extraction/detection/lookup, palettes, base fret; regressions: transposition keeps pitch and never doubles a string; chord shapes across tunings (`adaptChordFrets`), chord name and marker transposition; regressions: G detected in Drop D, adapting any library shape and back is exact |
+| `utils/musicTheory.test.ts` | Pitch across ukulele tunings, note names, beat durations (dotted, triplet, speed), alternate frets and `maxFretLimit`, exact-pitch transposition (relocation, tie-break, occupied strings, clamping and count, `maxFret`), chord extraction/detection/lookup, palettes, base fret; regressions: transposition keeps pitch and never doubles a string; chord shapes across tunings (`adaptChordFrets`), chord name and marker transposition; regressions: G detected in Drop D, adapting any library shape and back is exact; sounding tuning with a capo; `assignNotesToStrings`; regression: re-voiced chords use the most compact fingering |
 | `utils/multiString.test.tsx` | 6-string theory functions; 6-string `ChordDiagram` and `TabRenderer` output |
-| `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing); palette shapes adapted to the imported tuning |
+| `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing); palette shapes adapted to the imported tuning; source capo kept as the document capo, capo above 12 folded into frets, re-voicing via the shared solver |
 | `utils/sampleData.test.ts` | Blank document and sample songs |
-| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature; retuning re-fingers beat and palette chords; regression: transposing a song transposes its chord names and diagrams |
+| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature; retuning re-fingers beat and palette chords; regression: transposing a song transposes its chord names and diagrams; `setCapo` validation, transposition limit with a capo, instrument conversions (pitches, strings, muted notes, chords, palette, dropped count); regression: a song's instrument can be changed after creation |
 | `utils/notationLayout.test.ts` | Flag counts, beat lengths, beat-group patterns and indices (uniform, irregular, overfull), beams and stubs (eighths, sixteenths, dotted, 6/8, 5/8, 7/8, 1/32, triplet eighths), triplet chunking, time-signature display, row-start detection; regressions: 5/8 beams 2+3, 7/8 beams 2+2+3, beams never touch rests and break at beat groups |
 | `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column; written note length with tie chains; regression: note length follows the written duration, capped by the sustain |
 | `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry; regressions: Ctrl/Alt/Meta combinations are left to the browser, `d` sets thirty-seconds |
 | `components/ShortcutHelp.test.tsx` | Help panel lists every `SHORTCUTS` entry; close button |
-| `components/InspectorPanel.test.tsx` | Measure time-signature control: current values, options, out-of-list values, callback, hidden without a callback |
-| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop; regression: an opened file without a palette gets default shapes for its own tuning; regression: notes are played for their written length |
+| `components/InspectorPanel.test.tsx` | Measure time-signature control: current values, options, out-of-list values, callback, hidden without a callback; sounding pitch with a capo |
+| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop; regression: an opened file without a palette gets default shapes for its own tuning; regression: notes are played for their written length; print header with and without a capo; playback uses the capo; convert flow and cancel |
 | `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table |
 | `types/tab.test.ts` | `DURATION_OPTIONS`, `DURATION_KEY_MAP` |
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile; every library chord spelled correctly in every tuning of every instrument; tuning-adapted profile passthrough and memoisation |
@@ -441,4 +448,4 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom, after `src/testSetup.ts` 
 | `components/ChordDiagram.test.tsx` | Dots, open circles, muted marks, base fret label |
 | `components/ChordPaletteModal.test.tsx` | Library list, close, tab switching |
 | `components/DuplicateMeasuresModal.test.tsx` | Open/closed rendering, confirm callback |
-| `components/EditorToolbar.test.tsx` | Instrument menus, menu order, hidden file inputs, custom tuning option; changing the tuning re-fingers chords and keeps notes |
+| `components/EditorToolbar.test.tsx` | Instrument menus, menu order, hidden file inputs, custom tuning option; changing the tuning re-fingers chords and keeps notes; Capo menu; Convert menu lists only other instruments |

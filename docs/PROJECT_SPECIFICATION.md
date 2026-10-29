@@ -33,7 +33,7 @@ On startup the application shows the built-in ukulele sample song "Conjunction J
 
 ## 3. Instruments
 
-Each document belongs to exactly one instrument, chosen when the document is created (**New Tab**) or imported (**Open Guitar Pro**). It cannot be changed afterwards. Documents saved before instruments existed have no instrument field and open as ukulele.
+Each document belongs to exactly one instrument, chosen when the document is created (**New Tab**) or imported (**Open Guitar Pro**) and changeable later with **Convert** (Section 5.4). Documents saved before instruments existed have no instrument field and open as ukulele.
 
 ### 3.1 Tunings
 
@@ -63,6 +63,13 @@ A Guitar Pro import can also produce a **custom tuning** that is not a preset (S
 Selecting a different tuning changes the open-string pitches:
 - **Notes keep their fret numbers**, so they sound at the new tuning's pitches; the tab is not re-fingered or transposed.
 - **Chord diagrams** (beat chords and the chord palette) are re-fingered so they still sound the named chord in the new tuning (Section 3.2). A chord that was never set stays unset, and an explicitly cleared chord stays cleared.
+
+### 3.1.1 Capo
+A document may have a **capo** at fret 1–12 (none by default), set with the **Capo** menu next to **Tuning**:
+- Fret numbers in the tab are **relative to the capo** (fret 0 = the capo), as in standard capo tabs. A note sounds at open string + capo + fret.
+- Chord names and diagrams are **shapes relative to the capo**, as in capo chord charts ("Capo 2, G shape" sounds as A).
+- Changing the capo keeps fret numbers and chord diagrams, so the sound shifts.
+- Playback and the inspector's pitch display use the sounding pitch; alternate frets, chord detection and transposition work on the capo-relative frets.
 
 ### 3.2 Chord Libraries & Default Palettes
 
@@ -179,7 +186,7 @@ Fixed at the bottom of the window. It can be collapsed, and is closed by deselec
 - Buttons: **+ Beat**, **+ Rest**, **Toggle Rest**, **Triplet (3:2)**, **Tie (Sustain)**, **Delete Beat**, **Close**. There is also a **Lyric** text field.
 - **Measure {n} Time Signature**: number of beats (1–12) and beat unit (2, 4, 8, 16) of the selected beat's measure. Changing it affects that measure only and does not change its beats. A stored value outside these lists (e.g. from Guitar Pro import) is shown as an extra option.
 - **Chord section** (`{Instrument} Chord Diagram`): palette chord buttons; **Manage Palette / Create Chord**; **Clear Chord**. A chord name field and one fret selector per string (`X`, `0`, `1`–`15`, listed String N first) edit the beat's chord marker; changing a fret recalculates its base fret.
-- **String section**: fret pad `X`, `0` … Max Fret Limit for the selected string, **Clear Note**, and the selected note's pitch (e.g. `Fret 3 (G4)`).
+- **String section**: fret pad `X`, `0` … Max Fret Limit for the selected string, **Clear Note**, and the selected note's sounding pitch including any capo (e.g. `Fret 3 (G4)`; with capo 2 on the A string, `Fret 3 (D5)`).
 - **Alternate Frets** list: clicking one adds that note (Section 4.4).
 
 ### 5.4 Toolbar & Header
@@ -187,10 +194,16 @@ Fixed at the bottom of the window. It can be collapsed, and is closed by deselec
 - **Play / Pause**; **Metronome** toggle.
 - **Chord Palette & Editor** (also **Manage Chord Palette** in the header): opens the chord palette window (Section 5.7).
 - **New Tab**: a menu of instruments ("New Guitar Tab · 6 strings", …), with the current instrument first. After confirmation, it replaces the document with a blank one for that instrument: title `Untitled {Instrument} Tab`, default tuning, tempo 120, the default palette, and one 4/4 measure of four empty quarter beats.
+- **Convert**: a menu of the *other* instruments ("Convert to Guitar · 6 strings"). After confirming (`Convert this tab to {Instrument} ({n} strings, {default tuning})? Notes are moved onto the new strings at the same pitch where possible.`) the song is converted:
+  - Instrument, its default tuning, no capo, and its default Max Fret Limit.
+  - **Notes**: each sounding note keeps its pitch, moved by octaves into the new instrument's range and placed on strings exactly like a re-fitted Guitar Pro import (Section 9.2, "all other cases"). Muted notes keep their string number if the new instrument has it. Notes that find no string are removed, and an alert reports how many (`{n} note(s) did not fit on the {Instrument} and were removed.`). Ties, rhythm, lyrics, time signatures, title and tempo are unchanged.
+  - **Chords**: a beat chord whose name is in the new instrument's library becomes that library shape; other beat chords become unset (auto-detection can apply later); explicitly cleared chords stay cleared. The palette keeps the chords the new library has, or becomes the new instrument's default palette if none remain.
+  - The selected beat stays selected; the selected string is limited to the new string count.
 - **Open .uketab**, **Open Guitar Pro** (a menu of instruments to import as), **Save .uketab**, **Export PDF** (Section 9).
 - **+ Beat**: insert a beat after the selected beat. **Add Measure**: append a measure with the last measure's time signature (4/4 if the song is empty), holding one empty beat per beat unit (e.g. 3/4: three quarters; 6/8: six eighths; 2/2: two halves). **Duplicate Measures**: copy measures *start*–*end* (1-based, clamped to the song) and append the copies to the end of the song.
 - Settings row:
   - **Tuning** (Section 3.1).
+  - **Capo** (`None`, `1`–`12`; Section 3.1.1).
   - **Stems** (below / above).
   - **Zoom** (75% / 100% / 150%).
   - **Max Fret Limit** (7, 10, 12, 15, 20).
@@ -244,7 +257,7 @@ Shortcuts are ignored while typing in a text field or menu, and whenever Ctrl, A
 
 ## 7. Transposition
 - **Transpose −1 / +1** shifts every note of the song by one semitone and keeps its exact new pitch whenever some string can play it:
-  1. A note whose new fret is within 0 and the instrument's highest fret (Section 3.3) stays on its string.
+  1. A note whose new fret is within 0 and the instrument's highest fret minus the capo (Section 3.3) stays on its string.
   2. Otherwise, in the order of the notes in the beat, it moves to a string that has no note in that beat, choosing the lowest valid fret (ties: the lower string number).
   3. A note that no free string can play stays on its string with its fret clamped to the valid range; an alert then reports how many notes could not be transposed exactly.
 - Muted notes are unchanged. Note ties are kept. Two notes never end up on one string.
@@ -293,6 +306,7 @@ A `.uketab` file is the document saved as JSON (2-space indented). The file name
 | `tuning.key` | Preset key from Section 3.1 (`gCEA`, `GCEA`, `DGBE`, `aDF#B`, `EADGBE`, `DADGBE`, `EbAbDbGbBbEb`, `DGDGBD`, `DADF#AD`, `DADGAD`, `EADG`, `DADG`, `EbAbDbGb`, `BEAD`) or `"custom"` |
 | `tuning.pitches` | MIDI note number of each open string, String 1 first. Its length is the number of staff lines. |
 | `tuning.stringsDisplay` | String labels, String 1 first |
+| `capo` | Capo fret 0–12 (Section 3.1.1). Optional; missing means no capo. |
 | `tempo` | Beats (quarter notes) per minute |
 | `keySignature` | Stored only; not displayed or used |
 | `layout.stemsPlacement` | `"below"` or `"above"` |
@@ -335,14 +349,14 @@ See Section 8.
 **Notes, matching track (guitar, bass)**:
 - The track's tuning is kept: the matching preset if the pitches are identical, otherwise a custom tuning (Section 3.1).
 - Every note keeps its string and fret.
-- A capo is added to the fret numbers, so a fret 3 note under a capo at fret 2 is written as fret 5; the sounding pitch is unchanged.
+- The track's capo becomes the document's capo and notes keep their written frets (a capo above 12, outside the editor's range, is instead added to the fret numbers with no document capo).
 - Dead notes become muted `X`.
 
 **Notes, all other cases (always for ukulele)**:
-- The document uses the instrument's default tuning.
+- The document uses the instrument's default tuning and no capo (a source capo is already part of each note's pitch).
 - Each note's sounding pitch is moved by whole octaves into the instrument's range: ukulele C4–C6, guitar E2–E6, bass E1–G3.
-- The note is placed on the unused string that gives the lowest fret between 0 and the import fret limit (ukulele 15, guitar and bass 24).
-- If no string fits, it goes on the first unused string with its fret clamped into that range.
+- The beat's notes are placed together on distinct strings at frets between 0 and the import fret limit (ukulele 15, guitar and bass 24), choosing the most playable fingering: as many notes placed as possible, then the smallest distance between fretted notes (open strings don't count), then the lowest frets.
+- A note no free string can play goes on the first unused string with its fret clamped into that range.
 - A beat cannot hold more notes than the instrument has strings; extra notes are dropped.
 
 **Rhythm, ties & lyrics**:
@@ -356,7 +370,7 @@ See Section 8.
 ### 9.3 Print & PDF Export
 **Export PDF** opens the browser's print dialog; choosing "Save as PDF" produces a PDF. In print:
 - **Page**: margins 0.5 in top, 0.75 in bottom, 0.25 in left, 0.5 in right.
-- **Header**: song title (18 pt, bold), artist (10 pt, italic, if set), and `Tuning: {tuning name} ({labels joined by -}) • Tempo: {tempo} BPM` (8.5 pt), with a rule below.
+- **Header**: song title (18 pt, bold), artist (10 pt, italic, if set), and `Tuning: {tuning name} ({labels joined by -}) • Capo {n} • Tempo: {tempo} BPM` (8.5 pt; the `Capo {n} •` part only with a capo), with a rule below.
 - **Footer**: `{Title} {page} of {pages}` in 9 pt, centred in the bottom margin.
 - **Rows**: measure rows are right-aligned to the right margin, with a 0.5 in left inset and 0.15 in between rows. Every row starts with the string labels. A measure is never split across pages.
 - **Text sizes**: fret numbers 18 pt on white masks, lyrics 14 pt, chord names 20.8 px.
@@ -366,8 +380,7 @@ See Section 8.
 ---
 
 ## 10. Known Limitations
-- There is no capo setting; imported capos are folded into fret numbers.
-- A document's instrument cannot be changed after creation.
+None currently known. Behaviour changes and newly found limitations are recorded here and in [ROADMAP.md](ROADMAP.md).
 
 ---
 

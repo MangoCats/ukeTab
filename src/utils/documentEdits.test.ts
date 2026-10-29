@@ -376,8 +376,8 @@ describe('documentEdits: converting to another instrument', () => {
     expect(soundingPitches(document)).toEqual(soundingPitches(start)); // Ukulele pitches lie in the guitar range
     expectValidStrings(document, 6, GUITAR_PROFILE.importMaxFret);
     expect(beat(document, 'b1').notes).toEqual([{ id: 'n1', string: 1, fret: 8, isTied: true }]);
-    // C chord g4 C4 E4 C5 (in note order): String 1 fret 3, String 2 fret 1, String 3 fret 9, String 4 fret 22
-    expect(beat(document, 'b2').notes.map(n => [n.string, n.fret])).toEqual([[1, 3], [2, 1], [3, 9], [4, 22]]);
+    // C chord g4 C4 E4 C5 (in note order) takes the most compact fingering, frets 8–10
+    expect(beat(document, 'b2').notes.map(n => [n.string, n.fret])).toEqual([[2, 8], [4, 10], [3, 9], [1, 8]]);
 
     expect(document.title).toBe(start.title);
     expect(document.tempo).toBe(start.tempo);
@@ -406,10 +406,11 @@ describe('documentEdits: converting to another instrument', () => {
     const start = makeGuitarDoc();
     const { document, droppedCount } = convertInstrument(start, BASS_PROFILE);
 
-    // E chord E2 B2 E3 G#3 B3 E4 folded into E1..G3: E2 B2 E3 G#2 take the four strings, B2 and E3 are dropped
+    // E chord E2 B2 E3 G#3 B3 E4 folded into E1..G3: E2 B2 E3 G#2 take the four strings at frets 9–12,
+    // the repeated B2 and E3 are dropped
     expect(droppedCount).toBe(2);
     expect(beat(document, 'b1').notes.map(n => [n.id, n.string, n.fret])).toEqual([
-      ['e0', 2, 2], ['e1', 1, 4], ['e2', 3, 19], ['e3', 4, 16]
+      ['e0', 4, 12], ['e1', 2, 9], ['e2', 1, 9], ['e3', 3, 11]
     ]);
     expectValidStrings(document, 4, BASS_PROFILE.importMaxFret);
     const before = soundingPitches(start);

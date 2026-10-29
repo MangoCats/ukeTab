@@ -45,3 +45,11 @@ All follow-ups found during this work are fixed, with regression tests:
 - String labels start every row on screen and in print.
 - Chord shapes follow the current tuning, retuning re-fingers chord diagrams, and transposing renames and re-fingers chords.
 - The ukulele library's `F#m7` (which duplicated D major) was corrected; found by the all-tunings chord-spelling test.
+
+## Known Limitations (done)
+
+The limitations left in the specification after the follow-ups are resolved:
+- Playback note length follows the written duration (plus ties), capped at each instrument's natural sustain.
+- Print row labels are images, so hidden ones no longer appear in the PDF text layer.
+- A capo setting (0–12): frets relative to the capo; imported capos are kept as the document capo.
+- **Convert** changes a song's instrument, keeping note pitches and mapping chords by name.

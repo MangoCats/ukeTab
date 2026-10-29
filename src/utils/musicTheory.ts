@@ -235,10 +235,12 @@ export function getSoundingTuning(doc: Pick<TabDocument, 'tuning' | 'capo'>): Tu
 
 /**
  * Places one beat's pitches onto an instrument's strings (used by Guitar Pro re-voicing and instrument
- * conversion). In order, each pitch is first moved by octaves into pitchRange (when given), then put on the
- * unused string giving the lowest fret in 0..maxFret (ties: the lower string number); if no unused string can
- * play it, it goes on the first unused string with the fret clamped to 0..maxFret. Strings in usedStrings are
- * never chosen. Returns one placement per pitch, or null when every string is already taken.
+ * conversion). Each pitch is first moved by octaves into pitchRange (when given). Among all ways to put the pitches
+ * on distinct unused strings at frets 0..maxFret, the chosen one places the most pitches, then has the smallest
+ * span between fretted notes (open strings are free), then the lowest total fret; remaining ties prefer lower
+ * string numbers in pitch order. A pitch left unplaced goes on the first unused string with its fret clamped to
+ * 0..maxFret, or gets null when every string is taken. Strings in usedStrings are never chosen. Returns one
+ * placement per pitch, in input order.
  */
 export function assignNotesToStrings(
   pitches: number[],
@@ -246,32 +248,62 @@ export function assignNotesToStrings(
   maxFret: number,
   options: { pitchRange?: [number, number] | null; usedStrings?: Iterable<number> } = {}
 ): ({ string: number; fret: number } | null)[] {
-  const assigned = new Set<number>(options.usedStrings ?? []);
   const strings = getStringNumbers(tuning.pitches.length);
-
-  return pitches.map(sourcePitch => {
+  const folded = pitches.map(sourcePitch => {
     let pitch = sourcePitch;
     if (options.pitchRange) {
       const [minPitch, maxPitch] = options.pitchRange;
       while (pitch < minPitch) pitch += 12;
       while (pitch > maxPitch) pitch -= 12;
     }
+    return pitch;
+  });
 
-    let best: { string: number; fret: number } | null = null;
+  // Exhaustive search (at most a few thousand combinations for six strings) for the most playable placement
+  type Placement = ({ string: number; fret: number } | null)[];
+  let best: { placement: Placement; placed: number; span: number; total: number } | null = null;
+  const current: Placement = [];
+  const used = new Set<number>(options.usedStrings ?? []);
+
+  const consider = () => {
+    const frets = current.filter((p): p is { string: number; fret: number } => p !== null).map(p => p.fret);
+    const fretted = frets.filter(f => f > 0);
+    const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+    const total = frets.reduce((sum, f) => sum + f, 0);
+    if (!best || frets.length > best.placed || (frets.length === best.placed && (span < best.span || (span === best.span && total < best.total)))) {
+      best = { placement: [...current], placed: frets.length, span, total };
+    }
+  };
+
+  const search = (index: number) => {
+    if (index === folded.length) {
+      consider();
+      return;
+    }
     for (const s of strings) {
-      const fret = pitch - tuning.pitches[s - 1];
-      if (!assigned.has(s) && fret >= 0 && fret <= maxFret && (!best || fret < best.fret)) best = { string: s, fret };
+      const fret = folded[index] - tuning.pitches[s - 1];
+      if (used.has(s) || fret < 0 || fret > maxFret) continue;
+      used.add(s);
+      current.push({ string: s, fret });
+      search(index + 1);
+      current.pop();
+      used.delete(s);
     }
+    current.push(null);
+    search(index + 1);
+    current.pop();
+  };
+  search(0);
 
-    if (!best) {
-      const firstFree = strings.find(s => !assigned.has(s));
-      if (firstFree !== undefined) {
-        best = { string: firstFree, fret: Math.max(0, Math.min(maxFret, pitch - tuning.pitches[firstFree - 1])) };
-      }
-    }
-
-    if (best) assigned.add(best.string);
-    return best;
+  // Pitches no free string can play: first unused string with the fret clamped, else null
+  const placement = best!.placement;
+  const taken = new Set<number>([...(options.usedStrings ?? []), ...placement.filter(p => p !== null).map(p => p!.string)]);
+  return placement.map((p, i) => {
+    if (p) return p;
+    const firstFree = strings.find(s => !taken.has(s));
+    if (firstFree === undefined) return null;
+    taken.add(firstFree);
+    return { string: firstFree, fret: Math.max(0, Math.min(maxFret, folded[i] - tuning.pitches[firstFree - 1])) };
   });
 }
 
