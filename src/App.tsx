@@ -3,6 +3,7 @@ import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, Cho
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
 import { transposePitches, getBeatDurationMs, getEffectiveChordPalette, autoDetectChordFromBeatNotes, extract4StringFrets } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
+import { getInstrumentProfile } from './instruments';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
 import { InspectorPanel } from './components/InspectorPanel';
@@ -68,7 +69,7 @@ export const App: React.FC = () => {
       const isFirstBeatInMeasure = (currentIndex === 0) || (allBeats[currentIndex - 1].measureIndex !== beatInfo.measureIndex);
 
       if (!beatInfo.isRest && !beatInfo.isTied) {
-        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure);
+        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure, getInstrumentProfile(document.instrument).synthVoice);
       }
       if (enableMetronome && isFirstBeatInMeasure) {
         playMetronomeClick(true);
@@ -237,7 +238,7 @@ export const App: React.FC = () => {
         beats: m.beats.map(b => {
           if (b.id !== beatId) return b;
           if (b.chord === undefined) {
-            const autoChord = autoDetectChordFromBeatNotes(b.notes, prev.chordPalette);
+            const autoChord = autoDetectChordFromBeatNotes(b.notes, prev.chordPalette, getInstrumentProfile(prev.instrument));
             if (autoChord) {
               return { ...b, chord: autoChord };
             }
@@ -265,7 +266,7 @@ export const App: React.FC = () => {
 
           let updatedChord = b.chord;
           if (b.chord !== null) {
-            const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
+            const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette, getInstrumentProfile(prev.instrument));
             if (autoChord) updatedChord = autoChord;
           }
 
@@ -293,7 +294,7 @@ export const App: React.FC = () => {
         beats: m.beats.map(b => {
           if (b.id !== beatId) return b;
           const updatedNotes = b.notes.filter(n => n.string !== stringIndex);
-          const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette);
+          const autoChord = autoDetectChordFromBeatNotes(updatedNotes, prev.chordPalette, getInstrumentProfile(prev.instrument));
 
           return {
             ...b,
@@ -580,8 +581,9 @@ export const App: React.FC = () => {
   };
 
   const handleNewSong = () => {
-    if (window.confirm('Create a new blank ukulele tab chart? Unsaved changes will be replaced.')) {
-      const blankDoc = createBlankTabDocument();
+    const profile = getInstrumentProfile(document.instrument);
+    if (window.confirm(`Create a new blank ${profile.name.toLowerCase()} tab chart? Unsaved changes will be replaced.`)) {
+      const blankDoc = createBlankTabDocument(profile);
       setDocument(blankDoc);
       setSelectedBeatId(blankDoc.measures[0]?.beats[0]?.id || null);
     }
@@ -598,9 +600,11 @@ export const App: React.FC = () => {
   };
 
   const handleImportJson = (importedDoc: UkuleleTabDocument) => {
+    const profile = getInstrumentProfile(importedDoc.instrument);
     setDocument({
       ...importedDoc,
-      chordPalette: getEffectiveChordPalette(importedDoc.chordPalette)
+      instrument: profile.id,
+      chordPalette: getEffectiveChordPalette(importedDoc.chordPalette, profile)
     });
     const firstBeat = importedDoc.measures[0]?.beats[0]?.id || null;
     setSelectedBeatId(firstBeat);
@@ -631,6 +635,7 @@ export const App: React.FC = () => {
         activePalette={document.chordPalette || []}
         onUpdatePalette={handleUpdateChordPalette}
         initialFrets={selectedBeatInitialFrets}
+        profile={getInstrumentProfile(document.instrument)}
       />
 
       {/* Duplicate Measure Range Modal */}

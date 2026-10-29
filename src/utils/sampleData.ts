@@ -1,10 +1,12 @@
-import { UkuleleTabDocument } from '../types/ukulele';
+import { UkuleleTabDocument, InstrumentProfile } from '../types/ukulele';
 import { TUNING_PRESETS, getChordPreset, getDefaultChordPalette } from './musicTheory';
+import { getInstrumentProfile } from '../instruments';
 
 export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
   id: 'tab-three-is-a-magic-number-001',
   title: 'Three Is a Magic Number',
   artist: 'Bob Dorough (Schoolhouse Rock!)',
+  instrument: 'ukulele',
   tempo: 112,
   keySignature: 'G',
   tuning: TUNING_PRESETS.gCEA,
@@ -352,6 +354,7 @@ export const ALOHA_GROOVE_TAB: UkuleleTabDocument = {
   id: 'tab-aloha-groove-001',
   title: 'Aloha Ukulele Groove',
   artist: 'Traditional Ukulele Spec',
+  instrument: 'ukulele',
   tempo: 100,
   keySignature: 'C',
   tuning: TUNING_PRESETS.gCEA,
@@ -471,6 +474,7 @@ export const CONJUNCTION_JUNCTION_TAB: UkuleleTabDocument = {
   id: 'tab-conjunction-junction-001',
   title: 'Conjunction Junction',
   artist: 'Bob Dorough (Schoolhouse Rock!)',
+  instrument: 'ukulele',
   tempo: 120,
   keySignature: 'G',
   tuning: TUNING_PRESETS.gCEA,
@@ -651,19 +655,20 @@ export const CONJUNCTION_JUNCTION_TAB: UkuleleTabDocument = {
   ]
 };
 
-export const createBlankTabDocument = (): UkuleleTabDocument => ({
+export const createBlankTabDocument = (profile: InstrumentProfile = getInstrumentProfile()): UkuleleTabDocument => ({
   id: `tab-blank-${Date.now()}`,
-  title: 'Untitled Ukulele Tab',
+  title: `Untitled ${profile.name} Tab`,
   artist: '',
+  instrument: profile.id,
   tempo: 120,
   keySignature: 'C',
-  tuning: TUNING_PRESETS.gCEA,
-  chordPalette: getDefaultChordPalette(),
+  tuning: profile.defaultTuning,
+  chordPalette: getDefaultChordPalette(profile),
   layout: {
     stemsPlacement: 'below',
     zoomScale: 1.0,
     measuresPerSystem: 4,
-    maxFretLimit: 12
+    maxFretLimit: profile.defaultMaxFretLimit
   },
   measures: [
     {

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { UkuleleTabDocument, DurationType, TuningPresetKey } from '../types/ukulele';
-import { TUNING_PRESETS } from '../utils/musicTheory';
+import { getInstrumentProfile } from '../instruments';
 import { parseGuitarProToUkuleleTab } from '../utils/guitarProImporter';
 import {
   Play,
@@ -69,13 +69,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenChordPaletteModal
 }) => {
   const { tuning, layout, tempo } = document;
+  const profile = getInstrumentProfile(document.instrument);
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const gpFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTuningChange = (key: TuningPresetKey) => {
     onUpdateDocument(prev => ({
       ...prev,
-      tuning: TUNING_PRESETS[key]
+      tuning: profile.tunings.find(t => t.key === key) || profile.defaultTuning
     }));
   };
 
@@ -133,7 +134,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     reader.onload = (event) => {
       try {
         const buffer = event.target?.result as ArrayBuffer;
-        const parsedDoc = parseGuitarProToUkuleleTab(buffer, file.name);
+        const parsedDoc = parseGuitarProToUkuleleTab(buffer, file.name, profile);
         onImportJson(parsedDoc);
       } catch (err: any) {
         alert(`Could not parse Guitar Pro file: ${err?.message || err}`);
@@ -317,10 +318,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               onChange={(e) => handleTuningChange(e.target.value as TuningPresetKey)}
               className="bg-slate-950 border border-slate-800 text-amber-400 font-semibold rounded-lg px-2.5 py-1 focus:border-amber-500 outline-none cursor-pointer"
             >
-              <option value="gCEA">Standard High-G (gCEA)</option>
-              <option value="GCEA">Linear Low-G (GCEA)</option>
-              <option value="DGBE">Baritone (DGBE)</option>
-              <option value="aDF#B">Soprano D (aDF#B)</option>
+              {profile.tunings.map(t => (
+                <option key={t.key} value={t.key}>{t.name}</option>
+              ))}
             </select>
           </div>
 
@@ -365,7 +365,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span className="text-slate-400 font-medium">Max Fret Limit:</span>
             <select
-              value={layout.maxFretLimit ?? 12}
+              value={layout.maxFretLimit ?? profile.defaultMaxFretLimit}
               onChange={(e) => handleMaxFretLimitChange(parseInt(e.target.value, 10))}
               className="bg-slate-950 border border-slate-800 text-purple-400 font-bold rounded-lg px-2 py-1 focus:border-purple-500 outline-none cursor-pointer"
             >

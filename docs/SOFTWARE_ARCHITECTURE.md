@@ -110,6 +110,30 @@ export interface UkuleleTabDocument {
 }
 ```
 
+### 2.1 Instrument Profiles (`src/instruments/`)
+
+Instrument-specific data is grouped into an `InstrumentProfile` so that further fretted instruments (6-string guitar, 4-string bass) can be added alongside the ukulele. Ukulele is currently the only profile.
+
+```typescript
+export interface InstrumentProfile {
+  id: InstrumentId;                          // 'ukulele'
+  name: string;
+  stringCount: number;
+  tunings: TuningConfig[];                   // Tuning menu presets
+  defaultTuning: TuningConfig;
+  chordLibrary: ChordFretLibrary;
+  defaultChordNames: string[];               // Initial composition chord palette
+  defaultMaxFretLimit: number;
+  importPitchRange: [number, number] | null; // Guitar Pro octave folding range
+  importMaxFret: number;
+  synthVoice: SynthVoice;                    // Pluck oscillator, filter and envelope settings
+}
+```
+
+- `getInstrumentProfile(document.instrument)` resolves a document's profile. `instrument` is optional; `.uketab` files saved before it existed resolve to ukulele.
+- Chord helpers (`getChordPreset`, `findExistingChordsByFrets`, `autoDetectChordFromBeatNotes`, `createChordMarker`, `getDefaultChordPalette`, `getEffectiveChordPalette`), the Guitar Pro importer, `createBlankTabDocument` and `playBeatChord` take an optional profile argument defaulting to ukulele.
+- `TUNING_PRESETS`, `UKULELE_CHORD_LIBRARY` and `DEFAULT_COMPOSITION_CHORD_NAMES` remain exported from `musicTheory.ts` as aliases of the ukulele profile data.
+
 ---
 
 ## 3. Key Algorithmic Engines

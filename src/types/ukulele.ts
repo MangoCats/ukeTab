@@ -58,6 +58,33 @@ export interface TuningConfig {
   stringsDisplay: string[];  // Label names e.g. ['A4', 'E4', 'C4', 'g4']
 }
 
+export type InstrumentId = 'ukulele';
+
+export type ChordFretLibrary = Record<string, [number, number, number, number]>; // Chord name -> frets [String 4, String 3, String 2, String 1]
+
+export interface SynthVoice {
+  oscillatorType: OscillatorType;
+  filterStartRatio: number;  // Low-pass cutoff at pluck, as a multiple of note frequency
+  filterEndRatio: number;    // Low-pass cutoff at end of decay
+  peakGain: number;
+  attackSec: number;
+  noteDurationSec: number;   // Decay length used for playback of tab notes
+}
+
+export interface InstrumentProfile {
+  id: InstrumentId;
+  name: string;                           // Display name e.g. 'Ukulele'
+  stringCount: number;
+  tunings: TuningConfig[];                // Selectable tuning presets, in menu order
+  defaultTuning: TuningConfig;
+  chordLibrary: ChordFretLibrary;
+  defaultChordNames: string[];            // Initial composition chord palette
+  defaultMaxFretLimit: number;
+  importPitchRange: [number, number] | null; // Guitar Pro import folds pitches into this MIDI range by octaves (null = keep original pitch)
+  importMaxFret: number;                  // Highest fret the Guitar Pro importer will assign
+  synthVoice: SynthVoice;
+}
+
 export interface LayoutOptions {
   stemsPlacement: 'below' | 'above'; // Default: 'below'
   zoomScale: number;                 // 0.75 (Compact), 1.0 (Standard), 1.5 (Large)
@@ -69,6 +96,7 @@ export interface UkuleleTabDocument {
   id: string;
   title: string;
   artist: string;
+  instrument?: InstrumentId; // Absent in older .uketab files, which are always ukulele
   tempo: number;
   keySignature: string;
   tuning: TuningConfig;

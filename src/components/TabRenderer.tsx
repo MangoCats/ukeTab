@@ -2,6 +2,7 @@ import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/ukulele';
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
+import { getInstrumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
 
 interface TabRendererProps {
@@ -44,9 +45,10 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   onDeselectBeat
 }) => {
   const { tuning, layout, measures, chordPalette } = document;
+  const profile = getInstrumentProfile(document.instrument);
   const zoom = layout.zoomScale;
   const stemsBelow = layout.stemsPlacement === 'below';
-  const maxFretLimit = layout.maxFretLimit ?? 12;
+  const maxFretLimit = layout.maxFretLimit ?? profile.defaultMaxFretLimit;
   const fretButtonList = [-1, ...Array.from({ length: maxFretLimit + 1 }, (_, i) => i)];
   const popoverWidth = Math.max(520, (maxFretLimit + 1) * 24 + 130);
 
@@ -76,7 +78,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   }
 
   // Active composition chords palette
-  const activeChordsList = getEffectiveChordPalette(chordPalette);
+  const activeChordsList = getEffectiveChordPalette(chordPalette, profile);
 
   const effectiveChord = (currentBeatChord && typeof currentBeatChord === 'object') ? currentBeatChord : undefined;
 
@@ -795,7 +797,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                                       if (!chordName) {
                                         if (onSetBeatChord) onSetBeatChord(beat.id, null);
                                       } else {
-                                        const found = dropdownChordOptions.find(c => c.name.toLowerCase() === chordName.toLowerCase()) || getChordPreset(chordName);
+                                        const found = dropdownChordOptions.find(c => c.name.toLowerCase() === chordName.toLowerCase()) || getChordPreset(chordName, profile);
                                         if (found && onSetBeatChord) {
                                           onSetBeatChord(beat.id, found);
                                         }

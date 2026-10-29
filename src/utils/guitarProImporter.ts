@@ -1,6 +1,7 @@
 import * as alphaTab from '@coderline/alphatab';
-import { UkuleleTabDocument, Measure, BeatColumn, UkuleleNote, DurationType, TuningConfig, ChordMarker } from '../types/ukulele';
-import { TUNING_PRESETS, autoDetectChordFromBeatNotes, getDefaultChordPalette } from './musicTheory';
+import { UkuleleTabDocument, Measure, BeatColumn, UkuleleNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/ukulele';
+import { autoDetectChordFromBeatNotes, getDefaultChordPalette } from './musicTheory';
+import { getInstrumentProfile } from '../instruments';
 
 /**
  * Convert alphaTab duration number to UkeTab DurationType
@@ -31,7 +32,8 @@ export function cleanGpLyric(lyrics: string[] | null | undefined): string | unde
  */
 export function parseGuitarProToUkuleleTab(
   arrayBuffer: ArrayBuffer,
-  fileName: string = 'Imported Song'
+  fileName: string = 'Imported Song',
+  profile: InstrumentProfile = getInstrumentProfile()
 ): UkuleleTabDocument {
   const uint8Array = new Uint8Array(arrayBuffer);
   const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(uint8Array);
@@ -40,8 +42,8 @@ export function parseGuitarProToUkuleleTab(
   const artist = score.artist || 'Guitar Pro Import';
   const tempo = Math.round(score.tempo || 120);
 
-  const tuning: TuningConfig = TUNING_PRESETS.gCEA;
-  const chordPalette = getDefaultChordPalette();
+  const tuning: TuningConfig = profile.defaultTuning;
+  const chordPalette = getDefaultChordPalette(profile);
 
   if (!score.tracks || score.tracks.length === 0) {
     throw new Error('Guitar Pro file contains no tracks.');
@@ -116,9 +118,12 @@ export function parseGuitarProToUkuleleTab(
               hasTiedNote = true;
             }
 
-            // Transpose into High-G Ukulele pitch range [60..84]
-            while (pitch < 60) pitch += 12;
-            while (pitch > 84) pitch -= 12;
+            // Fold by octaves into the instrument's playable pitch range
+            if (profile.importPitchRange) {
+              const [minPitch, maxPitch] = profile.importPitchRange;
+              while (pitch < minPitch) pitch += 12;
+              while (pitch > maxPitch) pitch -= 12;
+            }
 
             // Solve optimal Ukulele string & fret
             const targetStrings: (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
@@ -128,7 +133,7 @@ export function parseGuitarProToUkuleleTab(
             for (const s of targetStrings) {
               if (!assignedStrings.has(s)) {
                 const fret = pitch - tuning.pitches[s - 1];
-                if (fret >= 0 && fret <= 15) {
+                if (fret >= 0 && fret <= profile.importMaxFret) {
                   if (fret < bestFret) {
                     bestFret = fret;
                     bestString = s;
@@ -141,7 +146,7 @@ export function parseGuitarProToUkuleleTab(
               for (const s of targetStrings) {
                 if (!assignedStrings.has(s)) {
                   bestString = s;
-                  bestFret = Math.max(0, Math.min(15, pitch - tuning.pitches[s - 1]));
+                  bestFret = Math.max(0, Math.min(profile.importMaxFret, pitch - tuning.pitches[s - 1]));
                   break;
                 }
               }
@@ -159,7 +164,7 @@ export function parseGuitarProToUkuleleTab(
           });
         }
 
-        const autoChord = autoDetectChordFromBeatNotes(ukeNotes, chordPalette);
+        const autoChord = autoDetectChordFromBeatNotes(ukeNotes, chordPalette, profile);
 
         // Synchronize lyric syllable using exact measure index + playbackStart tick timestamp
         const tickKey = `${mIdx}-${gpBeat.playbackStart}`;
@@ -200,6 +205,7 @@ export function parseGuitarProToUkuleleTab(
     id: `tab-gp-${Date.now()}`,
     title: songTitle,
     artist: artist,
+    instrument: profile.id,
     tempo: tempo,
     keySignature: 'C',
     tuning: tuning,
@@ -207,7 +213,7 @@ export function parseGuitarProToUkuleleTab(
       stemsPlacement: 'below',
       zoomScale: 1.0,
       measuresPerSystem: 4,
-      maxFretLimit: 12
+      maxFretLimit: profile.defaultMaxFretLimit
     },
     measures: measures,
     chordPalette: chordPalette

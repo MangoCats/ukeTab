@@ -1,5 +1,6 @@
-import { BeatColumn, TuningConfig } from '../types/ukulele';
+import { BeatColumn, TuningConfig, SynthVoice } from '../types/ukulele';
 import { calculatePitch } from './musicTheory';
+import { UKULELE_PROFILE } from '../instruments/ukulele';
 
 let audioCtx: AudioContext | null = null;
 
@@ -13,26 +14,26 @@ function getAudioContext(): AudioContext {
   return audioCtx;
 }
 
-export function playPluck(midiNote: number, durationSec: number = 0.5) {
+export function playPluck(midiNote: number, durationSec: number = 0.5, voice: SynthVoice = UKULELE_PROFILE.synthVoice) {
   const ctx = getAudioContext();
   const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
 
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
-  // Ukulele pluck timbre simulation: triangle/sawtooth hybrid with low-pass filter
-  osc.type = 'triangle';
+  // Plucked string timbre simulation: instrument oscillator shape with closing low-pass filter
+  osc.type = voice.oscillatorType;
   osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(freq * 3.5, ctx.currentTime);
-  filter.frequency.exponentialRampToValueAtTime(freq * 0.4, ctx.currentTime + durationSec);
+  filter.frequency.setValueAtTime(freq * voice.filterStartRatio, ctx.currentTime);
+  filter.frequency.exponentialRampToValueAtTime(freq * voice.filterEndRatio, ctx.currentTime + durationSec);
 
   // Envelope
   const now = ctx.currentTime;
   gain.gain.setValueAtTime(0.001, now);
-  gain.gain.linearRampToValueAtTime(0.4, now + 0.008); // Quick attack
+  gain.gain.linearRampToValueAtTime(voice.peakGain, now + voice.attackSec); // Quick attack
   gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec); // Natural string decay
 
   osc.connect(filter);
@@ -82,7 +83,13 @@ export function playMutedClick() {
   osc.stop(now + 0.035);
 }
 
-export function playBeatChord(beat: BeatColumn, tuning: TuningConfig, enableMetronome: boolean = false, isFirstBeatInMeasure: boolean = false) {
+export function playBeatChord(
+  beat: BeatColumn,
+  tuning: TuningConfig,
+  enableMetronome: boolean = false,
+  isFirstBeatInMeasure: boolean = false,
+  voice: SynthVoice = UKULELE_PROFILE.synthVoice
+) {
   if (enableMetronome) {
     playMetronomeClick(isFirstBeatInMeasure);
   }
@@ -96,6 +103,6 @@ export function playBeatChord(beat: BeatColumn, tuning: TuningConfig, enableMetr
       return;
     }
     const pitch = calculatePitch(note.string, note.fret, tuning);
-    playPluck(pitch, 0.6);
+    playPluck(pitch, voice.noteDurationSec, voice);
   });
 }

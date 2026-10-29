@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChordMarker } from '../types/ukulele';
-import { UKULELE_CHORD_LIBRARY, getChordPreset, createChordMarker, findExistingChordsByFrets } from '../utils/musicTheory';
+import { ChordMarker, InstrumentProfile } from '../types/ukulele';
+import { getChordPreset, createChordMarker, findExistingChordsByFrets } from '../utils/musicTheory';
+import { getInstrumentProfile } from '../instruments';
 import { ChordDiagram } from './ChordDiagram';
 import { Music, Check, Plus, AlertTriangle, X, Sparkles } from 'lucide-react';
 
@@ -10,6 +11,7 @@ interface ChordPaletteModalProps {
   activePalette: ChordMarker[];
   onUpdatePalette: (newPalette: ChordMarker[]) => void;
   initialFrets?: [number, number, number, number] | null;
+  profile?: InstrumentProfile; // Defaults to the default instrument (ukulele)
 }
 
 export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
@@ -17,7 +19,8 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
   onClose,
   activePalette,
   onUpdatePalette,
-  initialFrets
+  initialFrets,
+  profile = getInstrumentProfile()
 }) => {
   const [activeTab, setActiveTab] = useState<'select' | 'create'>('select');
 
@@ -38,7 +41,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
         setS1Fret(initialFrets[3]);
 
         // Check if this pattern is already defined in library
-        const matches = findExistingChordsByFrets(initialFrets);
+        const matches = findExistingChordsByFrets(initialFrets, {}, profile);
         if (matches.length === 0) {
           // Undefined chord pattern: jump directly to Create tab
           setActiveTab('create');
@@ -49,15 +52,15 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
         setActiveTab('select');
       }
     }
-  }, [isOpen, initialFrets]);
+  }, [isOpen, initialFrets, profile]);
 
   if (!isOpen) return null;
 
   const currentFrets: [number, number, number, number] = [s4Fret, s3Fret, s2Fret, s1Fret];
-  const duplicateMatches = findExistingChordsByFrets(currentFrets);
+  const duplicateMatches = findExistingChordsByFrets(currentFrets, {}, profile);
 
   const activeNames = new Set(activePalette.map(c => c.name.toLowerCase()));
-  const allLibraryNames = Object.keys(UKULELE_CHORD_LIBRARY);
+  const allLibraryNames = Object.keys(profile.chordLibrary);
 
   const handleToggleChordInPalette = (chordName: string) => {
     const isCurrentlyActive = activeNames.has(chordName.toLowerCase());
@@ -65,7 +68,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
       const updated = activePalette.filter(c => c.name.toLowerCase() !== chordName.toLowerCase());
       onUpdatePalette(updated);
     } else {
-      const preset = getChordPreset(chordName) || createChordMarker(chordName);
+      const preset = getChordPreset(chordName, profile) || createChordMarker(chordName, undefined, undefined, profile);
       onUpdatePalette([...activePalette, preset]);
     }
   };
@@ -77,7 +80,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
       return;
     }
 
-    const created = createChordMarker(newChordName.trim(), currentFrets);
+    const created = createChordMarker(newChordName.trim(), currentFrets, undefined, profile);
     const updatedPalette = [...activePalette.filter(c => c.name.toLowerCase() !== created.name.toLowerCase()), created];
     onUpdatePalette(updatedPalette);
 
@@ -148,7 +151,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {allLibraryNames.map(name => {
                 const isActive = activeNames.has(name.toLowerCase());
-                const chordMarker = getChordPreset(name);
+                const chordMarker = getChordPreset(name, profile);
 
                 return (
                   <div

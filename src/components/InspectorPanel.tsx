@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
 import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette } from '../utils/musicTheory';
+import { getInstrumentProfile } from '../instruments';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface InspectorPanelProps {
@@ -40,7 +41,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const { tuning, measures, layout, chordPalette } = document;
-  const maxFretLimit = layout.maxFretLimit ?? 12;
+  const profile = getInstrumentProfile(document.instrument);
+  const maxFretLimit = layout.maxFretLimit ?? profile.defaultMaxFretLimit;
   const fretButtonList = [-1, ...Array.from({ length: maxFretLimit + 1 }, (_, i) => i)];
 
   if (!selectedBeatId) {
@@ -84,7 +86,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const pitchName = pitchMidi && pitchMidi > 0 ? midiToNoteName(pitchMidi) : null;
 
   // Active composition chords palette
-  const activeChordsList = getEffectiveChordPalette(chordPalette);
+  const activeChordsList = getEffectiveChordPalette(chordPalette, profile);
 
   const effectiveChord = (selectedBeat.chord && typeof selectedBeat.chord === 'object') ? selectedBeat.chord : undefined;
 
@@ -307,7 +309,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                             if (onSetBeatChord) {
                               const newFrets = [...effectiveChord.frets] as [number, number, number, number];
                               newFrets[strIdx] = parseInt(e.target.value, 10);
-                              onSetBeatChord(selectedBeat.id, createChordMarker(effectiveChord.name, newFrets));
+                              onSetBeatChord(selectedBeat.id, createChordMarker(effectiveChord.name, newFrets, undefined, profile));
                             }
                           }}
                           className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono font-bold rounded px-1.5 py-0.5 outline-none"
