@@ -7,12 +7,15 @@ import {
   setChordPalette, deleteBeat, setBeatDuration, setBeatLyric, transposeDocument, addMeasure, duplicateMeasureRange
 } from './utils/documentEdits';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
+import { getMeasureClickOffsetsMs, getMeasureDurationMs, getColumnStartOffsetMs } from './utils/playbackTiming';
+import { findShortcut, resolveFretDigit } from './utils/shortcuts';
 import { getInstrumentProfile } from './instruments';
 import { TabRenderer } from './components/TabRenderer';
 import { EditorToolbar } from './components/EditorToolbar';
 import { InspectorPanel } from './components/InspectorPanel';
 import { ChordPaletteModal } from './components/ChordPaletteModal';
 import { DuplicateMeasuresModal } from './components/DuplicateMeasuresModal';
+import { ShortcutHelp } from './components/ShortcutHelp';
 import { Sparkles, Keyboard, Music2 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -33,19 +36,26 @@ export const App: React.FC = () => {
   const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false);
 
   const playbackTimeoutRef = useRef<number | null>(null);
+  const metronomeTimeoutsRef = useRef<number[]>([]);
   const profile = getInstrumentProfile(document.instrument);
   const lastKeyTimeRef = useRef<number>(0);
   const lastDigitRef = useRef<string>('');
 
   // Precise Audio Scheduling Engine with Dynamic Duration & Triplet Support
   useEffect(() => {
+    const clearMetronomeClicks = () => {
+      metronomeTimeoutsRef.current.forEach(id => clearTimeout(id));
+      metronomeTimeoutsRef.current = [];
+    };
+
     if (!isPlaying) {
       if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+      clearMetronomeClicks();
       setPlayingBeatId(null);
       return;
     }
 
-    const allBeats = document.measures.flatMap(m => m.beats.map(b => ({ ...b, measureIndex: m.index })));
+    const allBeats = document.measures.flatMap(m => m.beats.map((b, beatIndex) => ({ ...b, measureIndex: m.index, measure: m, beatIndex })));
     if (!allBeats.length) {
       setIsPlaying(false);
       return;
@@ -76,10 +86,20 @@ export const App: React.FC = () => {
       if (!beatInfo.isRest && !beatInfo.isTied) {
         playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure, profile.synthVoice);
       }
-      if (enableMetronome && isFirstBeatInMeasure) {
-        playMetronomeClick(true);
-      } else if (enableMetronome) {
-        playMetronomeClick(false);
+
+      // Metronome follows the time signature, not the columns: schedule a measure's beat clicks on entering it
+      if (enableMetronome && (isFirstBeatInMeasure || currentIndex === startIndex)) {
+        const { measure } = beatInfo;
+        const clicks = getMeasureClickOffsetsMs(
+          measure.timeSignature,
+          getMeasureDurationMs(measure.beats, document.tempo, playbackSpeed),
+          document.tempo,
+          playbackSpeed,
+          getColumnStartOffsetMs(measure.beats, beatInfo.beatIndex, document.tempo, playbackSpeed)
+        );
+        clicks.forEach(({ offsetMs, accent }) => {
+          metronomeTimeoutsRef.current.push(window.setTimeout(() => playMetronomeClick(accent), offsetMs));
+        });
       }
 
       const durationMs = getBeatDurationMs(beatInfo, document.tempo, playbackSpeed);
@@ -91,6 +111,7 @@ export const App: React.FC = () => {
 
     return () => {
       if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+      clearMetronomeClicks();
     };
   }, [isPlaying, document, enableMetronome, playbackSpeed]);
 
@@ -101,127 +122,85 @@ export const App: React.FC = () => {
         return;
       }
 
+      // Key bindings live in utils/shortcuts (also rendered by the help panel); actions per id live here
+      const shortcut = findShortcut(e);
+      if (!shortcut) return;
+      if (shortcut.requiresSelection && !selectedBeatId) return; // Leave the key to the browser; selectedBeatId! below relies on this
+      e.preventDefault();
+
       const allBeats = document.measures.flatMap(m => m.beats);
       const currentBeatIdx = allBeats.findIndex(b => b.id === selectedBeatId);
 
-      // Spacebar: Play / Pause
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setIsPlaying(prev => !prev);
-        return;
-      }
+      switch (shortcut.id) {
+        case 'playPause':
+          setIsPlaying(prev => !prev);
+          return;
 
-      // Duration Shortcuts: w (1/1), h (1/2), q (1/4), e (1/8), s (1/16)
-      const keyLower = e.key.toLowerCase();
-      if (DURATION_KEY_MAP[keyLower] && selectedBeatId) {
-        e.preventDefault();
-        const targetDur = DURATION_KEY_MAP[keyLower];
-        setActiveDuration(targetDur);
-        handleUpdateBeatDuration(selectedBeatId, targetDur);
-        return;
-      }
+        case 'setDuration': {
+          const targetDur = DURATION_KEY_MAP[e.key.toLowerCase()];
+          setActiveDuration(targetDur);
+          handleUpdateBeatDuration(selectedBeatId!, targetDur);
+          return;
+        }
 
-      // Toggle Rest: Key 'r'
-      if (keyLower === 'r' && selectedBeatId) {
-        e.preventDefault();
-        handleToggleRest(selectedBeatId);
-        return;
-      }
+        case 'toggleRest':
+          handleToggleRest(selectedBeatId!);
+          return;
 
-      // Toggle Triplet: Key 't'
-      if (keyLower === 't' && selectedBeatId) {
-        e.preventDefault();
-        handleToggleTriplet(selectedBeatId);
-        return;
-      }
+        case 'toggleTriplet':
+          handleToggleTriplet(selectedBeatId!);
+          return;
 
-      // Toggle Tie / Sustain: Key 'l'
-      if (keyLower === 'l' && selectedBeatId) {
-        e.preventDefault();
-        handleToggleTie(selectedBeatId);
-        return;
-      }
+        case 'toggleTie':
+          handleToggleTie(selectedBeatId!);
+          return;
 
-      // Dot shortcut (.)
-      if (e.key === '.' && selectedBeatId) {
-        e.preventDefault();
-        for (const m of document.measures) {
-          const b = m.beats.find(beat => beat.id === selectedBeatId);
-          if (b) {
-            handleUpdateBeatDuration(selectedBeatId, b.duration, !b.isDotted);
-            break;
+        case 'toggleDot': {
+          const b = allBeats[currentBeatIdx];
+          if (b) handleUpdateBeatDuration(b.id, b.duration, !b.isDotted);
+          return;
+        }
+
+        case 'insertBeat':
+          handleInsertBeat(selectedBeatId!);
+          return;
+
+        case 'nextBeat':
+          if (currentBeatIdx !== -1 && currentBeatIdx < allBeats.length - 1) {
+            setSelectedBeatId(allBeats[currentBeatIdx + 1].id);
           }
-        }
-        return;
-      }
+          return;
 
-      // Shift + Enter or Insert Beat (+): Insert new beat event column into measure
-      if ((e.key === '+' || (e.shiftKey && e.key === 'Enter')) && selectedBeatId) {
-        e.preventDefault();
-        handleInsertBeat(selectedBeatId);
-        return;
-      }
-
-      // Arrow Navigation
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        if (currentBeatIdx !== -1 && currentBeatIdx < allBeats.length - 1) {
-          setSelectedBeatId(allBeats[currentBeatIdx + 1].id);
-        }
-        return;
-      }
-
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        if (currentBeatIdx > 0) {
-          setSelectedBeatId(allBeats[currentBeatIdx - 1].id);
-        }
-        return;
-      }
-
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedString(prev => Math.max(1, prev - 1));
-        return;
-      }
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedString(prev => Math.min(document.tuning.pitches.length, prev + 1));
-        return;
-      }
-
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault();
-        if (selectedBeatId) {
-          handleRemoveNote(selectedBeatId, selectedString);
-        }
-        return;
-      }
-
-      if ((e.key === 'x' || e.key === 'X' || e.key === 'm' || e.key === 'M') && selectedBeatId) {
-        e.preventDefault();
-        handleAddNote(selectedBeatId, selectedString, -1);
-        return;
-      }
-
-      if (/^[0-9]$/.test(e.key) && selectedBeatId) {
-        e.preventDefault();
-        const now = Date.now();
-        let targetFret = parseInt(e.key, 10);
-
-        if (now - lastKeyTimeRef.current < 600 && lastDigitRef.current !== '') {
-          const combined = parseInt(lastDigitRef.current + e.key, 10);
-          if (combined <= 20) {
-            targetFret = combined;
+        case 'previousBeat':
+          if (currentBeatIdx > 0) {
+            setSelectedBeatId(allBeats[currentBeatIdx - 1].id);
           }
-          lastDigitRef.current = '';
-        } else {
-          lastDigitRef.current = e.key;
-        }
+          return;
 
-        lastKeyTimeRef.current = now;
-        handleAddNote(selectedBeatId, selectedString, targetFret);
+        case 'previousString':
+          setSelectedString(prev => Math.max(1, prev - 1));
+          return;
+
+        case 'nextString':
+          setSelectedString(prev => Math.min(document.tuning.pitches.length, prev + 1));
+          return;
+
+        case 'removeNote':
+          if (selectedBeatId) handleRemoveNote(selectedBeatId, selectedString);
+          return;
+
+        case 'mutedNote':
+          handleAddNote(selectedBeatId!, selectedString, -1);
+          return;
+
+        case 'setFret': {
+          const now = Date.now();
+          const { fret, pendingDigit } = resolveFretDigit(e.key, lastDigitRef.current, now - lastKeyTimeRef.current);
+          lastDigitRef.current = pendingDigit;
+          lastKeyTimeRef.current = now;
+          handleAddNote(selectedBeatId!, selectedString, fret);
+          return;
+        }
       }
     };
 
@@ -411,41 +390,8 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Editing Shortcuts Quick Guide Banner / Modal (Hidden in Print) */}
-      {showHelpModal && (
-        <div className="no-print bg-slate-900/90 border border-amber-500/40 rounded-2xl p-5 mb-6 shadow-2xl space-y-3">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-            <h3 className="text-sm font-bold font-outfit text-amber-400 flex items-center gap-2">
-              <Keyboard className="w-4 h-4" />
-              Interactive Editing Instructions & Keyboard Shortcuts
-            </h3>
-            <button
-              onClick={() => setShowHelpModal(false)}
-              className="text-xs text-slate-400 hover:text-slate-200"
-            >
-              ✕ Close
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-amber-400">1. Fret Notes & Chords:</span>
-              <p className="text-slate-300">Click string, type <code className="bg-slate-800 px-1 py-0.5 rounded text-amber-300 font-mono">0-9</code> or <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">X/M</code> for Muted (X), or assign Chords.</p>
-            </div>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-sky-400">2. Note Value (Rhythm):</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-sky-300 font-mono">w, h, q, e, s</code> for Whole, Half, 1/4, 1/8, 1/16 rhythm values.</p>
-            </div>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-indigo-400">3. Rests, Triplets & Ties:</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-purple-300 font-mono">R</code> for Rest, <code className="bg-slate-800 px-1 py-0.5 rounded text-indigo-300 font-mono">T</code> for Triplet, <code className="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">L</code> for Tie (Sustain).</p>
-            </div>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
-              <span className="font-bold text-rose-400">4. Delete & Playback:</span>
-              <p className="text-slate-300">Press <code className="bg-slate-800 px-1 py-0.5 rounded text-rose-300 font-mono">Backspace</code> to delete. Press <code className="bg-slate-800 px-1 py-0.5 rounded text-emerald-300 font-mono">Spacebar</code> to Play/Pause.</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Keyboard Shortcuts Help Panel, generated from utils/shortcuts (Hidden in Print) */}
+      {showHelpModal && <ShortcutHelp onClose={() => setShowHelpModal(false)} />}
 
       {/* Main Workspace */}
       <main className="space-y-6 flex-1">
