@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { TabDocument, DurationType, TuningPresetKey, InstrumentId, InstrumentProfile } from '../types/tab';
 import { getInstrumentProfile, INSTRUMENT_LIST } from '../instruments';
 import { parseGuitarProToTab } from '../utils/guitarProImporter';
-import { retuneDocument } from '../utils/documentEdits';
+import { retuneDocument, setCapo, MAX_CAPO } from '../utils/documentEdits';
 import {
   Play,
   Pause,
@@ -19,7 +19,8 @@ import {
   PlusCircle,
   Music2,
   FilePlus,
-  Copy
+  Copy,
+  ArrowRightLeft
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -41,6 +42,7 @@ interface EditorToolbarProps {
   onToggleTie?: () => void;
   onTranspose: (semitones: number) => void;
   onNewSong?: (instrument: InstrumentId) => void;
+  onConvertInstrument?: (instrument: InstrumentId) => void;
   onExportJson: () => void;
   onImportJson: (doc: TabDocument) => void;
   onExportPdf: () => void;
@@ -48,14 +50,18 @@ interface EditorToolbarProps {
 }
 
 /**
- * Dropdown list of instruments shown under a toolbar button; the current document's instrument is listed first.
+ * Dropdown list of instruments shown under a toolbar button; the current document's instrument is listed first,
+ * or left out with excludeCurrent.
  */
 const InstrumentMenu: React.FC<{
   currentId: InstrumentId;
   getLabel: (profile: InstrumentProfile) => string;
   onPick: (profile: InstrumentProfile) => void;
-}> = ({ currentId, getLabel, onPick }) => {
-  const ordered = [...INSTRUMENT_LIST].sort((a, b) => Number(b.id === currentId) - Number(a.id === currentId));
+  excludeCurrent?: boolean;
+}> = ({ currentId, getLabel, onPick, excludeCurrent = false }) => {
+  const ordered = [...INSTRUMENT_LIST]
+    .filter(p => !excludeCurrent || p.id !== currentId)
+    .sort((a, b) => Number(b.id === currentId) - Number(a.id === currentId));
   return (
     <div
       role="menu"
@@ -95,6 +101,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onToggleTie,
   onTranspose,
   onNewSong,
+  onConvertInstrument,
   onExportJson,
   onImportJson,
   onExportPdf,
@@ -105,11 +112,16 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const gpFileInputRef = useRef<HTMLInputElement>(null);
   const gpImportProfileRef = useRef<InstrumentProfile>(profile);
-  const [openMenu, setOpenMenu] = useState<'new' | 'gp' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'new' | 'convert' | 'gp' | null>(null);
 
   const handleTuningChange = (key: TuningPresetKey) => {
     // Notes keep their frets; chord diagrams are re-fingered to sound the same chords in the new tuning
     onUpdateDocument(prev => retuneDocument(prev, profile.tunings.find(t => t.key === key) || profile.defaultTuning));
+  };
+
+  const handleCapoChange = (capo: number) => {
+    // Notes keep their frets (relative to the capo), so the song sounds at the new capo position
+    onUpdateDocument(prev => setCapo(prev, capo));
   };
 
   const handleStemsToggle = () => {
@@ -282,6 +294,33 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </div>
           )}
 
+          {/* Convert the Song to Another Instrument (choose instrument) */}
+          {onConvertInstrument && (
+            <div className="relative">
+              <button
+                onClick={() => setOpenMenu(openMenu === 'convert' ? null : 'convert')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+                title="Move this tab onto another instrument, keeping the pitches where its strings allow"
+                aria-haspopup="menu"
+                aria-expanded={openMenu === 'convert'}
+              >
+                <ArrowRightLeft className="w-4 h-4 text-purple-400" />
+                <span>Convert</span>
+              </button>
+              {openMenu === 'convert' && (
+                <InstrumentMenu
+                  currentId={profile.id}
+                  excludeCurrent
+                  getLabel={p => `Convert to ${p.name}`}
+                  onPick={p => {
+                    setOpenMenu(null);
+                    onConvertInstrument(p.id);
+                  }}
+                />
+              )}
+            </div>
+          )}
+
           {/* Open / Import .uketab Document */}
           <button
             onClick={() => jsonFileInputRef.current?.click()}
@@ -371,7 +410,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </div>
       </div>
 
-      {/* Secondary Settings Row: Tuning, Stems, Zoom, Metronome, Transposition, Max Fret Limit */}
+      {/* Secondary Settings Row: Tuning, Capo, Stems, Zoom, Metronome, Transposition, Max Fret Limit */}
       <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-4">
           {/* Tuning Preset Selector */}
@@ -388,6 +427,22 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               {!profile.tunings.some(t => t.key === tuning.key) && (
                 <option value={tuning.key}>{tuning.name}</option>
               )}
+            </select>
+          </div>
+
+          {/* Capo Selector (fret numbers are relative to the capo) */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 font-medium">Capo:</span>
+            <select
+              aria-label="Capo"
+              value={document.capo ?? 0}
+              onChange={(e) => handleCapoChange(parseInt(e.target.value, 10))}
+              className="bg-slate-950 border border-slate-800 text-amber-400 font-semibold rounded-lg px-2 py-1 focus:border-amber-500 outline-none cursor-pointer"
+            >
+              <option value={0}>None</option>
+              {Array.from({ length: MAX_CAPO }, (_, i) => i + 1).map(fret => (
+                <option key={fret} value={fret}>{fret}</option>
+              ))}
             </select>
           </div>
 

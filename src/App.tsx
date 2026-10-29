@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TabDocument, InstrumentId, DurationType, ChordMarker, DURATION_KEY_MAP } from './types/tab';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
-import { getBeatDurationMs, getEffectiveChordPalette, extractChordFrets } from './utils/musicTheory';
+import { getBeatDurationMs, getEffectiveChordPalette, extractChordFrets, getSoundingTuning } from './utils/musicTheory';
 import {
   assignChordOnSelect, addNote, removeNote, insertBeatAfter, toggleRest, toggleTriplet, toggleTie, setBeatChord,
   setChordPalette, deleteBeat, setBeatDuration, setBeatLyric, transposeDocument, addMeasure, duplicateMeasureRange,
-  setMeasureTimeSignature
+  setMeasureTimeSignature, convertInstrument
 } from './utils/documentEdits';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { getMeasureClickOffsetsMs, getMeasureDurationMs, getColumnStartOffsetMs } from './utils/playbackTiming';
@@ -85,7 +85,7 @@ export const App: React.FC = () => {
       const isFirstBeatInMeasure = (currentIndex === 0) || (allBeats[currentIndex - 1].measureIndex !== beatInfo.measureIndex);
 
       if (!beatInfo.isRest && !beatInfo.isTied) {
-        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure, profile.synthVoice);
+        playBeatChord(beatInfo, getSoundingTuning(document), false, isFirstBeatInMeasure, profile.synthVoice);
       }
 
       // Metronome follows the time signature, not the columns: schedule a measure's beat clicks on entering it
@@ -307,6 +307,19 @@ export const App: React.FC = () => {
     }
   };
 
+  // Computed from the current document rather than a functional update, because the dropped count is needed here.
+  // Beat ids are kept, so the selected beat stays selected.
+  const handleConvertInstrument = (instrumentId: InstrumentId) => {
+    const target = getInstrumentProfile(instrumentId);
+    if (!window.confirm(`Convert this tab to ${target.name.toLowerCase()} (${target.stringCount} strings, ${target.defaultTuning.name})? Notes are moved onto the new strings at the same pitch where possible.`)) return;
+    const { document: converted, droppedCount } = convertInstrument(document, target);
+    setDocument(converted);
+    setSelectedString(prev => Math.min(prev, converted.tuning.pitches.length));
+    if (droppedCount > 0) {
+      window.alert(`${droppedCount} note(s) did not fit on the ${target.name.toLowerCase()} and were removed.`);
+    }
+  };
+
   const handleExportJson = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(document, null, 2));
     const downloadAnchor = window.document.createElement('a');
@@ -427,6 +440,7 @@ export const App: React.FC = () => {
             onToggleTie={selectedBeatId ? () => handleToggleTie(selectedBeatId) : undefined}
             onTranspose={handleTranspose}
             onNewSong={handleNewSong}
+            onConvertInstrument={handleConvertInstrument}
             onExportJson={handleExportJson}
             onImportJson={handleImportJson}
             onExportPdf={handleExportPdf}
@@ -455,7 +469,8 @@ export const App: React.FC = () => {
           <h1>{document.title || `Untitled ${profile.name} Tab`}</h1>
           {document.artist && <p className="artist">{document.artist}</p>}
           <p className="meta">
-            Tuning: {document.tuning.name} ({document.tuning.stringsDisplay.join('-')}) &bull; Tempo: {document.tempo} BPM
+            Tuning: {document.tuning.name} ({document.tuning.stringsDisplay.join('-')}) &bull;{' '}
+            {document.capo ? <>Capo {document.capo} &bull;{' '}</> : null}Tempo: {document.tempo} BPM
           </p>
         </div>
 

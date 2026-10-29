@@ -5,11 +5,11 @@ import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
 import { BASS_PROFILE } from '../instruments/bass';
 import { getDocumentProfile } from '../instruments';
 import { createBlankTabDocument } from './sampleData';
-import { createChordMarker, getChordPreset } from './musicTheory';
+import { calculatePitch, createChordMarker, getChordPreset, getDefaultChordPalette, getSoundingTuning } from './musicTheory';
 import {
   IdFactory, assignChordOnSelect, addNote, removeNote, insertBeatAfter, toggleRest, toggleTriplet, toggleTie,
   setBeatChord, setBeatDuration, setBeatLyric, setChordPalette, deleteBeat, transposeDocument, retuneDocument,
-  addMeasure, duplicateMeasureRange, setMeasureTimeSignature
+  addMeasure, duplicateMeasureRange, setMeasureTimeSignature, setCapo, convertInstrument
 } from './documentEdits';
 
 const sequentialIds = (): IdFactory => {
@@ -75,6 +75,9 @@ describe('documentEdits: notes', () => {
     retuneDocument(start, UKULELE_TUNINGS['aDF#B']);
     setMeasureTimeSignature(start, 'm1', [6, 8]);
     addMeasure(start);
+    setCapo(start, 3);
+    convertInstrument(start, GUITAR_PROFILE);
+    convertInstrument(setCapo(start, 5), BASS_PROFILE);
     expect(JSON.stringify(start)).toBe(snapshot);
   });
 
@@ -303,5 +306,156 @@ describe('documentEdits: chords follow tuning changes and transposition', () => 
     const dropDStart = retuneDocument(start, GUITAR_TUNINGS.DADGBE);
     const dropD = transposeDocument(dropDStart, 3, getDocumentProfile(dropDStart)).document;
     expect(beat(dropD, 'b1').chord).toEqual({ name: 'G', frets: [5, 2, 0, 0, 0, 3], baseFret: 2 });
+  });
+});
+
+describe('documentEdits: capo', () => {
+  it('sets the capo, keeping every note\'s fret so the song sounds higher', () => {
+    const start = makeDoc();
+    const doc = setCapo(start, 2);
+    expect(doc.capo).toBe(2);
+    expect(doc.measures).toBe(start.measures);
+    expect(calculatePitch(1, 3, getSoundingTuning(doc))).toBe(calculatePitch(1, 3, start.tuning) + 2);
+    expect(setCapo(doc, 0).capo).toBe(0);
+    expect(setCapo(start, 12).capo).toBe(12);
+  });
+
+  it('ignores capo values outside 0..12 or not whole frets', () => {
+    const start = setCapo(makeDoc(), 4);
+    [-1, 13, 2.5, NaN, Infinity].forEach(capo => expect(setCapo(start, capo)).toBe(start));
+  });
+
+  it('transposes only up to the highest fret above the capo', () => {
+    // Guitar fret 20 + 2 = 22 is allowed without a capo, but beyond 24 - 3 = 21 with capo 3
+    const guitarDoc = createBlankTabDocument(GUITAR_PROFILE);
+    guitarDoc.measures[0].beats[0].notes = [{ id: 'g1', string: 1, fret: 20 }];
+    const plain = transposeDocument(guitarDoc, 2, GUITAR_PROFILE);
+    expect(plain.document.measures[0].beats[0].notes).toEqual([{ id: 'g1', string: 1, fret: 22 }]);
+
+    // No other string reaches the pitch either, so the note is clamped and counted
+    const capoed = transposeDocument(setCapo(guitarDoc, 3), 2, GUITAR_PROFILE);
+    expect(capoed.document.measures[0].beats[0].notes).toEqual([{ id: 'g1', string: 1, fret: 21 }]);
+    expect(capoed.inexactCount).toBe(1);
+  });
+});
+
+describe('documentEdits: converting to another instrument', () => {
+  const allNotes = (doc: TabDocument) => doc.measures.flatMap(m => m.beats.flatMap(b => b.notes));
+  const soundingPitches = (doc: TabDocument) => {
+    const tuning = getSoundingTuning(doc);
+    return new Map(allNotes(doc).filter(n => n.fret >= 0).map(n => [n.id, calculatePitch(n.string, n.fret, tuning)]));
+  };
+  const expectValidStrings = (doc: TabDocument, stringCount: number, maxFret: number) => {
+    doc.measures.flatMap(m => m.beats).forEach(b => {
+      const strings = b.notes.map(n => n.string);
+      expect(new Set(strings).size).toBe(strings.length);
+      b.notes.forEach(n => {
+        expect(n.string).toBeGreaterThanOrEqual(1);
+        expect(n.string).toBeLessThanOrEqual(stringCount);
+        expect(n.fret).toBeLessThanOrEqual(maxFret);
+      });
+    });
+  };
+
+  // Ukulele: b2 = C chord (detected), b3 = cleared chord, b4 = a chord missing from the guitar library
+  function makeUkeSong(): TabDocument {
+    const doc = setBeatChord(setBeatChord(addCMajor(makeDoc(), 'b2'), 'b3', null), 'b4', getChordPreset('E7m'));
+    return { ...doc, layout: { ...doc.layout, maxFretLimit: 7 } };
+  }
+
+  it('moves a ukulele song onto the guitar at the same pitches, keeping ids, ties and everything else', () => {
+    const start = makeUkeSong();
+    start.measures[0].beats[0].notes = [{ id: 'n1', string: 1, fret: 3, isTied: true }];
+    const { document, droppedCount } = convertInstrument(start, GUITAR_PROFILE);
+
+    expect(droppedCount).toBe(0);
+    expect(document.instrument).toBe('guitar');
+    expect(document.tuning).toBe(GUITAR_PROFILE.defaultTuning);
+    expect(document.capo).toBe(0);
+    expect(document.layout).toEqual({ ...start.layout, maxFretLimit: GUITAR_PROFILE.defaultMaxFretLimit });
+    expect(soundingPitches(document)).toEqual(soundingPitches(start)); // Ukulele pitches lie in the guitar range
+    expectValidStrings(document, 6, GUITAR_PROFILE.importMaxFret);
+    expect(beat(document, 'b1').notes).toEqual([{ id: 'n1', string: 1, fret: 8, isTied: true }]);
+    // C chord g4 C4 E4 C5 (in note order): String 1 fret 3, String 2 fret 1, String 3 fret 9, String 4 fret 22
+    expect(beat(document, 'b2').notes.map(n => [n.string, n.fret])).toEqual([[1, 3], [2, 1], [3, 9], [4, 22]]);
+
+    expect(document.title).toBe(start.title);
+    expect(document.tempo).toBe(start.tempo);
+    const rhythm = (doc: TabDocument) => doc.measures.map(m => [m.id, m.timeSignature, m.beats.map(b => [b.id, b.duration, b.isRest, b.lyric])]);
+    expect(rhythm(document)).toEqual(rhythm(start));
+  });
+
+  it('maps chords by name onto the target library, unsets unknown ones and keeps cleared ones', () => {
+    const { document } = convertInstrument(makeUkeSong(), GUITAR_PROFILE);
+    expect(beat(document, 'b2').chord).toEqual(getChordPreset('C', GUITAR_PROFILE));
+    expect(beat(document, 'b3').chord).toBeNull();
+    expect(beat(document, 'b4').chord).toBeUndefined();
+    expect(beat(document, 'b1').chord).toBeUndefined();
+    // The ukulele default palette without E7m, which the guitar library lacks
+    expect(document.chordPalette).toEqual(['C', 'G', 'Am', 'F', 'Em', 'Dm', 'D', 'E7'].map(n => getChordPreset(n, GUITAR_PROFILE)));
+  });
+
+  it('includes the capo in the sounding pitch and removes it', () => {
+    const { document } = convertInstrument(setCapo(makeDoc(), 2), GUITAR_PROFILE);
+    // Ukulele A string fret 3 with capo 2 sounds D5 (74): guitar String 1 fret 10
+    expect(beat(document, 'b1').notes).toEqual([{ id: 'n1', string: 1, fret: 10 }]);
+    expect(document.capo).toBe(0);
+  });
+
+  it('folds a guitar song into the bass range, dropping notes beyond four strings and counting them', () => {
+    const start = makeGuitarDoc();
+    const { document, droppedCount } = convertInstrument(start, BASS_PROFILE);
+
+    // E chord E2 B2 E3 G#3 B3 E4 folded into E1..G3: E2 B2 E3 G#2 take the four strings, B2 and E3 are dropped
+    expect(droppedCount).toBe(2);
+    expect(beat(document, 'b1').notes.map(n => [n.id, n.string, n.fret])).toEqual([
+      ['e0', 2, 2], ['e1', 1, 4], ['e2', 3, 19], ['e3', 4, 16]
+    ]);
+    expectValidStrings(document, 4, BASS_PROFILE.importMaxFret);
+    const before = soundingPitches(start);
+    soundingPitches(document).forEach((pitch, id) => {
+      expect((before.get(id)! - pitch) % 12).toBe(0);
+      expect(pitch).toBeGreaterThanOrEqual(28);
+      expect(pitch).toBeLessThanOrEqual(55);
+    });
+
+    // No guitar default chord is in the bass library: chords unset, palette falls back to the bass default
+    expect(beat(document, 'b1').chord).toBeUndefined();
+    expect(beat(document, 'b2').chord).toBeNull();
+    expect(document.chordPalette).toEqual(getDefaultChordPalette(BASS_PROFILE));
+  });
+
+  it('keeps only palette chords the target library has, matching names case-insensitively', () => {
+    const palette = ['E5', 'G', 'a5', 'Mine'].map(n => createChordMarker(n, [0, 0, 0, 0, 0, 0], undefined, GUITAR_PROFILE));
+    const { document } = convertInstrument(setChordPalette(makeGuitarDoc(), palette), BASS_PROFILE);
+    expect(document.chordPalette).toEqual([getChordPreset('E5', BASS_PROFILE), getChordPreset('A5', BASS_PROFILE)]);
+  });
+
+  it('keeps muted notes on strings the target has, ahead of sounding notes, and drops the others', () => {
+    const start = makeGuitarDoc();
+    start.measures[0].beats[2].notes = [
+      { id: 'x6', string: 6, fret: -1 },
+      { id: 'b2', string: 5, fret: 2 },
+      { id: 'x1', string: 1, fret: -1, isTied: true }
+    ];
+    const { document, droppedCount } = convertInstrument(start, BASS_PROFILE);
+
+    // B2 would take String 1 at fret 4, but the muted String 1 keeps its string: B2 goes to String 2 fret 9
+    expect(beat(document, 'b3').notes).toEqual([
+      { id: 'b2', string: 2, fret: 9 },
+      { id: 'x1', string: 1, fret: -1, isTied: true }
+    ]);
+    expect(droppedCount).toBe(3); // B3 and E4 of the E chord, and the muted String 6
+  });
+
+  it('regression: a song\'s instrument can be changed after creation', () => {
+    const uke = makeUkeSong();
+    const guitar = convertInstrument(uke, GUITAR_PROFILE).document;
+    const back = convertInstrument(guitar, UKULELE_PROFILE);
+    expect(back.document.instrument).toBe('ukulele');
+    expect(back.droppedCount).toBe(0);
+    expect(soundingPitches(back.document)).toEqual(soundingPitches(uke));
+    expectValidStrings(back.document, 4, UKULELE_PROFILE.importMaxFret);
+    expect(beat(back.document, 'b2').chord).toEqual(getChordPreset('C'));
   });
 });

@@ -4,7 +4,7 @@ import { convertGpDuration, cleanGpLyric, parseGuitarProToTab, resolveSourceTuni
 import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
 import { BASS_PROFILE, BASS_TUNINGS } from '../instruments/bass';
 import { UKULELE_PROFILE } from '../instruments/ukulele';
-import { calculatePitch } from './musicTheory';
+import { assignNotesToStrings, calculatePitch, getSoundingTuning } from './musicTheory';
 
 /**
  * Builds real Guitar Pro 7 file bytes from alphaTex source, optionally adjusting the parsed score first.
@@ -53,7 +53,7 @@ describe('guitarProImporter helper utilities', () => {
 });
 
 describe('guitarProImporter: Guitar Import Keeps Source Fingering', () => {
-  it('keeps tuning, strings and capo-adjusted frets from a 6-string guitar track', () => {
+  it('keeps tuning, strings, frets and the capo from a 6-string guitar track', () => {
     const doc = parseGuitarProToTab(buildGpBytes(DROP_D_CAPO_TEX), 'riff.gp', GUITAR_PROFILE);
 
     expect(doc.instrument).toBe('guitar');
@@ -62,14 +62,23 @@ describe('guitarProImporter: Guitar Import Keeps Source Fingering', () => {
 
     const beats = doc.measures[0].beats;
     const fingering = (i: number) => beats[i].notes.map(n => [n.string, n.fret]).sort();
-    // Capo 2 is folded into the fret numbers so pitches stay correct
-    expect(fingering(0)).toEqual([[6, 5]]);
-    expect(fingering(1)).toEqual([[1, 2]]);
-    expect(fingering(2)).toEqual([[4, 9], [5, 7]]);
+    // The capo is kept and frets stay relative to it, as written in the source
+    expect(doc.capo).toBe(2);
+    expect(fingering(0)).toEqual([[6, 3]]);
+    expect(fingering(1)).toEqual([[1, 0]]);
+    expect(fingering(2)).toEqual([[4, 7], [5, 5]]);
     expect(beats[3].isRest).toBe(true);
 
     // Low D string, fret 3 with capo 2 sounds G2 (MIDI 43), the pitch alphaTab plays for the source note
-    expect(calculatePitch(6, 5, doc.tuning)).toBe(43);
+    expect(calculatePitch(6, 3, getSoundingTuning(doc))).toBe(43);
+  });
+
+  it('folds a capo above the editor range into the fret numbers', () => {
+    const doc = parseGuitarProToTab(buildGpBytes(DROP_D_CAPO_TEX, score => {
+      score.tracks[0].staves[0].capo = 14;
+    }), 'riff.gp', GUITAR_PROFILE);
+    expect(doc.capo).toBe(0);
+    expect(doc.measures[0].beats[0].notes[0]).toMatchObject({ string: 6, fret: 17 });
   });
 
   it('builds the chord palette from library shapes adapted to the imported tuning', () => {
@@ -141,6 +150,23 @@ describe('guitarProImporter: Bass Import', () => {
 });
 
 describe('guitarProImporter: Ukulele Import Re-voices Guitar Tracks', () => {
+  it('places sounding pitches with the shared assignNotesToStrings solver and sets no capo', () => {
+    const bytes = buildGpBytes(DROP_D_CAPO_TEX);
+    const doc = parseGuitarProToTab(bytes, 'riff.gp', UKULELE_PROFILE);
+    expect(doc.capo).toBe(0);
+
+    const sourceBeats = alphaTab.importer.ScoreLoader.loadScoreFromBytes(new Uint8Array(bytes)).tracks[0].staves[0].bars[0].voices[0].beats;
+    sourceBeats.forEach((sourceBeat, i) => {
+      const expected = assignNotesToStrings(
+        sourceBeat.notes.map(n => n.realValue),
+        UKULELE_PROFILE.defaultTuning,
+        UKULELE_PROFILE.importMaxFret,
+        { pitchRange: UKULELE_PROFILE.importPitchRange }
+      );
+      expect(doc.measures[0].beats[i].notes.map(n => ({ string: n.string, fret: n.fret }))).toEqual(expected);
+    });
+  });
+
   it('folds a guitar track into the High-G ukulele range on 4 strings', () => {
     const doc = parseGuitarProToTab(buildGpBytes(DROP_D_CAPO_TEX), 'riff.gp', UKULELE_PROFILE);
 

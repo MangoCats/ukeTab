@@ -1,6 +1,7 @@
 import * as alphaTab from '@coderline/alphatab';
 import { TabDocument, Measure, BeatColumn, TabNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/tab';
-import { autoDetectChordFromBeatNotes, getDefaultChordPalette, getStringNumbers, midiToNoteName } from './musicTheory';
+import { assignNotesToStrings, autoDetectChordFromBeatNotes, getDefaultChordPalette, midiToNoteName } from './musicTheory';
+import { MAX_CAPO } from './documentEdits';
 import { getInstrumentProfile, getTuningProfile } from '../instruments';
 
 /**
@@ -131,6 +132,12 @@ export function parseGuitarProToTab(
     : profile.defaultTuning;
   const stringCount = tuning.pitches.length;
 
+  // A kept fingering keeps the source capo (frets stay relative to it); a capo above the editor's range is
+  // folded into the fret numbers instead. Re-voiced notes use sounding pitches, so their document has no capo.
+  const sourceCapo = keepSourceFingering ? staff.capo : 0;
+  const capo = sourceCapo <= MAX_CAPO ? sourceCapo : 0;
+  const capoFretOffset = sourceCapo - capo;
+
   // Chord palette and detection use library shapes adapted to the resolved tuning
   const chordProfile = getTuningProfile(profile, tuning);
   const chordPalette = getDefaultChordPalette(chordProfile);
@@ -152,19 +159,13 @@ export function parseGuitarProToTab(
         const isRest = gpBeat.isRest || !gpBeat.notes || gpBeat.notes.length === 0;
 
         const tabNotes: TabNote[] = [];
-        const assignedStrings = new Set<number>();
-        let hasTiedNote = false;
+        const isTiedNote = (gpNote: alphaTab.model.Note) => !!(gpNote.isTieDestination || (gpNote as any).tie);
+        const hasTiedNote = !isRest && gpBeat.notes.some(isTiedNote);
 
-        if (!isRest && gpBeat.notes.length > 0) {
-          gpBeat.notes.forEach((gpNote, nIdx) => {
-            let pitch = gpNote.realValue;
-            const isTied = !!(gpNote.isTieDestination || (gpNote as any).tie);
-
-            if (isTied) {
-              hasTiedNote = true;
-            }
-
-            if (keepSourceFingering) {
+        if (!isRest) {
+          if (keepSourceFingering) {
+            const assignedStrings = new Set<number>();
+            gpBeat.notes.forEach((gpNote, nIdx) => {
               // alphaTab string 1 is the bottom line; frets are played relative to the capo
               const sourceString = stringCount - gpNote.string + 1;
               if (!assignedStrings.has(sourceString)) {
@@ -172,57 +173,29 @@ export function parseGuitarProToTab(
                 tabNotes.push({
                   id: `gp-n-${mIdx}-${bIdx}-${nIdx}`,
                   string: sourceString,
-                  fret: gpNote.isDead ? -1 : gpNote.fret + staff.capo,
-                  isTied: isTied
+                  fret: gpNote.isDead ? -1 : gpNote.fret + capoFretOffset,
+                  isTied: isTiedNote(gpNote)
                 });
               }
-              return;
-            }
-
-            // Fold by octaves into the instrument's playable pitch range
-            if (profile.importPitchRange) {
-              const [minPitch, maxPitch] = profile.importPitchRange;
-              while (pitch < minPitch) pitch += 12;
-              while (pitch > maxPitch) pitch -= 12;
-            }
-
-            // Solve optimal string & fret on the instrument
-            const targetStrings = getStringNumbers(stringCount);
-            let bestString: number | null = null;
-            let bestFret = 999;
-
-            for (const s of targetStrings) {
-              if (!assignedStrings.has(s)) {
-                const fret = pitch - tuning.pitches[s - 1];
-                if (fret >= 0 && fret <= profile.importMaxFret) {
-                  if (fret < bestFret) {
-                    bestFret = fret;
-                    bestString = s;
-                  }
-                }
-              }
-            }
-
-            if (!bestString) {
-              for (const s of targetStrings) {
-                if (!assignedStrings.has(s)) {
-                  bestString = s;
-                  bestFret = Math.max(0, Math.min(profile.importMaxFret, pitch - tuning.pitches[s - 1]));
-                  break;
-                }
-              }
-            }
-
-            if (bestString) {
-              assignedStrings.add(bestString);
+            });
+          } else {
+            // Sounding pitches (capo included) folded into the instrument's range and placed on its strings
+            const placements = assignNotesToStrings(
+              gpBeat.notes.map(n => n.realValue),
+              tuning,
+              profile.importMaxFret,
+              { pitchRange: profile.importPitchRange }
+            );
+            placements.forEach((placement, nIdx) => {
+              if (!placement) return; // More notes than strings
               tabNotes.push({
                 id: `gp-n-${mIdx}-${bIdx}-${nIdx}`,
-                string: bestString,
-                fret: bestFret,
-                isTied: isTied
+                string: placement.string,
+                fret: placement.fret,
+                isTied: isTiedNote(gpBeat.notes[nIdx])
               });
-            }
-          });
+            });
+          }
         }
 
         const autoChord = autoDetectChordFromBeatNotes(tabNotes, chordPalette, chordProfile);
@@ -270,6 +243,7 @@ export function parseGuitarProToTab(
     tempo: tempo,
     keySignature: 'C',
     tuning: tuning,
+    capo: capo,
     layout: {
       stemsPlacement: 'below',
       zoomScale: 1.0,
