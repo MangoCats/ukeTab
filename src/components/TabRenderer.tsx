@@ -1,10 +1,35 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TabDocument, TabNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/tab';
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
 import { computeBeams, computeTripletGroups, shouldShowTimeSignature, findRowStartIndices } from '../utils/notationLayout';
 import { ChordDiagram, getChordDiagramWidth } from './ChordDiagram';
 import { getDocumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
+
+// Print-only row labels are rasterised at this multiple of CSS pixels so they stay sharp on paper
+const PRINT_LABEL_SCALE = 4;
+
+/**
+ * Draws right-aligned black labels into a PNG data URL. Print row labels are images rather than text because
+ * the hidden ones (measures that do not start a printed row) would otherwise remain in the PDF text layer.
+ * Returns null where no 2D canvas is available (e.g. jsdom), so the caller falls back to SVG text.
+ */
+function renderLabelsToPng(labels: { text: string; y: number }[], width: number, height: number, fontPx: number, rightInset: number): string | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext?.('2d');
+  if (!ctx) return null;
+
+  canvas.width = Math.ceil(width * PRINT_LABEL_SCALE);
+  canvas.height = Math.ceil(height * PRINT_LABEL_SCALE);
+  ctx.scale(PRINT_LABEL_SCALE, PRINT_LABEL_SCALE);
+  ctx.fillStyle = '#000000';
+  ctx.font = `bold ${fontPx}px monospace`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  labels.forEach(({ text, y }) => ctx.fillText(text, width - rightInset, y));
+  return canvas.toDataURL('image/png');
+}
 
 interface TabRendererProps {
   document: TabDocument;
@@ -282,6 +307,27 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const staffHeight = lastStringY - string1Y;
   const staffMidY = (string1Y + lastStringY) / 2;
   const measureSvgHeight = topMargin + staffHeight + bottomMargin;
+
+  // Print row labels as one PNG shared by every measure (same size and positions everywhere); null without a canvas
+  const printLabelsHeight = lastStringY + 8 * zoom;
+  const printLabelsPng = useMemo(
+    () => renderLabelsToPng(
+      stringNumbers.map(s => ({ text: tuning.stringsDisplay[s - 1], y: getStringY(s) + 4 * zoom })),
+      labelGutterWidth, printLabelsHeight, 12 * zoom, 6 * zoom
+    ),
+    // getStringY depends only on topMargin and the line spacing (zoom)
+    [tuning.stringsDisplay.join('|'), zoom, topMargin, labelGutterWidth, printLabelsHeight]
+  );
+
+  const renderPrintGutterLabels = (height: number) => printLabelsPng ? (
+    <img
+      className="string-gutter-labels print-gutter-labels"
+      src={printLabelsPng}
+      alt=""
+      aria-hidden="true"
+      style={{ position: 'absolute', top: 0, right: '100%', width: labelGutterWidth, height: printLabelsHeight, pointerEvents: 'none' }}
+    />
+  ) : renderGutterLabels('print-gutter-labels', height);
 
   // String labels in the gutter left of a measure block, right-aligned on each string line (same style as the first-measure labels)
   const renderGutterLabels = (className: string, height: number) => (
@@ -1090,7 +1136,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                 {/* Row-start string labels for later measures. Screen: only measures detected as starting a row.
                     Print: every later measure, stacked behind the previous (opaque) block so only row starts show (see index.css). */}
                 {!isFirstMeasure && rowStartIndices.includes(mIdx) && renderGutterLabels('screen-gutter-labels no-print', svgHeight)}
-                {!isFirstMeasure && renderGutterLabels('print-gutter-labels', svgHeight)}
+                {!isFirstMeasure && renderPrintGutterLabels(svgHeight)}
               </div>
             );
           })}

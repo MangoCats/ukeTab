@@ -90,7 +90,7 @@ Library shapes are defined for the instrument's default tuning. In any other tun
 ### 4.1 Staff & Measures
 - The staff has one horizontal line per string, 24 px apart at 100% zoom.
 - **First measure of the document only**: string labels (from the tuning) at the far left inside the measure, and a heavy double barline.
-- **Every other row start**: the string labels repeat in a 40 px gutter to the left of the row's first measure, without changing measure widths. On screen the rows are detected after layout; in print the labels show at each printed row start.
+- **Every other row start**: the string labels repeat in a 40 px gutter to the left of the row's first measure, without changing measure widths. On screen the rows are detected after layout; in print the labels show at each printed row start. In print these row labels are images, so the PDF's searchable text contains the string labels only once (first measure).
 - **Time signature**: shown on the first measure and on every measure whose time signature differs from the previous measure's (either number).
 - Each measure ends with a single barline. The last measure of the document also has a heavy final barline.
 - On screen, each measure shows a small `M{n}` measure-number badge (not printed).
@@ -366,7 +366,6 @@ See Section 8.
 ---
 
 ## 10. Known Limitations
-- In a PDF, the hidden row labels of measures that do not start a row remain in the text layer (invisible, but found by text search or copy).
 - There is no capo setting; imported capos are folded into fret numbers.
 - A document's instrument cannot be changed after creation.
 

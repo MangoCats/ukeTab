@@ -280,6 +280,28 @@ describe('TabRenderer Component', () => {
       expect(container.querySelectorAll('.string-gutter-labels')).toHaveLength(0);
     });
 
+    it('regression: print row labels are images when a canvas exists, so hidden ones never reach the PDF text layer', () => {
+      const fillText = vi.fn();
+      const fakeContext = { scale: vi.fn(), fillText, fillStyle: '', font: '', textAlign: '', textBaseline: '' };
+      const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(fakeContext as unknown as CanvasRenderingContext2D);
+      const toDataURL = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,TEST');
+      try {
+        const { container } = renderDoc({ ...mockTabDocument, measures });
+        const printLabels = Array.from(container.querySelectorAll('.print-gutter-labels'));
+        expect(printLabels).toHaveLength(3);
+        printLabels.forEach(el => {
+          expect(el.tagName).toBe('IMG');
+          expect(el.getAttribute('src')).toBe('data:image/png;base64,TEST');
+          expect(el.querySelectorAll('text')).toHaveLength(0);
+        });
+        // One shared image, drawn once with every string label
+        expect(fillText.mock.calls.map(c => c[0])).toEqual(['A4', 'E4', 'C4', 'g4']);
+      } finally {
+        getContext.mockRestore();
+        toDataURL.mockRestore();
+      }
+    });
+
     it('renders print-only gutter labels for every measure after the first, one per string line', () => {
       const { container } = renderDoc({ ...mockTabDocument, measures });
       const blocks = Array.from(container.querySelectorAll('.measure-svg-block'));

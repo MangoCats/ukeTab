@@ -62,6 +62,7 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | `src/components/DuplicateMeasuresModal.tsx` | Start/end range dialog for measure duplication |
 | `src/components/ShortcutHelp.tsx` | Help panel listing every `SHORTCUTS` entry |
 | `src/index.css` | Utility classes, component styles, `@media print` rules (§8.3) |
+| `src/testSetup.ts` | Vitest setup: reports "no 2D canvas" in jsdom instead of logging "Not implemented" (§10) |
 
 ---
 
@@ -309,7 +310,7 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
   - A beamed column gets a stub for each of its levels that no joined neighbour shares, pointing to the previous joined neighbour, else the next. Unbeamed beamable columns draw `flagCount` flags.
 - **Triplets** (`computeTripletGroups(beats)` → `{ startIndex, endIndex }[]`): runs of consecutive `isTriplet` columns split into chunks of three (last chunk 1–2). Brackets are drawn after the columns with pointer events disabled; classes `triplet-bracket` and `triplet-number`.
 - **Time signature** (`shouldShowTimeSignature(measures, index)`): true for index 0 and wherever `[num, den]` differs from the previous measure. String labels inside the block and the opening double barline are drawn only for `measures[0]`.
-- **Row-start labels**: other row starts get labels in an absolute `<svg class="string-gutter-labels">` at `right: 100%` of the measure block (`aria-hidden`, no pointer events). On screen, `findRowStartIndices(offsetTops)` (index 0 plus each block lower than the previous by more than 0.5 px) runs in a `useLayoutEffect` on document/zoom changes and on wrapper resize (`ResizeObserver` when available); row-start blocks with index > 0 get `.screen-gutter-labels.no-print`, and the wrapper has a `40 × zoom` left padding. Print cannot be measured from script, so every block with index > 0 also gets `.print-gutter-labels`, hidden on screen and shown in print with `z-index: -1` inside a `.tab-canvas-wrapper` with `isolation: isolate`: the opaque white previous block covers it unless the block starts a printed row. The final barline is drawn only on the last measure.
+- **Row-start labels**: other row starts get labels in an absolute `<svg class="string-gutter-labels">` at `right: 100%` of the measure block (`aria-hidden`, no pointer events). On screen, `findRowStartIndices(offsetTops)` (index 0 plus each block lower than the previous by more than 0.5 px) runs in a `useLayoutEffect` on document/zoom changes and on wrapper resize (`ResizeObserver` when available); row-start blocks with index > 0 get `.screen-gutter-labels.no-print`, and the wrapper has a `40 × zoom` left padding. Print cannot be measured from script, so every block with index > 0 also gets `.print-gutter-labels`, hidden on screen and shown in print with `z-index: -1` inside a `.tab-canvas-wrapper` with `isolation: isolate`: the opaque white previous block covers it unless the block starts a printed row. The final barline is drawn only on the last measure. The print-only labels are one PNG per document (`renderLabelsToPng`, drawn on a canvas at 4× CSS pixels, black, memoised on the labels, zoom and string positions) shown as an `<img>` in every later block, so hidden labels never reach the PDF text layer; without a 2D canvas (jsdom) they fall back to SVG text.
 
 ### 6.2 Note Cells & Interaction
 - For each string of each column, a transparent hit rectangle selects the beat and string. If the cell is empty, it also calls `onAddNote` with the ghost fret, or 0.
@@ -416,7 +417,7 @@ Two-digit frets use `resolveFretDigit(digit, pendingDigit, msSinceLastDigit)`, w
 
 ## 10. Automated Testing
 
-Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `npm run build`.
+Vitest runs every `src/**/*.test.ts(x)` file in jsdom, after `src/testSetup.ts` (configured in `vite.config.ts`). `tsc` runs as part of `npm run build`.
 
 | File | Covers |
 |---|---|
@@ -436,7 +437,7 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile; every library chord spelled correctly in every tuning of every instrument; tuning-adapted profile passthrough and memoisation |
 | `instruments/guitar.test.ts`, `bass.test.ts` | Registration; tuning labels match pitches; every library chord sounds exactly its named chord tones with the root in the bass; blank documents; base fret of high barre chords |
 | `instruments/chordSpelling.testUtil.ts` | Shared tuning and chord-spelling assertions (with a `rootInBass` option for re-entrant tunings) for the instrument tests (not a test file) |
-| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration; triplet bracket, 1/32 rest and flags, time-signature change, beam coordinates and stubs; row-start gutter labels (print-only for every later measure, screen-only at detected row starts); regression: triplet bracket clears the badge and lyrics clear the "3" |
+| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration; triplet bracket, 1/32 rest and flags, time-signature change, beam coordinates and stubs; row-start gutter labels (print-only for every later measure, screen-only at detected row starts); regression: triplet bracket clears the badge and lyrics clear the "3"; regression: print row labels are images when a canvas exists |
 | `components/ChordDiagram.test.tsx` | Dots, open circles, muted marks, base fret label |
 | `components/ChordPaletteModal.test.tsx` | Library list, close, tab switching |
 | `components/DuplicateMeasuresModal.test.tsx` | Open/closed rendering, confirm callback |
