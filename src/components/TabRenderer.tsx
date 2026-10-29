@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { TabDocument, TabNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/tab';
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
-import { computeBeams, computeTripletGroups, shouldShowTimeSignature } from '../utils/notationLayout';
+import { computeBeams, computeTripletGroups, shouldShowTimeSignature, findRowStartIndices } from '../utils/notationLayout';
 import { ChordDiagram, getChordDiagramWidth } from './ChordDiagram';
 import { getInstrumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
@@ -63,6 +63,27 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const stringHeaderWidth = 60 * zoom;
   const measurePadding = 15 * zoom;
   const beatWidth = 62 * zoom;
+  // Gutter left of a row-start measure block for its string labels (outside the block, so measure widths and wrapping are unchanged)
+  const labelGutterWidth = 40 * zoom;
+
+  // On screen: which measure blocks start a row, measured after layout (rows wrap via flexbox)
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const [rowStartIndices, setRowStartIndices] = useState<number[]>([0]);
+  useLayoutEffect(() => {
+    const wrapper = canvasWrapperRef.current;
+    if (!wrapper) return;
+    const measureRows = () => {
+      const offsetTops = Array.from(wrapper.children).map(el => (el as HTMLElement).offsetTop);
+      const next = findRowStartIndices(offsetTops);
+      setRowStartIndices(prev => (prev.length === next.length && prev.every((v, i) => v === next[i]) ? prev : next));
+    };
+    measureRows();
+    // Re-measure when the container is resized (rows re-wrap); jsdom has no ResizeObserver
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measureRows);
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, [document, zoom]);
 
   // Selected beat info for Chord Diagram & Inspector
   let activeChordNotes: TabNote[] = [];
@@ -262,6 +283,32 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const staffMidY = (string1Y + lastStringY) / 2;
   const measureSvgHeight = topMargin + staffHeight + bottomMargin;
 
+  // String labels in the gutter left of a measure block, right-aligned on each string line (same style as the first-measure labels)
+  const renderGutterLabels = (className: string, height: number) => (
+    <svg
+      className={`string-gutter-labels ${className}`}
+      width={labelGutterWidth}
+      height={height}
+      aria-hidden="true"
+      style={{ position: 'absolute', top: 0, right: '100%', overflow: 'visible', pointerEvents: 'none' }}
+    >
+      {stringNumbers.map(s => (
+        <text
+          key={`gutter-${s}`}
+          x={labelGutterWidth - 6 * zoom}
+          y={getStringY(s) + 4 * zoom}
+          textAnchor="end"
+          fill="#cbd5e1"
+          fontFamily="monospace"
+          fontSize={`${12 * zoom}px`}
+          fontWeight="bold"
+        >
+          {tuning.stringsDisplay[s - 1]}
+        </text>
+      ))}
+    </svg>
+  );
+
   return (
     <div className="w-full space-y-4 TabContainer">
       {/* Active Chord Box Preview Header (Hidden in Print) */}
@@ -279,7 +326,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 
       {/* Main Tablature Canvas: Modular Continuous Measure Blocks with Flexbox Wrapping */}
       <div className="w-full bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-4 shadow-2xl relative border-none shadow-none bg-transparent">
-        <div className="tab-canvas-wrapper flex flex-wrap items-start">
+        <div ref={canvasWrapperRef} className="tab-canvas-wrapper flex flex-wrap items-start" style={{ paddingLeft: labelGutterWidth }}>
           {measures.map((measure, mIdx) => {
             const isFirstMeasure = (mIdx === 0);
             const showTimeSignature = shouldShowTimeSignature(measures, mIdx);
@@ -312,15 +359,19 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             // Triplet brackets beyond the stem ends, on the stem side
             const tripletGroups = computeTripletGroups(measure.beats);
             const stemDirection = stemsBelow ? 1 : -1; // +1 = away from the staff downward
-            const tripletLineY = beamY + stemDirection * 14 * zoom;
+            // 22 beyond the stem end clears the on-screen duration badge (4–16 beyond the stem end)
+            const tripletLineY = beamY + stemDirection * 22 * zoom;
             const tripletHookY = tripletLineY - stemDirection * 5 * zoom;
             const tripletGap = 6 * zoom;
+            // Stems below: lyrics of a measure with triplets move 14 further from the staff (and the measure grows) to clear the bracket
+            const tripletLyricShift = stemsBelow && tripletGroups.length > 0 ? 14 * zoom : 0;
+            const svgHeight = measureSvgHeight + tripletLyricShift;
 
             return (
               <div key={measure.id} className="measure-svg-block inline-block relative">
                 <svg
                   width={measureSvgWidth}
-                  height={measureSvgHeight}
+                  height={svgHeight}
                   className="select-none overflow-visible bg-slate-950/80"
                   style={{ overflow: 'visible' }}
                 >
@@ -497,7 +548,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     const stemX = beatX;
                     const stemStartY = stemsBelow ? lastStringY + 6 * zoom : string1Y - 6 * zoom;
                     const stemEndY = stemsBelow ? lastStringY + 36 * zoom : string1Y - 36 * zoom;
-                    const lyricY = stemsBelow ? stemEndY + 24 * zoom : lastStringY + 25 * zoom;
+                    const lyricY = stemsBelow ? stemEndY + 24 * zoom + tripletLyricShift : lastStringY + 25 * zoom;
                     const isBeamed = beamLayout.beamed[bIdx];
                     const flagCount = isBeamed ? 0 : beamLayout.flagCounts[bIdx];
 
@@ -946,7 +997,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                         )}
 
                         {/* Duration Label Badge (Hidden in Print) */}
-                        <g className="no-print">
+                        <g className="duration-badge no-print">
                           <rect
                             x={stemX - 14 * zoom}
                             y={stemsBelow ? stemEndY + 4 * zoom : stemEndY - 16 * zoom}
@@ -1035,6 +1086,11 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     );
                   })}
                 </svg>
+
+                {/* Row-start string labels for later measures. Screen: only measures detected as starting a row.
+                    Print: every later measure, stacked behind the previous (opaque) block so only row starts show (see index.css). */}
+                {!isFirstMeasure && rowStartIndices.includes(mIdx) && renderGutterLabels('screen-gutter-labels no-print', svgHeight)}
+                {!isFirstMeasure && renderGutterLabels('print-gutter-labels', svgHeight)}
               </div>
             );
           })}

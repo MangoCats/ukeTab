@@ -276,6 +276,11 @@ body {
   display: none;
 }
 
+/* Print-only row-start string labels (screen uses .screen-gutter-labels on detected row starts instead) */
+.print-gutter-labels {
+  display: none;
+}
+
 /* Dedicated High-Quality Print & PDF Output Engine */
 @media print {
   @page {
@@ -381,6 +386,17 @@ body {
     padding: 0 !important;
     margin: 0 0 0 0.5in !important;
     overflow: visible !important;
+    /* Own stacking context for the z-index -1 gutter labels below; no background so they stay visible in empty row space */
+    isolation: isolate !important;
+    background: none !important;
+  }
+
+  /* Row-start string labels: every measure after the first draws its labels left of its block, behind all blocks.
+     The opaque white block to its left hides them unless the measure starts a row (rows are right-justified with a 0.5in inset). */
+  .print-gutter-labels {
+    display: block !important;
+    z-index: -1 !important;
+    background: none !important;
   }
 
   .measure-svg-block {

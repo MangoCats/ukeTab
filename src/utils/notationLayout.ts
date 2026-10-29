@@ -47,23 +47,58 @@ export function getBeatLengthInQuarters(beat: Pick<BeatColumn, 'duration' | 'isD
   return length;
 }
 
-/** Beam-group length in quarter notes: compound x/8 and x/16 meters group by dotted beats, otherwise one beat (at least a quarter). */
-export function getBeatGroupLength(timeSignature: [number, number]): number {
+export interface BeatGroupPattern {
+  starts: number[];    // Group start positions in quarter notes within one cycle, ascending, starting at 0
+  cycleLength: number; // Cycle length in quarter notes; positions beyond it repeat the pattern from the start
+}
+
+/**
+ * Beam groups for one measure of a time signature, in quarter notes:
+ * - compound x/8 and x/16 (number divisible by 3): groups of three beat units (dotted beats);
+ * - irregular x/8 and x/16 (odd number ≥ 5, not compound): groups of two units, the last group three (7/8 → 2+2+3);
+ * - otherwise uniform groups of one beat unit, but at least a quarter.
+ * The cycle is one measure (uniform groups: rounded up to whole groups), so an overfull measure repeats the pattern.
+ */
+export function getBeatGroupPattern(timeSignature: [number, number]): BeatGroupPattern {
   const [num, den] = timeSignature;
-  if ((den === 8 || den === 16) && num % 3 === 0) return 3 * (4 / den);
-  return Math.max(4 / den, 1);
+  const unit = 4 / den;
+  if ((den === 8 || den === 16) && num % 3 === 0) {
+    return uniformPattern(3 * unit, num * unit);
+  }
+  if ((den === 8 || den === 16) && num % 2 === 1 && num >= 5) {
+    const starts = Array.from({ length: (num - 3) / 2 + 1 }, (_, i) => i * 2 * unit);
+    return { starts, cycleLength: num * unit };
+  }
+  return uniformPattern(Math.max(unit, 1), num * unit);
+}
+
+// Uniform groups of groupLength covering at least one measure (and at least one group)
+function uniformPattern(groupLength: number, measureLength: number): BeatGroupPattern {
+  const count = Math.max(1, Math.ceil(measureLength / groupLength - 1e-9));
+  return { starts: Array.from({ length: count }, (_, i) => i * groupLength), cycleLength: count * groupLength };
+}
+
+/** Beam-group index of a column starting at position (quarters from the measure start); overflow cycles continue the count. */
+export function getBeatGroupIndex(position: number, pattern: BeatGroupPattern): number {
+  const cycle = Math.floor(position / pattern.cycleLength + 1e-9);
+  const within = position - cycle * pattern.cycleLength;
+  let index = 0;
+  pattern.starts.forEach((start, i) => {
+    if (within + 1e-9 >= start) index = i;
+  });
+  return cycle * pattern.starts.length + index;
 }
 
 /** Beams, stubs and flags for one measure. Beams join adjacent beamable (non-rest, flagged) columns within the same beat group. */
 export function computeBeams(beats: BeatColumn[], timeSignature: [number, number]): BeamLayout {
-  const groupLength = getBeatGroupLength(timeSignature);
+  const pattern = getBeatGroupPattern(timeSignature);
   const flagCounts = beats.map(b => (b.isRest ? 0 : getFlagCount(b.duration)));
 
   // Beat group of each column from its start position in the measure
   const groups: number[] = [];
   let position = 0;
   for (const b of beats) {
-    groups.push(Math.floor(position / groupLength + 1e-9));
+    groups.push(getBeatGroupIndex(position, pattern));
     position += getBeatLengthInQuarters(b);
   }
 
@@ -120,4 +155,9 @@ export function shouldShowTimeSignature(measures: Pick<Measure, 'timeSignature'>
   const current = measures[index].timeSignature;
   const previous = measures[index - 1].timeSignature;
   return current[0] !== previous[0] || current[1] !== previous[1];
+}
+
+/** Row-start measure indices from each measure block's offsetTop (blocks wrap left to right, so a new row starts lower). */
+export function findRowStartIndices(offsetTops: number[]): number[] {
+  return offsetTops.flatMap((top, i) => (i === 0 || top - offsetTops[i - 1] > 0.5 ? [i] : []));
 }
