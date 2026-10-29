@@ -4,7 +4,8 @@ import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData'
 import { getBeatDurationMs, getEffectiveChordPalette, extractChordFrets } from './utils/musicTheory';
 import {
   assignChordOnSelect, addNote, removeNote, insertBeatAfter, toggleRest, toggleTriplet, toggleTie, setBeatChord,
-  setChordPalette, deleteBeat, setBeatDuration, setBeatLyric, transposeDocument, addMeasure, duplicateMeasureRange
+  setChordPalette, deleteBeat, setBeatDuration, setBeatLyric, transposeDocument, addMeasure, duplicateMeasureRange,
+  setMeasureTimeSignature
 } from './utils/documentEdits';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { getInstrumentProfile } from './instruments';
@@ -295,8 +296,17 @@ export const App: React.FC = () => {
     setDocument(prev => setBeatLyric(prev, beatId, lyric));
   };
 
+  // Computed from the current document rather than a functional update, because the inexact count is needed here
   const handleTranspose = (semitones: number) => {
-    setDocument(prev => transposeDocument(prev, semitones));
+    const { document: transposed, inexactCount } = transposeDocument(document, semitones, profile);
+    setDocument(transposed);
+    if (inexactCount > 0) {
+      window.alert(`${inexactCount} note(s) could not be transposed exactly and were kept at the nearest fret.`);
+    }
+  };
+
+  const handleSetMeasureTimeSignature = (measureId: string, timeSignature: [number, number]) => {
+    setDocument(prev => setMeasureTimeSignature(prev, measureId, timeSignature));
   };
 
   const handleAddMeasure = () => {
@@ -541,6 +551,7 @@ export const App: React.FC = () => {
               onToggleTie={handleToggleTie}
               onDeleteBeatColumn={handleDeleteBeatColumn}
               onSetBeatChord={handleSetBeatChord}
+              onSetMeasureTimeSignature={handleSetMeasureTimeSignature}
               onOpenChordPaletteModal={() => setShowChordPaletteModal(true)}
               onDeselectBeat={() => setSelectedBeatId(null)}
             />

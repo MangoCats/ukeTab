@@ -212,22 +212,78 @@ export function getAlternateFretSuggestions(
 }
 
 /**
- * Shifts key by a given semitone amount, adjusting fret numbers across the document.
+ * Shifts one beat's notes by a semitone amount, keeping each note's exact pitch where possible.
+ * Muted notes are unchanged. A note whose new fret is within 0..maxFret stays on its string; otherwise (in order)
+ * it moves to a string with no note placed in the beat yet that plays the new pitch at the lowest fret, ties going
+ * to the lower string number. A note no string can play stays on its string with the fret clamped to 0..maxFret
+ * and is counted as inexact.
+ */
+export function transposeBeatNotes(
+  notes: TabNote[],
+  semitoneShift: number,
+  tuning: TuningConfig,
+  maxFret: number
+): { notes: TabNote[]; inexactCount: number } {
+  const clampOnOwnString = (note: TabNote): TabNote =>
+    ({ ...note, fret: Math.max(0, Math.min(maxFret, note.fret + semitoneShift)) });
+
+  // Indices of notes clamped on their own string from the start. A clamped note normally takes its string when its
+  // turn comes, but an earlier note may already have been relocated onto it; the clamped note is then reserved and
+  // the placement re-run, so a beat never ends up with two notes on one string.
+  const reserved = new Set<number>();
+
+  for (;;) {
+    const result: (TabNote | null)[] = notes.map((note, idx) => {
+      if (note.fret < 0) return note; // Muted X notes remain muted X
+      if (reserved.has(idx)) return clampOnOwnString(note);
+      const newFret = note.fret + semitoneShift;
+      return newFret >= 0 && newFret <= maxFret ? { ...note, fret: newFret } : null;
+    });
+    const occupied = new Set(result.filter((n): n is TabNote => n !== null).map(n => n.string));
+    const relocatedStrings = new Set<number>();
+    let collidingIdx = -1;
+
+    notes.forEach((note, idx) => {
+      if (result[idx] || collidingIdx !== -1) return;
+      const newPitch = calculatePitch(note.string, note.fret, tuning) + semitoneShift;
+
+      let best: { string: number; fret: number } | null = null;
+      for (const s of getStringNumbers(tuning.pitches.length)) {
+        const fret = newPitch - tuning.pitches[s - 1];
+        if (!occupied.has(s) && fret >= 0 && fret <= maxFret && (!best || fret < best.fret)) best = { string: s, fret };
+      }
+
+      if (best) {
+        result[idx] = { ...note, string: best.string, fret: best.fret };
+        relocatedStrings.add(best.string);
+      } else {
+        if (relocatedStrings.has(note.string)) collidingIdx = idx;
+        result[idx] = clampOnOwnString(note);
+      }
+      occupied.add(result[idx]!.string);
+    });
+
+    if (collidingIdx !== -1) {
+      reserved.add(collidingIdx);
+      continue;
+    }
+
+    const inexactCount = notes.filter((note, idx) => {
+      const placed = result[idx]!;
+      return note.fret >= 0 && calculatePitch(placed.string, placed.fret, tuning) !== calculatePitch(note.string, note.fret, tuning) + semitoneShift;
+    }).length;
+    return { notes: result as TabNote[], inexactCount };
+  }
+}
+
+/**
+ * Shifts a beat's notes by a semitone amount (see transposeBeatNotes); kept for existing callers.
  */
 export function transposePitches(
   notes: TabNote[],
   semitoneShift: number,
-  tuning: TuningConfig
+  tuning: TuningConfig,
+  maxFret: number = 20
 ): TabNote[] {
-  return notes.map(note => {
-    if (note.fret < 0) return note; // Muted X notes remain muted X
-    const currentPitch = calculatePitch(note.string, note.fret, tuning);
-    const newPitch = currentPitch + semitoneShift;
-    const newFret = newPitch - tuning.pitches[note.string - 1];
-
-    if (newFret >= 0 && newFret <= 20) {
-      return { ...note, fret: newFret };
-    }
-    return { ...note, fret: Math.max(0, Math.min(20, newFret)) };
-  });
+  return transposeBeatNotes(notes, semitoneShift, tuning, maxFret).notes;
 }

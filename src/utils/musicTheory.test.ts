@@ -6,6 +6,7 @@ import {
   getBeatDurationMs,
   getAlternateFretSuggestions,
   transposePitches,
+  transposeBeatNotes,
   getChordPreset,
   createChordMarker,
   findExistingChordsByFrets,
@@ -14,7 +15,7 @@ import {
   getDefaultChordPalette,
   getEffectiveChordPalette
 } from './musicTheory';
-import { TabNote } from '../types/tab';
+import { TabNote, TuningConfig } from '../types/tab';
 
 describe('musicTheory: Pitch & Tuning Calculations', () => {
   it('calculates exact MIDI pitch across standard High-G tuning (gCEA)', () => {
@@ -141,14 +142,106 @@ describe('musicTheory: Pitch Transposition', () => {
     expect(transposedDown[1].fret).toBe(0);
   });
 
-  it('clamps frets within 0 to 20 bounds', () => {
-    const notes: TabNote[] = [{ id: 'n1', string: 1, fret: 0 }];
-    const transposedNegative = transposePitches(notes, -5, tuning);
-    expect(transposedNegative[0].fret).toBe(0);
+  const pitchOf = (n: TabNote) => calculatePitch(n.string, n.fret, tuning);
 
-    const highNotes: TabNote[] = [{ id: 'n1', string: 1, fret: 18 }];
-    const transposedOver = transposePitches(highNotes, 10, tuning);
-    expect(transposedOver[0].fret).toBe(20);
+  it('regression: transposition never changes a note\'s pitch when another string can play it', () => {
+    // A4 (string 1 open) - 5 = E4: below string 1's range, but string 2 plays it open
+    const down = transposeBeatNotes([{ id: 'n1', string: 1, fret: 0 }], -5, tuning, 20);
+    expect(down.notes).toEqual([{ id: 'n1', string: 2, fret: 0 }]);
+    expect(down.inexactCount).toBe(0);
+
+    // E4 string fret 20 (C6) + 1 = C#6: past fret 20 on string 2, playable on string 1
+    const up = transposeBeatNotes([{ id: 'n1', string: 2, fret: 20 }], 1, tuning, 20);
+    expect(pitchOf(up.notes[0])).toBe(85);
+    expect(up.inexactCount).toBe(0);
+  });
+
+  it('keeps notes on their string when the new fret is within 0..maxFret, and leaves muted notes unchanged', () => {
+    const notes: TabNote[] = [
+      { id: 'n1', string: 1, fret: 3, isTied: true },
+      { id: 'n2', string: 2, fret: -1 }
+    ];
+    expect(transposeBeatNotes(notes, 2, tuning, 20)).toEqual({
+      notes: [{ id: 'n1', string: 1, fret: 5, isTied: true }, { id: 'n2', string: 2, fret: -1 }],
+      inexactCount: 0
+    });
+  });
+
+  it('relocates an out-of-range note to the string giving the lowest fret, keeping its id and tie', () => {
+    // G#4 (A4 open - 1): string 2 fret 4, string 3 fret 8, string 4 (g4) fret 1 -> string 4
+    const result = transposeBeatNotes([{ id: 'n1', string: 1, fret: 0, isTied: true }], -1, tuning, 20);
+    expect(result.notes).toEqual([{ id: 'n1', string: 4, fret: 1, isTied: true }]);
+
+    // C#6: string 1 fret 16 beats string 4 fret 18
+    expect(transposeBeatNotes([{ id: 'n1', string: 2, fret: 20 }], 1, tuning, 20).notes[0])
+      .toMatchObject({ string: 1, fret: 16 });
+  });
+
+  it('breaks equal-fret ties by the lower string number', () => {
+    const unisonTuning: TuningConfig = { key: 'custom', name: 'Unison Test', pitches: [69, 64, 64, 60], stringsDisplay: ['A4', 'E4', 'E4', 'C4'] };
+    // G#4 is fret 4 on both string 2 and string 3
+    expect(transposeBeatNotes([{ id: 'n1', string: 1, fret: 0 }], -1, unisonTuning, 20).notes[0])
+      .toMatchObject({ string: 2, fret: 4 });
+  });
+
+  it('never relocates onto a string already used in the beat, including by a muted note', () => {
+    const notes: TabNote[] = [
+      { id: 'n1', string: 1, fret: 0 },  // G#4 after -1: string 4 fret 1 is taken, string 2 is muted
+      { id: 'n2', string: 4, fret: 2 },  // stays on string 4 at fret 1
+      { id: 'n3', string: 2, fret: -1 }
+    ];
+    const result = transposeBeatNotes(notes, -1, tuning, 20);
+    expect(result.notes).toEqual([
+      { id: 'n1', string: 3, fret: 8 },
+      { id: 'n2', string: 4, fret: 1 },
+      { id: 'n3', string: 2, fret: -1 }
+    ]);
+    expect(result.inexactCount).toBe(0);
+  });
+
+  it('relocates notes in beat order, so an earlier note takes a free string first', () => {
+    const notes: TabNote[] = [
+      { id: 'n1', string: 2, fret: 20 }, // C#6 -> string 1 fret 16
+      { id: 'n2', string: 3, fret: 20 }  // A5 -> string 1 (fret 12) is taken; string 4 fret 14 beats string 2 fret 17
+    ];
+    expect(transposeBeatNotes(notes, 1, tuning, 20).notes).toEqual([
+      { id: 'n1', string: 1, fret: 16 },
+      { id: 'n2', string: 4, fret: 14 }
+    ]);
+  });
+
+  it('clamps and counts a note no free string can play', () => {
+    // B3 (C4 open - 1) is below every string of gCEA
+    const result = transposeBeatNotes([{ id: 'n1', string: 3, fret: 0 }, { id: 'n2', string: 1, fret: 5 }], -1, tuning, 20);
+    expect(result.notes).toEqual([{ id: 'n1', string: 3, fret: 0 }, { id: 'n2', string: 1, fret: 4 }]);
+    expect(result.inexactCount).toBe(1);
+  });
+
+  it('regression: transposition never puts two notes on one string', () => {
+    const notes: TabNote[] = [
+      { id: 'n1', string: 1, fret: 0 },
+      { id: 'n2', string: 3, fret: 20 }, // A5: its only free string is 2, but string 2's own note has nowhere else to go
+      { id: 'n3', string: 2, fret: 20 }, // C#6: fits only strings 1 and 4, both used
+      { id: 'n4', string: 4, fret: 0 }
+    ];
+    const result = transposeBeatNotes(notes, 1, tuning, 20);
+    expect(result.notes.map(n => n.string).sort()).toEqual([1, 2, 3, 4]);
+    expect(result.notes.map(n => n.fret)).toEqual([1, 20, 20, 1]);
+    expect(result.inexactCount).toBe(2);
+  });
+
+  it('uses maxFret as the fret range: guitar fret 22 + 2 stays at 24, ukulele fret 20 + 1 relocates', () => {
+    const guitarTuning: TuningConfig = { key: 'EADGBE', name: 'Standard', pitches: [64, 59, 55, 50, 45, 40], stringsDisplay: ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'] };
+    expect(transposeBeatNotes([{ id: 'n1', string: 1, fret: 22 }], 2, guitarTuning, 24))
+      .toEqual({ notes: [{ id: 'n1', string: 1, fret: 24 }], inexactCount: 0 });
+
+    expect(transposeBeatNotes([{ id: 'n1', string: 1, fret: 20 }], 1, guitarTuning, 20).inexactCount).toBe(1);
+    expect(transposeBeatNotes([{ id: 'n1', string: 2, fret: 20 }], 1, tuning, 20).notes[0].string).not.toBe(2);
+  });
+
+  it('keeps transposePitches as the notes of transposeBeatNotes with a default maxFret of 20', () => {
+    const notes: TabNote[] = [{ id: 'n1', string: 2, fret: 20 }, { id: 'n2', string: 3, fret: 0 }];
+    expect(transposePitches(notes, 1, tuning)).toEqual(transposeBeatNotes(notes, 1, tuning, 20).notes);
   });
 });
 

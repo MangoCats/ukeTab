@@ -60,6 +60,7 @@ export const BASS_PROFILE: InstrumentProfile = {
   chordLibrary: BASS_CHORD_LIBRARY,
   defaultChordNames: BASS_DEFAULT_CHORD_NAMES,
   defaultMaxFretLimit: 12,
+  maxFret: 24,
   importPitchRange: [28, 55], // Standard 4-string bass range E1..G3 when re-voicing other instruments' tracks
   importMaxFret: 24,
   importKeepsSourceFingering: true,

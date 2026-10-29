@@ -1,5 +1,5 @@
 import { BeatColumn, ChordMarker, DurationType, InstrumentProfile, Measure, TabDocument, TabNote } from '../types/tab';
-import { autoDetectChordFromBeatNotes, transposePitches } from './musicTheory';
+import { autoDetectChordFromBeatNotes, transposeBeatNotes } from './musicTheory';
 
 /**
  * Pure document edit operations. Each takes a document and returns a new one without mutating its input,
@@ -176,28 +176,60 @@ export function deleteBeat(doc: TabDocument, beatId: string, makeId: IdFactory =
 }
 
 /**
- * Shifts every note in the song by the given number of semitones (see transposePitches).
+ * Shifts every note in the song by the given number of semitones within the profile's fret range
+ * (see transposeBeatNotes). inexactCount is the number of notes that could not keep their exact pitch.
  */
-export function transposeDocument(doc: TabDocument, semitones: number): TabDocument {
-  return {
+export function transposeDocument(
+  doc: TabDocument,
+  semitones: number,
+  profile: InstrumentProfile
+): { document: TabDocument; inexactCount: number } {
+  let inexactCount = 0;
+  const document: TabDocument = {
     ...doc,
     measures: doc.measures.map(m => ({
       ...m,
-      beats: m.beats.map(b => ({ ...b, notes: transposePitches(b.notes, semitones, doc.tuning) }))
+      beats: m.beats.map(b => {
+        const transposed = transposeBeatNotes(b.notes, semitones, doc.tuning, profile.maxFret);
+        inexactCount += transposed.inexactCount;
+        return { ...b, notes: transposed.notes };
+      })
     }))
+  };
+  return { document, inexactCount };
+}
+
+// Beat duration matching each valid time signature denominator
+const DENOMINATOR_DURATIONS: Record<number, DurationType> = {
+  1: '1/1', 2: '1/2', 4: '1/4', 8: '1/8', 16: '1/16', 32: '1/32'
+};
+
+/**
+ * Sets one measure's time signature; its beats are untouched. Ignored unless the numerator is an integer 1..16
+ * and the denominator is 1, 2, 4, 8, 16 or 32.
+ */
+export function setMeasureTimeSignature(doc: TabDocument, measureId: string, timeSignature: [number, number]): TabDocument {
+  const [num, den] = timeSignature;
+  if (!Number.isInteger(num) || num < 1 || num > 16 || !(den in DENOMINATOR_DURATIONS)) return doc;
+  return {
+    ...doc,
+    measures: doc.measures.map(m => (m.id === measureId ? { ...m, timeSignature: [num, den] } : m))
   };
 }
 
 /**
- * Appends a 4/4 measure of four empty quarter beats.
+ * Appends a measure with the last measure's time signature (4/4 for an empty song), filled with one empty beat
+ * per count, of the duration matching the denominator (e.g. 6/8 = six empty eighth beats).
  */
 export function addMeasure(doc: TabDocument, makeId: IdFactory = defaultIdFactory): TabDocument {
-  const measureId = makeId('m');
+  const lastMeasure = doc.measures[doc.measures.length - 1];
+  const [num, den] = lastMeasure ? lastMeasure.timeSignature : [4, 4];
+  const duration = DENOMINATOR_DURATIONS[den] ?? '1/4';
   const newMeasure: Measure = {
-    id: measureId,
+    id: makeId('m'),
     index: doc.measures.length + 1,
-    timeSignature: [4, 4],
-    beats: [1, 2, 3, 4].map(() => ({ id: makeId('b'), duration: '1/4' as DurationType, notes: [] }))
+    timeSignature: [num, den],
+    beats: Array.from({ length: num }, () => ({ id: makeId('b'), duration, notes: [] }))
   };
   return { ...doc, measures: [...doc.measures, newMeasure] };
 }

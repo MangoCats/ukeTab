@@ -117,6 +117,7 @@ export const UKULELE_PROFILE: InstrumentProfile = {
   chordLibrary: UKULELE_CHORD_LIBRARY,
   defaultChordNames: UKULELE_DEFAULT_CHORD_NAMES,
   defaultMaxFretLimit: 12,
+  maxFret: 20,
   importPitchRange: [60, 84], // High-G Ukulele pitch range
   importMaxFret: 15,
   importKeepsSourceFingering: false, // Re-voice every source note onto the ukulele's strings
