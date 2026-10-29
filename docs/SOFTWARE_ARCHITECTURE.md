@@ -49,7 +49,7 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | `src/utils/musicTheory.ts` | Pitch maths, alternate frets, transposition, chord lookup/detection, palette resolution, beat durations (§5) |
 | `src/utils/documentEdits.ts` | Pure, non-mutating document edit operations (notes, chords, beats, measures, time signatures, transposition) with an injectable id factory (§5.7) |
 | `src/utils/notationLayout.ts` | Pure notation layout decisions: flag counts, beat groups, beams and stubs, triplet groups, where time signatures show (§6.1) |
-| `src/utils/playbackTiming.ts` | Pure playback timing: measure length, column offsets, metronome click offsets (§7) |
+| `src/utils/playbackTiming.ts` | Pure playback timing: measure length, column offsets, written note length, metronome click offsets (§7) |
 | `src/utils/shortcuts.ts` | The keyboard shortcut table `SHORTCUTS`, `findShortcut` and two-digit fret entry (§9) |
 | `src/utils/audioSynth.ts` | Pluck, muted-click and metronome synthesis (§7) |
 | `src/utils/guitarProImporter.ts` | Guitar Pro → `TabDocument` conversion (§8.2) |
@@ -154,7 +154,7 @@ export interface SynthVoice {
   filterEndRatio: number;    // Low-pass cutoff at end of decay, × note frequency
   peakGain: number;
   attackSec: number;
-  noteDurationSec: number;
+  maxSustainSec: number;     // Longest a note rings; shorter written notes stop sooner
 }
 
 export interface InstrumentProfile {
@@ -187,7 +187,7 @@ export interface InstrumentProfile {
 | `importMaxFret` | 15 | 24 | 24 |
 | `importKeepsSourceFingering` | false | true | true |
 | `importTrackKeywords` | guitar, ukulele, acoustic | guitar, acoustic | bass |
-| `synthVoice` (type, start, end, gain, attack, length) | triangle, 3.5, 0.4, 0.4, 0.008 s, 0.6 s | sawtooth, 5, 0.6, 0.22, 0.004 s, 1.2 s | sawtooth, 8, 1.0, 0.35, 0.006 s, 1.4 s |
+| `synthVoice` (type, start, end, gain, attack, max sustain) | triangle, 3.5, 0.4, 0.4, 0.008 s, 1.5 s | sawtooth, 5, 0.6, 0.22, 0.004 s, 3 s | sawtooth, 8, 1.0, 0.35, 0.006 s, 3 s |
 
 The full preset list with names and labels is in Spec §3.1.
 
@@ -332,10 +332,10 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
 - The effect depends on `document`, so any edit restarts playback from the selected beat.
 - `playingBeatId` drives the highlight.
 
-**Per column**: unless the column is a rest or `isTied`, `playBeatChord(beat, tuning, false, isFirst, profile.synthVoice)` runs. It:
+**Per column**: unless the column is a rest or `isTied`, `playBeatChord(beat, tuning, false, isFirst, profile.synthVoice, writtenSec)` runs, where `writtenSec = getWrittenNoteDurationMs(allBeats, index, tempo, speed) / 1000` (the column's duration plus every directly following `isTied` column, across measures). It:
 - skips ghost notes;
 - calls `playMutedClick()` for fret −1;
-- calls `playPluck(midi, voice.noteDurationSec, voice)` for every other note.
+- calls `playPluck(midi, getNoteSoundSec(voice, writtenSec), voice)` for every other note, where `getNoteSoundSec` = `min(writtenSec, voice.maxSustainSec)` (the full sustain when no written length is given).
 
 **`playPluck`**:
 - Oscillator of `voice.oscillatorType` at `440 × 2^((midi − 69)/12)` Hz.
@@ -426,11 +426,11 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 | `utils/sampleData.test.ts` | Blank document and sample songs |
 | `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature; retuning re-fingers beat and palette chords; regression: transposing a song transposes its chord names and diagrams |
 | `utils/notationLayout.test.ts` | Flag counts, beat lengths, beat-group patterns and indices (uniform, irregular, overfull), beams and stubs (eighths, sixteenths, dotted, 6/8, 5/8, 7/8, 1/32, triplet eighths), triplet chunking, time-signature display, row-start detection; regressions: 5/8 beams 2+3, 7/8 beams 2+2+3, beams never touch rests and break at beat groups |
-| `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column |
+| `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column; written note length with tie chains; regression: note length follows the written duration, capped by the sustain |
 | `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry; regressions: Ctrl/Alt/Meta combinations are left to the browser, `d` sets thirty-seconds |
 | `components/ShortcutHelp.test.tsx` | Help panel lists every `SHORTCUTS` entry; close button |
 | `components/InspectorPanel.test.tsx` | Measure time-signature control: current values, options, out-of-list values, callback, hidden without a callback |
-| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop; regression: an opened file without a palette gets default shapes for its own tuning |
+| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop; regression: an opened file without a palette gets default shapes for its own tuning; regression: notes are played for their written length |
 | `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table |
 | `types/tab.test.ts` | `DURATION_OPTIONS`, `DURATION_KEY_MAP` |
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile; every library chord spelled correctly in every tuning of every instrument; tuning-adapted profile passthrough and memoisation |

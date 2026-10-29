@@ -15,6 +15,23 @@ export function getMeasureDurationMs(beats: TimedBeat[], tempo: number, speed: n
   return beats.reduce((total, beat) => total + getBeatDurationMs(beat, tempo, speed), 0);
 }
 
+/**
+ * Written length of the notes struck at beats[index]: the column's own duration plus every directly following
+ * column marked tied (those continue the sound instead of striking again). beats is the whole song in order.
+ */
+export function getWrittenNoteDurationMs(
+  beats: Pick<BeatColumn, 'duration' | 'isDotted' | 'isTriplet' | 'isTied'>[],
+  index: number,
+  tempo: number,
+  speed: number = 1.0
+): number {
+  let total = getBeatDurationMs(beats[index], tempo, speed);
+  for (let i = index + 1; i < beats.length && beats[i].isTied; i++) {
+    total += getBeatDurationMs(beats[i], tempo, speed);
+  }
+  return total;
+}
+
 /** Start time of the beat column at beatIndex, measured from the start of its measure. */
 export function getColumnStartOffsetMs(beats: TimedBeat[], beatIndex: number, tempo: number, speed: number = 1.0): number {
   return getMeasureDurationMs(beats.slice(0, beatIndex), tempo, speed);

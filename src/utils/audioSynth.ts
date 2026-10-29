@@ -83,12 +83,21 @@ export function playMutedClick() {
   osc.stop(now + 0.035);
 }
 
+/**
+ * How long a note sounds: its written length (including tied continuation), but never longer than the voice's
+ * natural sustain. Without a written length the note rings for the full sustain.
+ */
+export function getNoteSoundSec(voice: SynthVoice, writtenSec?: number): number {
+  return writtenSec === undefined ? voice.maxSustainSec : Math.min(writtenSec, voice.maxSustainSec);
+}
+
 export function playBeatChord(
   beat: BeatColumn,
   tuning: TuningConfig,
   enableMetronome: boolean = false,
   isFirstBeatInMeasure: boolean = false,
-  voice: SynthVoice = UKULELE_PROFILE.synthVoice
+  voice: SynthVoice = UKULELE_PROFILE.synthVoice,
+  writtenSec?: number
 ) {
   if (enableMetronome) {
     playMetronomeClick(isFirstBeatInMeasure);
@@ -103,6 +112,6 @@ export function playBeatChord(
       return;
     }
     const pitch = calculatePitch(note.string, note.fret, tuning);
-    playPluck(pitch, voice.noteDurationSec, voice);
+    playPluck(pitch, getNoteSoundSec(voice, writtenSec), voice);
   });
 }

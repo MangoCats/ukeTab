@@ -8,7 +8,7 @@ import {
   setMeasureTimeSignature
 } from './utils/documentEdits';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
-import { getMeasureClickOffsetsMs, getMeasureDurationMs, getColumnStartOffsetMs } from './utils/playbackTiming';
+import { getMeasureClickOffsetsMs, getMeasureDurationMs, getColumnStartOffsetMs, getWrittenNoteDurationMs } from './utils/playbackTiming';
 import { findShortcut, resolveFretDigit } from './utils/shortcuts';
 import { getInstrumentProfile, getDocumentProfile } from './instruments';
 import { TabRenderer } from './components/TabRenderer';
@@ -85,7 +85,8 @@ export const App: React.FC = () => {
       const isFirstBeatInMeasure = (currentIndex === 0) || (allBeats[currentIndex - 1].measureIndex !== beatInfo.measureIndex);
 
       if (!beatInfo.isRest && !beatInfo.isTied) {
-        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure, profile.synthVoice);
+        const writtenSec = getWrittenNoteDurationMs(allBeats, currentIndex, document.tempo, playbackSpeed) / 1000;
+        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure, profile.synthVoice, writtenSec);
       }
 
       // Metronome follows the time signature, not the columns: schedule a measure's beat clicks on entering it

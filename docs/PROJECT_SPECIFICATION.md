@@ -80,7 +80,7 @@ Library shapes are defined for the instrument's default tuning. In any other tun
 |---|---|---|---|
 | Default Max Fret Limit | 12 | 12 | 12 |
 | Highest fret (transposition range) | 20 | 24 | 24 |
-| Playback voice | triangle-wave pluck, 0.6 s | sawtooth pluck, 1.2 s | sawtooth pluck, 1.4 s |
+| Playback voice (longest a note rings) | triangle-wave pluck, 1.5 s | sawtooth pluck, 3 s | sawtooth pluck, 3 s |
 | Guitar Pro import | re-fits all notes onto the ukulele | keeps a matching 6-string track's fingering | keeps a matching 4-string bass track's fingering |
 
 ---
@@ -235,7 +235,7 @@ Shortcuts are ignored while typing in a text field or menu, and whenever Ctrl, A
 ## 6. Playback
 - Playback starts at the selected beat (or the first beat) and runs to the end of the song. Changing the document while playing restarts playback from the selected beat.
 - Each beat column lasts `(60000 / tempo) × d × 1.5 (if dotted) × 2/3 (if triplet) ÷ speed` milliseconds, where d = 4, 2, 1, 0.5, 0.25, 0.125 for `1/1` … `1/32`.
-- All notes of a column sound together, using the instrument's voice (Section 3.3). Every note decays over the voice's fixed length, regardless of the beat's duration. Muted notes sound as a short click. Rests are silent.
+- All notes of a column sound together, using the instrument's voice (Section 3.3). A note sounds for its written length — its column's duration plus every directly following column marked **Tie** — but never longer than the instrument's natural sustain (Section 3.3). Muted notes sound as a short click. Rests are silent.
 - A column marked **Tie** is silent: its notes continue from the previous column.
 - **Metronome**: one click per beat of the measure's time signature, i.e. every `(60000 / tempo) × (4 / beat unit) ÷ speed` ms (6/8 at 120 BPM: six clicks 250 ms apart), with beat 1 accented. Clicks stop at the measure's actual length: a measure shorter than its time signature gets fewer clicks and a longer one gets no extra clicks. When playback starts mid-measure, only that measure's remaining beat clicks sound. No click sounds after Stop.
 - The playing column is highlighted and its fret numbers turn amber.
@@ -369,7 +369,6 @@ See Section 8.
 - In a PDF, the hidden row labels of measures that do not start a row remain in the text layer (invisible, but found by text search or copy).
 - There is no capo setting; imported capos are folded into fret numbers.
 - A document's instrument cannot be changed after creation.
-- Playback note length is fixed per instrument and does not follow the written duration.
 
 ---
 

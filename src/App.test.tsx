@@ -5,7 +5,7 @@ import { App } from './App';
 import { SHORTCUTS } from './utils/shortcuts';
 import { createBlankTabDocument } from './utils/sampleData';
 import { GUITAR_PROFILE, GUITAR_TUNINGS } from './instruments/guitar';
-import { playMetronomeClick } from './utils/audioSynth';
+import { playMetronomeClick, playBeatChord } from './utils/audioSynth';
 
 // No Web Audio in jsdom: record the calls instead
 vi.mock('./utils/audioSynth', () => ({
@@ -113,6 +113,22 @@ describe('App: metronome playback', () => {
       vi.advanceTimersByTime(2);
     });
     expect(vi.mocked(playMetronomeClick).mock.calls[4]).toEqual([true]);
+  });
+
+  it('regression: notes are played for their written length', () => {
+    vi.mocked(playBeatChord).mockClear();
+    const { container } = render(<App />);
+    selectBeat(container, 0);
+    press('e');
+    press(' ', { code: 'Space' });
+
+    // First column is now an eighth at 120 BPM: 0.25 s
+    expect(vi.mocked(playBeatChord).mock.calls[0][5]).toBeCloseTo(0.25);
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    // Second column is a quarter: 0.5 s
+    expect(vi.mocked(playBeatChord).mock.calls[1][5]).toBeCloseTo(0.5);
   });
 
   it('fires no clicks after playback stops', () => {

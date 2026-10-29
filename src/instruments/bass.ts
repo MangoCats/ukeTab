@@ -72,6 +72,6 @@ export const BASS_PROFILE: InstrumentProfile = {
     filterEndRatio: 1.0,
     peakGain: 0.35,
     attackSec: 0.006,
-    noteDurationSec: 1.4
+    maxSustainSec: 3.0
   }
 };

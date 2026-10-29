@@ -73,7 +73,7 @@ export interface SynthVoice {
   filterEndRatio: number;    // Low-pass cutoff at end of decay
   peakGain: number;
   attackSec: number;
-  noteDurationSec: number;   // Decay length used for playback of tab notes
+  maxSustainSec: number;     // Longest a plucked note rings; shorter written notes stop sooner
 }
 
 export interface InstrumentProfile {

@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getMeasureClickOffsetsMs, getMeasureDurationMs, getColumnStartOffsetMs } from './playbackTiming';
+import { getWrittenNoteDurationMs, getMeasureClickOffsetsMs, getMeasureDurationMs, getColumnStartOffsetMs } from './playbackTiming';
+import { getNoteSoundSec } from './audioSynth';
 import { BeatColumn, DurationType } from '../types/tab';
+import { UKULELE_PROFILE } from '../instruments/ukulele';
+import { GUITAR_PROFILE } from '../instruments/guitar';
 
 const beats = (...durations: DurationType[]): Pick<BeatColumn, 'duration'>[] => durations.map(duration => ({ duration }));
 const offsets = (clicks: { offsetMs: number }[]) => clicks.map(c => c.offsetMs);
@@ -71,5 +74,27 @@ describe('playbackTiming: metronome clicks', () => {
     const clicks = getMeasureClickOffsetsMs([4, 4], getMeasureDurationMs(measure, 120), 120, 1);
     expect(clicks).toHaveLength(4);
     expect(offsets(clicks)).toEqual([0, 500, 1000, 1500]);
+  });
+});
+
+describe('playbackTiming: note length', () => {
+  const song = (...columns: [DurationType, boolean?][]) => columns.map(([duration, isTied]) => ({ duration, isTied }));
+
+  it('uses the column duration for an untied note', () => {
+    expect(getWrittenNoteDurationMs(song(['1/4'], ['1/4']), 0, 120)).toBe(500);
+    expect(getWrittenNoteDurationMs(song(['1/8']), 0, 120, 0.5)).toBe(500);
+  });
+
+  it('adds every directly following tied column, across measures and up to the song end', () => {
+    const tied = song(['1/4'], ['1/4', true], ['1/2', true], ['1/4'], ['1/4', true]);
+    expect(getWrittenNoteDurationMs(tied, 0, 120)).toBe(2000);
+    expect(getWrittenNoteDurationMs(tied, 3, 120)).toBe(1000);
+  });
+
+  it('regression: playback note length follows the written duration, capped by the natural sustain', () => {
+    expect(getNoteSoundSec(UKULELE_PROFILE.synthVoice, 0.25)).toBe(0.25);
+    expect(getNoteSoundSec(UKULELE_PROFILE.synthVoice, 4)).toBe(UKULELE_PROFILE.synthVoice.maxSustainSec);
+    expect(getNoteSoundSec(GUITAR_PROFILE.synthVoice, 2)).toBe(2);
+    expect(getNoteSoundSec(GUITAR_PROFILE.synthVoice)).toBe(GUITAR_PROFILE.synthVoice.maxSustainSec);
   });
 });

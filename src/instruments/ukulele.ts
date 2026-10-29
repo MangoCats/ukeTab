@@ -129,6 +129,6 @@ export const UKULELE_PROFILE: InstrumentProfile = {
     filterEndRatio: 0.4,
     peakGain: 0.4,
     attackSec: 0.008,
-    noteDurationSec: 0.6
+    maxSustainSec: 1.5
   }
 };

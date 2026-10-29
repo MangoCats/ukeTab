@@ -138,6 +138,6 @@ export const GUITAR_PROFILE: InstrumentProfile = {
     filterEndRatio: 0.6,
     peakGain: 0.22,
     attackSec: 0.004,
-    noteDurationSec: 1.2
+    maxSustainSec: 3.0
   }
 };
