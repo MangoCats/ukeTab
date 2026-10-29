@@ -533,5 +533,15 @@ body {
     stroke: #000000 !important;
     stroke-width: 2px !important;
   }
+
+  /* Triplet bracket & "3" in Pure Black-on-White */
+  .triplet-bracket {
+    stroke: #000000 !important;
+    fill: none !important;
+  }
+
+  .triplet-number {
+    fill: #000000 !important;
+  }
 }
 

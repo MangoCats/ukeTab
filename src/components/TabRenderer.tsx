@@ -1,6 +1,7 @@
 import React from 'react';
 import { TabDocument, TabNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/tab';
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
+import { computeBeams, computeTripletGroups, shouldShowTimeSignature } from '../utils/notationLayout';
 import { ChordDiagram, getChordDiagramWidth } from './ChordDiagram';
 import { getInstrumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
@@ -114,7 +115,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     // Traditional rest placement:
     // Whole rest ('1/1'): hangs directly below the upper middle line
     // Half rest ('1/2'): sits directly on top of the lower middle line
-    // Quarter, 8th, 16th rests: centered on the lower middle line
+    // Quarter, 8th, 16th, 32nd rests: centered on the lower middle line
     const restY = duration === '1/1' ? upperMiddleY : lowerMiddleY;
 
     // Dot Y offset aligned with each rest shape
@@ -211,6 +212,42 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
           </g>
         )}
 
+        {duration === '1/32' && (
+          /* Thirty-second Rest: Sixteenth rest shape with a third hook on a longer slanted stem */
+          <g>
+            <path
+              d={`M ${5 * z} ${17 * z} L ${-3 * z} ${-13 * z}`}
+              stroke="currentColor"
+              strokeWidth={2.2 * z}
+              strokeLinecap="round"
+            />
+            <circle cx={-7 * z} cy={-9.5 * z} r={2.5 * z} fill="currentColor" />
+            <path
+              d={`M ${-7 * z} ${-12 * z} C ${-2 * z} ${-12 * z}, ${-2 * z} ${-5 * z}, ${-2.5 * z} ${-9.5 * z}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8 * z}
+              strokeLinecap="round"
+            />
+            <circle cx={-7 * z} cy={-1.5 * z} r={2.5 * z} fill="currentColor" />
+            <path
+              d={`M ${-7 * z} ${-4 * z} C ${-2 * z} ${-4 * z}, ${-2 * z} ${3 * z}, ${-1.5 * z} ${-1.5 * z}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8 * z}
+              strokeLinecap="round"
+            />
+            <circle cx={-5 * z} cy={6.5 * z} r={2.5 * z} fill="currentColor" />
+            <path
+              d={`M ${-5 * z} ${4 * z} C ${0 * z} ${4 * z}, ${0 * z} ${11 * z}, ${0.5 * z} ${6.5 * z}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8 * z}
+              strokeLinecap="round"
+            />
+          </g>
+        )}
+
         {/* Dotted rest dot indicator */}
         {isDotted && (
           <circle cx={9 * z} cy={dotY} r={2.6 * z} fill="currentColor" className="rest-dot" />
@@ -245,68 +282,39 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
         <div className="tab-canvas-wrapper flex flex-wrap items-start">
           {measures.map((measure, mIdx) => {
             const isFirstMeasure = (mIdx === 0);
+            const showTimeSignature = shouldShowTimeSignature(measures, mIdx);
             const clefWidth = isFirstMeasure ? stringHeaderWidth : 0;
-            const timeSigWidth = isFirstMeasure ? 32 * zoom : 0;
+            const timeSigWidth = showTimeSignature ? 32 * zoom : 0;
             const measureContentWidth = (measure.beats.length * beatWidth) + (measurePadding * 2);
             const measureSvgWidth = clefWidth + timeSigWidth + measureContentWidth;
 
             const beatsStartX = clefWidth + timeSigWidth + measurePadding;
+            const getBeatX = (bIdx: number) => beatsStartX + bIdx * beatWidth;
 
-            // Compute Rhythm Beams for 8th / 16th notes in measure
-            const beamedBeatIndices = new Set<number>();
-            const beams: { startX: number; endX: number; level: number; y: number }[] = [];
-
-            // Step 1: Identify all Level 1 primary beams between adjacent 8th/16th notes
-            measure.beats.forEach((b, bIdx) => {
-              if (b.duration === '1/8' || b.duration === '1/16') {
-                const nextBeat = measure.beats[bIdx + 1];
-                if (nextBeat && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16')) {
-                  const x1 = beatsStartX + bIdx * beatWidth;
-                  const x2 = beatsStartX + (bIdx + 1) * beatWidth;
-                  const beamY = stemsBelow ? lastStringY + 36 * zoom : string1Y - 36 * zoom;
-
-                  beamedBeatIndices.add(bIdx);
-                  beamedBeatIndices.add(bIdx + 1);
-
-                  beams.push({ startX: x1, endX: x2, level: 1, y: beamY });
-                }
-              }
-            });
-
-            // Step 2: Compute Level 2 secondary beams (full beams and fractional beamlets for 1/16th notes)
+            // Rhythm Beams: index-based layout (beat groups, rests, levels) converted to coordinates here
+            const beamLayout = computeBeams(measure.beats, measure.timeSignature);
             const beamY = stemsBelow ? lastStringY + 36 * zoom : string1Y - 36 * zoom;
-            const level2Y = stemsBelow ? beamY - 6 * zoom : beamY + 6 * zoom;
+            // Each further beam level sits 6 closer to the staff
+            const getBeamLevelY = (level: number) => beamY + (stemsBelow ? -1 : 1) * (level - 1) * 6 * zoom;
             const stubLength = 16 * zoom;
 
-            measure.beats.forEach((b, bIdx) => {
-              if (b.duration === '1/16' && beamedBeatIndices.has(bIdx)) {
-                const prevBeat = measure.beats[bIdx - 1];
-                const nextBeat = measure.beats[bIdx + 1];
+            const beams: { startX: number; endX: number; level: number; y: number }[] = [
+              ...beamLayout.segments.map(sg => ({ level: sg.level, startIndex: sg.startIndex, startX: getBeatX(sg.startIndex), endX: getBeatX(sg.startIndex + 1) })),
+              ...beamLayout.stubs.map(st => {
+                // Fractional beam stub (beamlet) along the primary beam
+                const x = getBeatX(st.index);
+                return { level: st.level, startIndex: st.index, startX: st.direction === 'left' ? x - stubLength : x, endX: st.direction === 'left' ? x : x + stubLength };
+              })
+            ]
+              .sort((a, b) => a.level - b.level || a.startIndex - b.startIndex)
+              .map(bm => ({ startX: bm.startX, endX: bm.endX, level: bm.level, y: getBeamLevelY(bm.level) }));
 
-                const isConnectedToNext16th = nextBeat && nextBeat.duration === '1/16' && beamedBeatIndices.has(bIdx + 1);
-                const isConnectedToPrev16th = prevBeat && prevBeat.duration === '1/16' && beamedBeatIndices.has(bIdx - 1);
-
-                const currentX = beatsStartX + bIdx * beatWidth;
-
-                if (isConnectedToNext16th) {
-                  // Full Level 2 secondary beam connecting this 16th to the next 16th
-                  const nextX = beatsStartX + (bIdx + 1) * beatWidth;
-                  beams.push({ startX: currentX, endX: nextX, level: 2, y: level2Y });
-                } else if (!isConnectedToPrev16th) {
-                  // Single 1/16th note in a beam group: render traditional fractional secondary beam (stub / beamlet)
-                  const isConnectedToPrev8th = prevBeat && (prevBeat.duration === '1/8' || prevBeat.duration === '1/16') && beamedBeatIndices.has(bIdx - 1);
-                  const isConnectedToNext8th = nextBeat && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16') && beamedBeatIndices.has(bIdx + 1);
-
-                  if (isConnectedToPrev8th) {
-                    // Fractional beam stub pointing leftward along the primary beam
-                    beams.push({ startX: currentX - stubLength, endX: currentX, level: 2, y: level2Y });
-                  } else if (isConnectedToNext8th) {
-                    // Fractional beam stub pointing rightward along the primary beam
-                    beams.push({ startX: currentX, endX: currentX + stubLength, level: 2, y: level2Y });
-                  }
-                }
-              }
-            });
+            // Triplet brackets beyond the stem ends, on the stem side
+            const tripletGroups = computeTripletGroups(measure.beats);
+            const stemDirection = stemsBelow ? 1 : -1; // +1 = away from the staff downward
+            const tripletLineY = beamY + stemDirection * 14 * zoom;
+            const tripletHookY = tripletLineY - stemDirection * 5 * zoom;
+            const tripletGap = 6 * zoom;
 
             return (
               <div key={measure.id} className="measure-svg-block inline-block relative">
@@ -366,8 +374,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     </g>
                   )}
 
-                  {/* Traditional Sheet Music Time Signature (First Measure) */}
-                  {isFirstMeasure && (
+                  {/* Traditional Sheet Music Time Signature (First Measure, and wherever the signature changes) */}
+                  {showTimeSignature && (
                     <g className="time-signature-engraving">
                       {/* Line Cutout Masks so staff lines do not strike through time signature numbers */}
                       <rect
@@ -490,7 +498,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     const stemStartY = stemsBelow ? lastStringY + 6 * zoom : string1Y - 6 * zoom;
                     const stemEndY = stemsBelow ? lastStringY + 36 * zoom : string1Y - 36 * zoom;
                     const lyricY = stemsBelow ? stemEndY + 24 * zoom : lastStringY + 25 * zoom;
-                    const isBeamed = beamedBeatIndices.has(bIdx);
+                    const isBeamed = beamLayout.beamed[bIdx];
+                    const flagCount = isBeamed ? 0 : beamLayout.flagCounts[bIdx];
 
                     return (
                       <g
@@ -890,38 +899,25 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                               />
                             )}
 
-                            {beat.duration === '1/8' && !isBeamed && (
-                              <path
-                                d={`M ${stemX} ${stemEndY} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -4 : 4) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -12 : 12) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -16 : 16) * zoom}`}
-                                stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                strokeWidth={2.8 * zoom}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                fill="none"
-                                className="rhythm-flag"
-                              />
-                            )}
-
-                            {beat.duration === '1/16' && !isBeamed && (
+                            {/* Flags for unbeamed 8th / 16th / 32nd notes: each further flag starts 6 closer to the staff */}
+                            {flagCount > 0 && (
                               <g>
-                                <path
-                                  d={`M ${stemX} ${stemEndY} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -4 : 4) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -12 : 12) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -16 : 16) * zoom}`}
-                                  stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                  strokeWidth={2.8 * zoom}
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  fill="none"
-                                  className="rhythm-flag"
-                                />
-                                <path
-                                  d={`M ${stemX} ${stemEndY + (stemsBelow ? -6 : 6) * zoom} C ${stemX + 8 * zoom} ${stemEndY + (stemsBelow ? -10 : 10) * zoom}, ${stemX + 10 * zoom} ${stemEndY + (stemsBelow ? -18 : 18) * zoom}, ${stemX + 12 * zoom} ${stemEndY + (stemsBelow ? -22 : 22) * zoom}`}
-                                  stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
-                                  strokeWidth={2.8 * zoom}
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  fill="none"
-                                  className="rhythm-flag"
-                                />
+                                {Array.from({ length: flagCount }, (_, k) => {
+                                  const dir = stemsBelow ? -1 : 1;
+                                  const fy = (offset: number) => stemEndY + dir * (offset + k * 6) * zoom;
+                                  return (
+                                    <path
+                                      key={`flag-${k}`}
+                                      d={`M ${stemX} ${fy(0)} C ${stemX + 8 * zoom} ${fy(4)}, ${stemX + 10 * zoom} ${fy(12)}, ${stemX + 12 * zoom} ${fy(16)}`}
+                                      stroke={isPlaying ? '#f59e0b' : '#38bdf8'}
+                                      strokeWidth={2.8 * zoom}
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      fill="none"
+                                      className="rhythm-flag"
+                                    />
+                                  );
+                                })}
                               </g>
                             )}
 
@@ -1001,6 +997,40 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                             {beat.lyric}
                           </text>
                         )}
+                      </g>
+                    );
+                  })}
+
+                  {/* Triplet Brackets: line between first and last column with hooks toward the staff and a centred "3" */}
+                  {tripletGroups.map(tg => {
+                    const centerX = (getBeatX(tg.startIndex) + getBeatX(tg.endIndex)) / 2;
+                    // A one-column bracket is widened so the "3" still has line either side
+                    const halfSpan = Math.max((getBeatX(tg.endIndex) - getBeatX(tg.startIndex)) / 2, 10 * zoom);
+                    const x1 = centerX - halfSpan;
+                    const x2 = centerX + halfSpan;
+                    return (
+                      <g key={`tp-${measure.id}-${tg.startIndex}`} style={{ pointerEvents: 'none' }}>
+                        <path
+                          d={`M ${x1} ${tripletHookY} L ${x1} ${tripletLineY} L ${centerX - tripletGap} ${tripletLineY} M ${centerX + tripletGap} ${tripletLineY} L ${x2} ${tripletLineY} L ${x2} ${tripletHookY}`}
+                          fill="none"
+                          stroke="#cbd5e1"
+                          strokeWidth={1.5 * zoom}
+                          className="triplet-bracket"
+                        />
+                        <text
+                          x={centerX}
+                          y={tripletLineY}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#cbd5e1"
+                          fontFamily="sans-serif"
+                          fontSize={`${11 * zoom}px`}
+                          fontWeight="bold"
+                          fontStyle="italic"
+                          className="triplet-number"
+                        >
+                          3
+                        </text>
                       </g>
                     );
                   })}
