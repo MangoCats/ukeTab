@@ -146,9 +146,11 @@ export function createChordMarker(
 
 /**
  * Moves a chord shape [SN, ..., S1] from one tuning to another, keeping each string's pitch class: every non-muted
- * fret (including open) rises by the strings' pitch difference mod 12, muted strings stay muted. If every non-muted
- * fret ends up at 12 or above, the shape drops an octave. Shapes for tunings of a different string count are
- * returned unchanged.
+ * fret (including open) moves by the strings' pitch difference reduced to the nearest equivalent shift (−5 … +6
+ * semitones); muted strings stay muted. The whole shape then moves by octaves so it stays compact and playable:
+ * up 12 if any fret would be below 0, down 12 if every fret is 12 or more. Using the smallest shift makes a round
+ * trip (e.g. Standard → Drop D → Standard) return the original shape. Shapes for tunings of a different string
+ * count are returned unchanged.
  */
 export function adaptChordFrets(frets: number[], fromTuning: TuningConfig, toTuning: TuningConfig): number[] {
   const stringCount = frets.length;
@@ -159,11 +161,12 @@ export function adaptChordFrets(frets: number[], fromTuning: TuningConfig, toTun
     if (f < 0) return f;
     const s = stringCount - i;
     const d = (((fromTuning.pitches[s - 1] - toTuning.pitches[s - 1]) % 12) + 12) % 12;
-    return f + d;
+    return f + (d > 6 ? d - 12 : d);
   });
 
-  const played = adapted.filter(f => f >= 0);
-  return played.length > 0 && played.every(f => f >= 12) ? adapted.map(f => (f < 0 ? f : f - 12)) : adapted;
+  const played = adapted.filter((f, i) => frets[i] >= 0);
+  const octaveShift = played.some(f => f < 0) ? 12 : played.length > 0 && played.every(f => f >= 12) ? -12 : 0;
+  return adapted.map((f, i) => (frets[i] < 0 ? frets[i] : f + octaveShift));
 }
 
 // Chord root spelling used by transposition: sharps for C#/F#, flats for Eb/Ab/Bb

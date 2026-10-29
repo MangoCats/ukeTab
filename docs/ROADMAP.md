@@ -34,8 +34,14 @@ All phases below are complete. This records the work that fixed the application 
   - the architecture document's source layout or test inventory omits a file.
 - **Render equivalence**: notation changes are checked against the previous renderer output, so only the intended differences change.
 
-## Follow-ups (not yet scheduled)
+## Follow-ups (done)
 
-Found while doing the work above; each is also listed in the specification's Known Limitations or noted here.
-
-- Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.
+All follow-ups found during this work are fixed, with regression tests:
+- Ctrl/Alt/Meta combinations are left to the browser.
+- The startup sample's first beat is selected.
+- `1/32` has a duration button and the `d` shortcut.
+- Triplet brackets clear the on-screen duration badge, and lyrics clear the brackets.
+- Irregular meters beam as 2+…+2+3 (5/8 → 2+3, 7/8 → 2+2+3).
+- String labels start every row on screen and in print.
+- Chord shapes follow the current tuning, retuning re-fingers chord diagrams, and transposing renames and re-fingers chords.
+- The ukulele library's `F#m7` (which duplicated D major) was corrected; found by the all-tunings chord-spelling test.

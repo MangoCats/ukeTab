@@ -1,8 +1,10 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, act } from '@testing-library/react';
+import { render, fireEvent, act, waitFor } from '@testing-library/react';
 import { App } from './App';
 import { SHORTCUTS } from './utils/shortcuts';
+import { createBlankTabDocument } from './utils/sampleData';
+import { GUITAR_PROFILE, GUITAR_TUNINGS } from './instruments/guitar';
 import { playMetronomeClick } from './utils/audioSynth';
 
 // No Web Audio in jsdom: record the calls instead
@@ -129,5 +131,23 @@ describe('App: metronome playback', () => {
       vi.advanceTimersByTime(10000);
     });
     expect(playMetronomeClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('App: opening files', () => {
+  it('regression: a file without a chord palette gets default shapes for its own tuning', async () => {
+    const dropD = { ...createBlankTabDocument(GUITAR_PROFILE), tuning: GUITAR_TUNINGS.DADGBE, chordPalette: [] };
+    const { container, getAllByRole, getByDisplayValue } = render(<App />);
+    const input = container.querySelector<HTMLInputElement>('input[accept=".uketab,.json"]')!;
+
+    fireEvent.change(input, { target: { files: [new File([JSON.stringify(dropD)], 'dropd.uketab')] } });
+
+    // Assigning the palette's G to the selected first beat draws the Drop D shape (5 2 0 0 0 3, base fret 2)
+    await waitFor(() => expect(getByDisplayValue('Untitled Guitar Tab')).not.toBeNull());
+    fireEvent.click(getAllByRole('button', { name: 'G' })[0]);
+    await waitFor(() => {
+      const baseFretLabels = Array.from(container.querySelectorAll('.chord-base-fret-text')).map(t => t.textContent);
+      expect(baseFretLabels).toContain('2fr');
+    });
   });
 });

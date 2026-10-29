@@ -20,7 +20,7 @@ import {
 } from './musicTheory';
 import { TabNote, TuningConfig } from '../types/tab';
 import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
-import { getDocumentProfile } from '../instruments';
+import { getDocumentProfile, INSTRUMENT_LIST } from '../instruments';
 
 describe('musicTheory: Pitch & Tuning Calculations', () => {
   it('calculates exact MIDI pitch across standard High-G tuning (gCEA)', () => {
@@ -328,14 +328,23 @@ describe('musicTheory: Chord Shapes Across Tunings', () => {
     expect(adaptChordFrets([0, 2, 3, 2], TUNING_PRESETS.gCEA, TUNING_PRESETS.GCEA)).toEqual([0, 2, 3, 2]);
   });
 
-  it('raises each string by its pitch difference mod 12, including open strings', () => {
+  it('moves each string by its smallest equivalent pitch difference, including open strings', () => {
     // Drop D: String 6 is two semitones lower, so G = 3 2 0 0 0 3 becomes 5 2 0 0 0 3
     expect(adaptChordFrets([3, 2, 0, 0, 0, 3], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.DADGBE)).toEqual([5, 2, 0, 0, 0, 3]);
     expect(adaptChordFrets([0, 2, 2, 1, 0, 0], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.DADGBE)).toEqual([2, 2, 2, 1, 0, 0]);
     // Half-step down: every string one semitone lower
     expect(adaptChordFrets([0, 2, 2, 0, 0, 0], GUITAR_TUNINGS.EADGBE, GUITAR_TUNINGS.EbAbDbGbBbEb)).toEqual([1, 3, 3, 1, 1, 1]);
-    // Back up again wraps by 11 semitones per string
+    // Back up again moves each string down one fret
     expect(adaptChordFrets([1, 3, 3, 1, 1, 1], GUITAR_TUNINGS.EbAbDbGbBbEb, GUITAR_TUNINGS.EADGBE)).toEqual([0, 2, 2, 0, 0, 0]);
+  });
+
+  it('regression: adapting any library shape to another tuning and back returns the original shape', () => {
+    INSTRUMENT_LIST.forEach(profile => {
+      profile.tunings.forEach(to => Object.entries(profile.chordLibrary).forEach(([name, frets]) => {
+        const there = adaptChordFrets(frets, profile.defaultTuning, to);
+        expect(adaptChordFrets(there, to, profile.defaultTuning), `${profile.name} ${name} via ${to.key}`).toEqual(frets);
+      }));
+    });
   });
 
   it('leaves muted strings muted', () => {
@@ -344,10 +353,11 @@ describe('musicTheory: Chord Shapes Across Tunings', () => {
     expect(adaptChordFrets([-1, -1, -1, -1], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([-1, -1, -1, -1]);
   });
 
-  it('drops the shape an octave only when every played fret reaches 12', () => {
-    // D tuning is two semitones above gCEA, so each string rises by 10
+  it('raises the whole shape an octave when a fret would go below 0, and drops it when every played fret reaches 12', () => {
+    // D tuning is two semitones above gCEA, so each string moves down 2
     expect(adaptChordFrets([5, 3, 4, 3], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([3, 1, 2, 1]);
     expect(adaptChordFrets([0, 0, 0, 3], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([10, 10, 10, 13]);
+    expect(adaptChordFrets([10, 10, 10, 13], TUNING_PRESETS['aDF#B'], TUNING_PRESETS.gCEA)).toEqual([0, 0, 0, 3]);
     expect(adaptChordFrets([-1, 3, 5, 5], TUNING_PRESETS.gCEA, TUNING_PRESETS['aDF#B'])).toEqual([-1, 1, 3, 3]);
   });
 

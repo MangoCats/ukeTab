@@ -163,7 +163,7 @@ export interface InstrumentProfile {
   stringCount: number;
   tunings: TuningConfig[];                   // Tuning menu presets, menu order
   defaultTuning: TuningConfig;
-  chordLibrary: ChordFretLibrary;            // Shapes for defaultTuning
+  chordLibrary: ChordFretLibrary;            // Shapes for defaultTuning (adapted per document, see below)
   defaultChordNames: string[];               // Default palette
   defaultMaxFretLimit: number;
   maxFret: number;                           // Highest fret on the instrument; transposition range
@@ -192,6 +192,8 @@ export interface InstrumentProfile {
 The full preset list with names and labels is in Spec §3.1.
 
 **Resolution**: `getInstrumentProfile(document.instrument)` returns the profile, or ukulele when the id is missing or unknown. `App` computes the document's profile once per render. Components call `getInstrumentProfile(document.instrument)` themselves.
+
+**Tuning-adapted profiles**: chord work uses `getDocumentProfile(doc)` = `getTuningProfile(getInstrumentProfile(doc.instrument), doc.tuning)`. `getTuningProfile(profile, tuning)` returns the profile itself when the tuning's pitches equal `defaultTuning`'s, otherwise a copy whose `chordLibrary` is adapted with `adaptChordFrets(frets, defaultTuning, tuning)` (§5.5). The copy is memoised per profile object (WeakMap) and tuning pitches, so it is stable across renders. `App` (`profile`, `profileOf`, file open), `InspectorPanel`, `TabRenderer`, the chord palette window and the Guitar Pro importer (after resolving the tuning) use it; synth and import settings are the same as the base profile.
 
 **Profile-aware functions** (the profile parameter defaults to ukulele, so older call sites keep their behaviour):
 - in `musicTheory`: `getDefaultChordPalette`, `getEffectiveChordPalette`, `getChordPreset`, `findExistingChordsByFrets`, `autoDetectChordFromBeatNotes`, `createChordMarker`;
@@ -233,7 +235,11 @@ No renderer or editor changes are needed.
 3. Each remaining note, in beat order, moves to a string not used by any note already placed in the beat (muted notes count), choosing the lowest valid fret for its exact new pitch; ties go to the lower string number.
 4. A note no free string can play is kept on its own string, clamped to `0 … maxFret`, and counted in `inexactCount`. Such a note's string is reserved before placement is redone, so two notes never share a string.
 
-Note ids and `isTied` are kept; a note is inexact when its final pitch differs from its original pitch plus the shift. `transposePitches(notes, shift, tuning, maxFret = 20)` remains as `transposeBeatNotes(...).notes`. Chord markers are not touched.
+Note ids and `isTied` are kept; a note is inexact when its final pitch differs from its original pitch plus the shift. `transposePitches(notes, shift, tuning, maxFret = 20)` remains as `transposeBeatNotes(...).notes`.
+
+Chord markers are transposed separately (`documentEdits.transposeDocument`):
+- `transposeChordName(name, semitones)`: root `[A-G][#b]?` and optional slash bass are moved and spelled from `C C# D Eb E F F# G Ab A Bb B`; the suffix is kept; unparseable names are returned unchanged.
+- `transposeChordMarker(marker, semitones, profile)`: the new name's library preset (case-insensitive, from the tuning-adapted profile) if one exists, keeping the transposed name; otherwise every non-muted fret + `semitones`, all non-muted + 12 if any is negative; `baseFret` recomputed.
 
 ### 5.5 Chord Lookup, Detection & Base Fret
 - `extractChordFrets(notes, stringCount)` returns `[fret(N) … fret(1)]` from non-ghost notes when every string has a note, else `null`.
@@ -241,6 +247,7 @@ Note ids and `isTied` are kept; a note is inexact when its final pitch differs f
 - `autoDetectChordFromBeatNotes(notes, palette, profile)` extracts the column's frets and takes the first matching name. It returns the palette's marker of that name if there is one, else the library preset, else a new marker.
 - **Base fret** (`getChordPreset`, `createChordMarker`): an explicit `baseFret` wins. Otherwise, if the highest fretted value exceeds 4, use the lowest fretted value; otherwise use 1.
 - `createChordMarker(name)` with no frets returns the library preset, or an all-open marker with `profile.stringCount` entries.
+- `adaptChordFrets(frets, fromTuning, toTuning)`: for each string, `d = ((from − to) mod 12)`, used as `d − 12` when `d > 6` (so −5 … +6); muted frets stay −1. Then the whole shape moves +12 if any played fret is negative, or −12 if every played fret is ≥ 12. Shapes whose length differs from either tuning are returned unchanged. Adapting to another tuning and back returns the original shape (tested for every library chord and tuning).
 - **Palette resolution**: `getEffectiveChordPalette(palette, profile)` returns the palette if it is non-empty, else the presets for `profile.defaultChordNames`.
 - **Edit operations** (§5.7): `assignChordOnSelect` auto-detects only when `chord === undefined`. `addNote` auto-detects unless `chord === null`, and keeps the old chord when nothing matches. `removeNote` uses the detected chord, else unsets the chord when fewer notes than strings remain.
 
@@ -259,7 +266,8 @@ Every change to a document goes through a pure function that returns a new docum
 | `toggleRest`, `toggleTriplet`, `toggleTie` | Flip the flag; making a beat a rest removes its notes |
 | `setBeatChord`, `setBeatDuration`, `setBeatLyric`, `setChordPalette` | Set the value; `setBeatDuration` keeps the dot unless one is given |
 | `deleteBeat(doc, beatId)` | Removes the beat; an emptied measure is removed and measures renumbered; the last beat of the last measure becomes one empty quarter beat |
-| `transposeDocument(doc, semitones, profile)` | Applies `transposeBeatNotes` with `profile.maxFret` to every beat; returns `{ document, inexactCount }` (App alerts when the count is above 0) |
+| `transposeDocument(doc, semitones, profile)` | Applies `transposeBeatNotes` with `profile.maxFret` to every beat and `transposeChordMarker` to every non-null beat chord and palette entry; returns `{ document, inexactCount }` (App alerts when the count is above 0) |
+| `retuneDocument(doc, newTuning)` | Sets the tuning; notes keep their frets; every non-null beat chord and palette entry is re-fingered with `adaptChordFrets(old → new)` and its base fret recomputed (used by the toolbar Tuning menu) |
 | `setMeasureTimeSignature(doc, measureId, [num, den])` | Sets one measure's time signature when `num` is an integer 1–16 and `den` ∈ {1, 2, 4, 8, 16, 32}; otherwise returns the document unchanged; beats are untouched |
 | `addMeasure(doc)` | Appends a measure with the last measure's time signature (4/4 for an empty song) and `num` empty beats of the duration matching `den` |
 | `duplicateMeasureRange(doc, start, end)` | Copies the clamped 1-based range with fresh ids and appends it |
@@ -371,7 +379,7 @@ One shared `AudioContext` is created on first use and resumed if suspended.
    - Tie: `isTieDestination` (or `tie`) sets `note.isTied`, and the column's `isTied` if any note is tied.
    - Lyric from the map, else the beat's own lyrics. Chord from `autoDetectChordFromBeatNotes`.
    - An empty bar becomes `timeSignatureNumerator` quarter rests.
-7. The result has `instrument: profile.id`, `keySignature: 'C'`, `layout: { stemsPlacement: 'below', zoomScale: 1, measuresPerSystem: 4, maxFretLimit: profile.defaultMaxFretLimit }` and `chordPalette: getDefaultChordPalette(profile)`.
+7. The result has `instrument: profile.id`, `keySignature: 'C'`, `layout: { stemsPlacement: 'below', zoomScale: 1, measuresPerSystem: 4, maxFretLimit: profile.defaultMaxFretLimit }` and `chordPalette: getDefaultChordPalette(getTuningProfile(profile, tuning))`, so the palette uses shapes for the imported tuning.
 
 `EditorToolbar` stores the instrument chosen in the **Open Guitar Pro** menu in a ref before opening the file picker, and passes it as `profile`.
 
@@ -412,24 +420,24 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 
 | File | Covers |
 |---|---|
-| `utils/musicTheory.test.ts` | Pitch across ukulele tunings, note names, beat durations (dotted, triplet, speed), alternate frets and `maxFretLimit`, exact-pitch transposition (relocation, tie-break, occupied strings, clamping and count, `maxFret`), chord extraction/detection/lookup, palettes, base fret; regressions: transposition keeps pitch and never doubles a string |
+| `utils/musicTheory.test.ts` | Pitch across ukulele tunings, note names, beat durations (dotted, triplet, speed), alternate frets and `maxFretLimit`, exact-pitch transposition (relocation, tie-break, occupied strings, clamping and count, `maxFret`), chord extraction/detection/lookup, palettes, base fret; regressions: transposition keeps pitch and never doubles a string; chord shapes across tunings (`adaptChordFrets`), chord name and marker transposition; regressions: G detected in Drop D, adapting any library shape and back is exact |
 | `utils/multiString.test.tsx` | 6-string theory functions; 6-string `ChordDiagram` and `TabRenderer` output |
-| `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing) |
+| `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing); palette shapes adapted to the imported tuning |
 | `utils/sampleData.test.ts` | Blank document and sample songs |
-| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature |
+| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature; retuning re-fingers beat and palette chords; regression: transposing a song transposes its chord names and diagrams |
 | `utils/notationLayout.test.ts` | Flag counts, beat lengths, beat-group patterns and indices (uniform, irregular, overfull), beams and stubs (eighths, sixteenths, dotted, 6/8, 5/8, 7/8, 1/32, triplet eighths), triplet chunking, time-signature display, row-start detection; regressions: 5/8 beams 2+3, 7/8 beams 2+2+3, beams never touch rests and break at beat groups |
 | `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column |
 | `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry; regressions: Ctrl/Alt/Meta combinations are left to the browser, `d` sets thirty-seconds |
 | `components/ShortcutHelp.test.tsx` | Help panel lists every `SHORTCUTS` entry; close button |
 | `components/InspectorPanel.test.tsx` | Measure time-signature control: current values, options, out-of-list values, callback, hidden without a callback |
-| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop |
+| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop; regression: an opened file without a palette gets default shapes for its own tuning |
 | `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table |
 | `types/tab.test.ts` | `DURATION_OPTIONS`, `DURATION_KEY_MAP` |
-| `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile |
+| `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile; every library chord spelled correctly in every tuning of every instrument; tuning-adapted profile passthrough and memoisation |
 | `instruments/guitar.test.ts`, `bass.test.ts` | Registration; tuning labels match pitches; every library chord sounds exactly its named chord tones with the root in the bass; blank documents; base fret of high barre chords |
-| `instruments/chordSpelling.testUtil.ts` | Shared assertions for the two files above (not a test file) |
+| `instruments/chordSpelling.testUtil.ts` | Shared tuning and chord-spelling assertions (with a `rootInBass` option for re-entrant tunings) for the instrument tests (not a test file) |
 | `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration; triplet bracket, 1/32 rest and flags, time-signature change, beam coordinates and stubs; row-start gutter labels (print-only for every later measure, screen-only at detected row starts); regression: triplet bracket clears the badge and lyrics clear the "3" |
 | `components/ChordDiagram.test.tsx` | Dots, open circles, muted marks, base fret label |
 | `components/ChordPaletteModal.test.tsx` | Library list, close, tab switching |
 | `components/DuplicateMeasuresModal.test.tsx` | Open/closed rendering, confirm callback |
-| `components/EditorToolbar.test.tsx` | Instrument menus, menu order, hidden file inputs, custom tuning option |
+| `components/EditorToolbar.test.tsx` | Instrument menus, menu order, hidden file inputs, custom tuning option; changing the tuning re-fingers chords and keeps notes |

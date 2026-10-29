@@ -318,7 +318,7 @@ export const App: React.FC = () => {
   };
 
   const handleImportJson = (importedDoc: TabDocument) => {
-    const importedProfile = getInstrumentProfile(importedDoc.instrument);
+    const importedProfile = getDocumentProfile(importedDoc); // Default palette shapes follow the file's tuning
     setDocument({
       ...importedDoc,
       instrument: importedProfile.id,

@@ -60,7 +60,9 @@ A lowercase label (`g4`, `a4`) marks a re-entrant string that is higher than the
 
 A Guitar Pro import can also produce a **custom tuning** that is not a preset (Section 9.2). It is shown as an extra entry at the end of the Tuning menu, named after its notes from lowest to highest string, e.g. `Custom (C2 A2 D3 G3 B3 E4)`.
 
-Selecting a different tuning changes only the open-string pitches. **Fret numbers are kept**, so the sounding pitches change; the tab is not re-fingered or transposed.
+Selecting a different tuning changes the open-string pitches:
+- **Notes keep their fret numbers**, so they sound at the new tuning's pitches; the tab is not re-fingered or transposed.
+- **Chord diagrams** (beat chords and the chord palette) are re-fingered so they still sound the named chord in the new tuning (Section 3.2). A chord that was never set stays unset, and an explicitly cleared chord stays cleared.
 
 ### 3.2 Chord Libraries & Default Palettes
 
@@ -70,7 +72,7 @@ Selecting a different tuning changes only the open-string pitches. **Fret number
 | Guitar | 47 shapes in standard tuning: open chords, E-shape and A-shape barre chords, power chords (E5 A5 D5 G5) | G C D Em Am E A Dm F |
 | Bass | 8 root-fifth / root-fifth-octave double stops in standard tuning (E5 F5 G5 A5 Bb5 B5 C5 D5) | E5 A5 D5 G5 C5 |
 
-Library shapes are fret patterns for the instrument's default tuning. They are offered and matched unchanged in every tuning, so in an alternate tuning a shape's name may not match the chord that actually sounds.
+Library shapes are defined for the instrument's default tuning. In any other tuning (including a custom imported one) every chord lookup uses the shapes **adapted to the current tuning**: each string moves by the difference between its default and current open pitch, reduced to the nearest equivalent shift (−5 to +6 frets), so every string keeps its note name; muted strings stay muted. If a fret would go below 0 the whole shape moves up 12 frets, and if every played fret is 12 or more it moves down 12, so shapes stay compact. Examples: G in Drop D is `5 2 0 0 0 3`; Low-G ukulele uses the High-G shapes unchanged. Adapted shapes are used for the chord palette window, the default palette, chord auto-detection and Guitar Pro imports.
 
 ### 3.3 Other Instrument Settings
 
@@ -246,7 +248,7 @@ Shortcuts are ignored while typing in a text field or menu, and whenever Ctrl, A
   2. Otherwise, in the order of the notes in the beat, it moves to a string that has no note in that beat, choosing the lowest valid fret (ties: the lower string number).
   3. A note that no free string can play stays on its string with its fret clamped to the valid range; an alert then reports how many notes could not be transposed exactly.
 - Muted notes are unchanged. Note ties are kept. Two notes never end up on one string.
-- Chord markers (names and diagrams) and the chord palette are **not** transposed.
+- **Chords** move with the song: every beat chord (except unset or explicitly cleared ones) and every palette chord is renamed by the same number of semitones. The root and an optional slash bass are respelled as C, C#, D, Eb, E, F, F#, G, Ab, A, Bb, B, keeping the rest of the name (e.g. `F#m7` + 1 → `Gm7`, `G/B` + 1 → `Ab/C`); names that do not start with A–G are kept. The diagram becomes the (tuning-adapted) library shape of the new name if there is one; otherwise every played fret moves by the same number of semitones, and if one would go below 0 all played frets move up 12.
 
 ---
 
@@ -307,7 +309,7 @@ A `.uketab` file is the document saved as JSON (2-space indented). The file name
 | `beats[].chord` | Chord marker, `null` (explicitly cleared), or absent (never set) |
 | `beats[].lyric` | Optional syllable |
 
-**Opening a file**: the file must be JSON with a `title` and a `measures` array; otherwise it is rejected with an alert. A missing `instrument` becomes `"ukulele"`, and an empty or missing `chordPalette` becomes the instrument's default palette. The opened document replaces the current one and its first beat is selected.
+**Opening a file**: the file must be JSON with a `title` and a `measures` array; otherwise it is rejected with an alert. A missing `instrument` becomes `"ukulele"`, and an empty or missing `chordPalette` becomes the instrument's default palette with shapes adapted to the file's tuning. The opened document replaces the current one and its first beat is selected.
 
 ---
 
@@ -323,7 +325,7 @@ See Section 8.
 - Title: from the file, otherwise the file name with its extension removed and `-`/`_` replaced by spaces.
 - Artist: from the file, otherwise `Guitar Pro Import`.
 - Tempo: rounded, otherwise 120.
-- Key: `C`. Stems below, zoom 100%, the instrument's default Max Fret Limit and default chord palette.
+- Key: `C`. Stems below, zoom 100%, the instrument's default Max Fret Limit and default chord palette (with shapes adapted to the imported tuning).
 
 **Track choice**:
 - **Guitar and bass**: a track is *matching* if it has the instrument's string count and its lowest open string is within an octave of the instrument's default lowest string (E2 for guitar, E1 for bass). A 4-string ukulele track therefore never matches bass. The first matching track whose name contains the instrument's keyword is used (guitar: "guitar" or "acoustic"; bass: "bass"), otherwise the first matching track.
@@ -365,7 +367,6 @@ See Section 8.
 
 ## 10. Known Limitations
 - In a PDF, the hidden row labels of measures that do not start a row remain in the text layer (invisible, but found by text search or copy).
-- Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.
 - There is no capo setting; imported capos are folded into fret numbers.
 - A document's instrument cannot be changed after creation.
 - Playback note length is fixed per instrument and does not follow the written duration.
