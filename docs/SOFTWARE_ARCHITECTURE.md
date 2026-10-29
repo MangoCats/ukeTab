@@ -10,14 +10,15 @@ UkeTab is a client-only single-page application. There is no server: documents l
 +---------------------------------------------------------------------------+
 | UI (React components)                                                      |
 |  EditorToolbar | TabRenderer (SVG staff + popover) | InspectorPanel        |
-|  ChordPaletteModal | DuplicateMeasuresModal | ChordDiagram                 |
+|  ChordPaletteModal | DuplicateMeasuresModal | ChordDiagram | ShortcutHelp  |
 +---------------------------------------------------------------------------+
 | App.tsx: document state, selection, playback loop, keyboard shortcuts,    |
 |          edit handlers                                                     |
 +---------------------------------------------------------------------------+
 | Domain logic                                                               |
-|  instruments/ (profiles) | utils/musicTheory | utils/audioSynth            |
-|  utils/guitarProImporter | utils/sampleData                                |
+|  instruments/ (profiles) | utils/musicTheory | utils/documentEdits        |
+|  utils/notationLayout | utils/playbackTiming | utils/shortcuts            |
+|  utils/audioSynth | utils/guitarProImporter | utils/sampleData            |
 +---------------------------------------------------------------------------+
 | Platform: React 18, SVG, Web Audio API, CSS print media, FileReader,      |
 |           @coderline/alphatab (Guitar Pro parsing)                         |
@@ -41,21 +42,25 @@ UkeTab is a client-only single-page application. There is no server: documents l
 | Path | Responsibility |
 |---|---|
 | `src/main.tsx` | Mounts `<App/>` and loads `index.css` |
-| `src/App.tsx` | Owns all application state; playback scheduler; keyboard shortcuts; edit handlers that apply `documentEdits` operations and manage selection; help panel; print header and footer |
+| `src/App.tsx` | Owns all application state; playback scheduler (notes and metronome clicks); keyboard dispatch via `findShortcut`; edit handlers that apply `documentEdits` operations and manage selection; print header and footer |
 | `src/types/tab.ts` | Domain types and duration constants (§3) |
 | `src/instruments/ukulele.ts`, `guitar.ts`, `bass.ts` | Instrument profiles: tunings, chord libraries, default palettes, import and synth settings (§4) |
 | `src/instruments/index.ts` | Profile registry, `getInstrumentProfile`, menu order `INSTRUMENT_LIST` |
 | `src/utils/musicTheory.ts` | Pitch maths, alternate frets, transposition, chord lookup/detection, palette resolution, beat durations (§5) |
-| `src/utils/documentEdits.ts` | Pure, non-mutating document edit operations (notes, chords, beats, measures, transposition) with an injectable id factory (§5.7) |
+| `src/utils/documentEdits.ts` | Pure, non-mutating document edit operations (notes, chords, beats, measures, time signatures, transposition) with an injectable id factory (§5.7) |
+| `src/utils/notationLayout.ts` | Pure notation layout decisions: flag counts, beat groups, beams and stubs, triplet groups, where time signatures show (§6.1) |
+| `src/utils/playbackTiming.ts` | Pure playback timing: measure length, column offsets, metronome click offsets (§7) |
+| `src/utils/shortcuts.ts` | The keyboard shortcut table `SHORTCUTS`, `findShortcut` and two-digit fret entry (§9) |
 | `src/utils/audioSynth.ts` | Pluck, muted-click and metronome synthesis (§7) |
 | `src/utils/guitarProImporter.ts` | Guitar Pro → `TabDocument` conversion (§8.2) |
 | `src/utils/sampleData.ts` | Built-in sample songs and `createBlankTabDocument(profile)` |
 | `src/components/EditorToolbar.tsx` | Title/artist, action buttons, instrument menus, settings row, file inputs |
 | `src/components/TabRenderer.tsx` | Staff SVG per measure, rhythm, rests, beams, ghost notes, chord diagrams, floating popover |
-| `src/components/InspectorPanel.tsx` | Bottom inspector (beat actions, lyric, chord editing, fret pad, alternate frets) |
+| `src/components/InspectorPanel.tsx` | Bottom inspector (beat actions, lyric, measure time signature, chord editing, fret pad, alternate frets) |
 | `src/components/ChordDiagram.tsx` | Chord diagram SVG and `getChordDiagramWidth` |
 | `src/components/ChordPaletteModal.tsx` | Palette selection and custom chord creation |
 | `src/components/DuplicateMeasuresModal.tsx` | Start/end range dialog for measure duplication |
+| `src/components/ShortcutHelp.tsx` | Help panel listing every `SHORTCUTS` entry |
 | `src/index.css` | Utility classes, component styles, `@media print` rules (§8.3) |
 
 ---
@@ -68,7 +73,7 @@ export type DurationType = '1/1' | '1/2' | '1/4' | '1/8' | '1/16' | '1/32';
 export interface TabNote {
   id: string;
   string: number;        // 1 = top line .. N = bottom line (N = tuning.pitches.length)
-  fret: number;          // -1 = Muted (X), 0 = Open, 1+ = Fretted (editor input up to 20; Guitar Pro import up to the profile's importMaxFret)
+  fret: number;          // -1 = Muted (X), 0 = Open, 1+ = Fretted (editor input up to 20; Guitar Pro import up to the profile's importMaxFret; transposition up to its maxFret)
   isGhost?: boolean;     // Alternate fret suggestion (never stored in documents)
   isTied?: boolean;      // Continues from the previous beat
 }
@@ -161,8 +166,9 @@ export interface InstrumentProfile {
   chordLibrary: ChordFretLibrary;            // Shapes for defaultTuning
   defaultChordNames: string[];               // Default palette
   defaultMaxFretLimit: number;
+  maxFret: number;                           // Highest fret on the instrument; transposition range
   importPitchRange: [number, number] | null; // Octave-folding range for re-voiced imports
-  importMaxFret: number;
+  importMaxFret: number;                     // <= maxFret
   importKeepsSourceFingering: boolean;
   importTrackKeywords: string[];             // Lowercase track-name keywords
   synthVoice: SynthVoice;
@@ -176,6 +182,7 @@ export interface InstrumentProfile {
 | `defaultTuning` | gCEA `[69,64,60,67]` | EADGBE `[64,59,55,50,45,40]` | EADG `[43,38,33,28]` |
 | `chordLibrary` | 56 entries | 47 entries | 8 entries |
 | `defaultMaxFretLimit` | 12 | 12 | 12 |
+| `maxFret` | 20 | 24 | 24 |
 | `importPitchRange` | `[60, 84]` | `[40, 88]` | `[28, 55]` |
 | `importMaxFret` | 15 | 24 | 24 |
 | `importKeepsSourceFingering` | false | true | true |
@@ -188,6 +195,7 @@ The full preset list with names and labels is in Spec §3.1.
 
 **Profile-aware functions** (the profile parameter defaults to ukulele, so older call sites keep their behaviour):
 - in `musicTheory`: `getDefaultChordPalette`, `getEffectiveChordPalette`, `getChordPreset`, `findExistingChordsByFrets`, `autoDetectChordFromBeatNotes`, `createChordMarker`;
+- in `documentEdits`: `assignChordOnSelect`, `addNote`, `removeNote`, `transposeDocument` (uses `maxFret`);
 - `createBlankTabDocument`;
 - `parseGuitarProToTab`, `selectImportTrack`, `isCompatibleSourceTuning`, `resolveSourceTuning`;
 - `playBeatChord` / `playPluck`, which take a `SynthVoice`.
@@ -219,7 +227,13 @@ No renderer or editor changes are needed.
 - Results are not de-duplicated per string; the renderer shows the first suggestion found for each string.
 
 ### 5.4 Transposition
-`transposePitches(notes, shift, tuning)` keeps every note on its string. Muted notes are returned unchanged. Otherwise the new fret is `fret + shift`, clamped to 0–20. Chord markers are not touched.
+`transposeBeatNotes(notes, shift, tuning, maxFret): { notes, inexactCount }` transposes one beat's notes, keeping exact pitch where possible:
+1. Muted notes are unchanged and keep their string.
+2. Each other note whose `fret + shift` is in `0 … maxFret` keeps its string.
+3. Each remaining note, in beat order, moves to a string not used by any note already placed in the beat (muted notes count), choosing the lowest valid fret for its exact new pitch; ties go to the lower string number.
+4. A note no free string can play is kept on its own string, clamped to `0 … maxFret`, and counted in `inexactCount`. Such a note's string is reserved before placement is redone, so two notes never share a string.
+
+Note ids and `isTied` are kept; a note is inexact when its final pitch differs from its original pitch plus the shift. `transposePitches(notes, shift, tuning, maxFret = 20)` remains as `transposeBeatNotes(...).notes`. Chord markers are not touched.
 
 ### 5.5 Chord Lookup, Detection & Base Fret
 - `extractChordFrets(notes, stringCount)` returns `[fret(N) … fret(1)]` from non-ghost notes when every string has a note, else `null`.
@@ -245,8 +259,9 @@ Every change to a document goes through a pure function that returns a new docum
 | `toggleRest`, `toggleTriplet`, `toggleTie` | Flip the flag; making a beat a rest removes its notes |
 | `setBeatChord`, `setBeatDuration`, `setBeatLyric`, `setChordPalette` | Set the value; `setBeatDuration` keeps the dot unless one is given |
 | `deleteBeat(doc, beatId)` | Removes the beat; an emptied measure is removed and measures renumbered; the last beat of the last measure becomes one empty quarter beat |
-| `transposeDocument(doc, semitones)` | Applies `transposePitches` to every beat |
-| `addMeasure(doc)` | Appends a 4/4 measure of four empty quarter beats |
+| `transposeDocument(doc, semitones, profile)` | Applies `transposeBeatNotes` with `profile.maxFret` to every beat; returns `{ document, inexactCount }` (App alerts when the count is above 0) |
+| `setMeasureTimeSignature(doc, measureId, [num, den])` | Sets one measure's time signature when `num` is an integer 1–16 and `den` ∈ {1, 2, 4, 8, 16, 32}; otherwise returns the document unchanged; beats are untouched |
+| `addMeasure(doc)` | Appends a measure with the last measure's time signature (4/4 for an empty song) and `num` empty beats of the duration matching `den` |
 | `duplicateMeasureRange(doc, start, end)` | Copies the clamped 1-based range with fresh ids and appends it |
 
 ---
@@ -264,18 +279,26 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
 | Beat column width | 62 |
 | Measure padding (each side) | 15 |
 | String-label header (first measure only) | 60 |
-| Time signature width (first measure only) | 32 |
+| Time signature width (measures that show one) | 32 |
 | Chord space above staff (when any beat has a chord) | 78 |
 | Top margin | 42 (stems below) or 60 (stems above), plus chord space |
 | Bottom margin | 50 (stems below) or 28 (stems above) |
 | Stem | from 6 to 36 beyond the outer string line, on the stem side |
-| Primary beam | at the stem end; secondary beam 6 closer to the staff; stub length 16 |
+| Beams | level 1 at the stem end; each further level 6 closer to the staff; stub length 16 |
+| Flags | one per flag count, each 6 closer to the staff than the previous |
+| Triplet bracket | 14 beyond the stem end; end hooks 5 toward the staff; "3" in an 11 px bold italic gap; a one-column bracket spans ±10 |
 
 - `getStringY(s) = topMargin + (s − 1) × 24`.
 - `staffMidY` is the midpoint of String 1 and String N. The time signature numerator baseline is at `staffMidY − 12` and the denominator at `staffMidY + 38`; the masks start at `staffMidY − 34` and `staffMidY + 10`.
-- Rests use the upper middle line `⌊N/2⌋` and the lower middle line `⌊N/2⌋ + 1`.
-- Beams: in step 1, each pair of adjacent columns whose durations are both in {`1/8`, `1/16`} gets a level-1 beam; rest columns are included. In step 2, `1/16` columns get level-2 beams to adjacent beamed `1/16`s, or a stub toward a beamed neighbour (previous first).
-- The time signature, string labels and opening double barline are drawn only for `measures[0]`. The final barline is drawn only on the last measure.
+- Rests use the upper middle line `⌊N/2⌋` and the lower middle line `⌊N/2⌋ + 1`; `1/32` rests are drawn with three hooks.
+- **Beams** (`notationLayout.computeBeams(beats, timeSignature)` → `{ segments, stubs, beamed, flagCounts }`, index-based; `TabRenderer` converts indices to x and levels to y):
+  - `getFlagCount`: `1/8` → 1, `1/16` → 2, `1/32` → 3, else 0. A column is beamable when it is not a rest and has flags.
+  - Column start = sum of earlier `getBeatLengthInQuarters` (base length × 1.5 if dotted × 2/3 if triplet, rests included).
+  - `getBeatGroupLength([num, den])`: `3 × 4/den` when `den ∈ {8, 16}` and `num % 3 = 0`, else `max(4/den, 1)` quarters. Group index = `floor(start / group + 1e-9)`.
+  - Adjacent beamable columns in the same group are joined; each joined pair gets a segment at every level up to the smaller flag count.
+  - A beamed column gets a stub for each of its levels that no joined neighbour shares, pointing to the previous joined neighbour, else the next. Unbeamed beamable columns draw `flagCount` flags.
+- **Triplets** (`computeTripletGroups(beats)` → `{ startIndex, endIndex }[]`): runs of consecutive `isTriplet` columns split into chunks of three (last chunk 1–2). Brackets are drawn after the columns with pointer events disabled; classes `triplet-bracket` and `triplet-number`.
+- **Time signature** (`shouldShowTimeSignature(measures, index)`): true for index 0 and wherever `[num, den]` differs from the previous measure. String labels and the opening double barline are drawn only for `measures[0]`. The final barline is drawn only on the last measure.
 
 ### 6.2 Note Cells & Interaction
 - For each string of each column, a transparent hit rectangle selects the beat and string. If the cell is empty, it also calls `onAddNote` with the ghost fret, or 0.
@@ -294,7 +317,7 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
 ## 7. Audio & Playback (`audioSynth.ts`, `App.tsx`)
 
 **Scheduling**: a `useEffect` in `App` runs while `isPlaying`.
-- It flattens all beats, starts at the selected beat, and chains `window.setTimeout` calls using `getBeatDurationMs`.
+- It flattens all beats (each carrying its measure and index in the measure), starts at the selected beat, and chains `window.setTimeout` calls using `getBeatDurationMs`.
 - The effect depends on `document`, so any edit restarts playback from the selected beat.
 - `playingBeatId` drives the highlight.
 
@@ -310,7 +333,12 @@ All sizes below are multiplied by `zoom = layout.zoomScale`.
 
 **Other sounds**:
 - `playMutedClick()`: a 120 Hz square wave, gain 0.12, 35 ms.
-- `playMetronomeClick(accent)`: a sine at 1200 Hz (accent) or 800 Hz, 50 ms. `App` calls it once per column when the metronome is on, accented on the first column of each measure.
+- `playMetronomeClick(accent)`: a sine at 1200 Hz (accent) or 800 Hz, 50 ms.
+
+**Metronome scheduling** (`playbackTiming.ts`):
+- `getMeasureDurationMs(beats, tempo, speed)` sums `getBeatDurationMs`; `getColumnStartOffsetMs(beats, index, tempo, speed)` is the offset of a column within its measure.
+- `getMeasureClickOffsetsMs(timeSignature, measureDurationMs, tempo, speed, startOffsetMs = 0)` returns `{ offsetMs, accent }[]`: clicks at `k × beatMs` for `k = 0 … num − 1`, with `beatMs = (60000 / tempo) × (4 / den) / speed`, kept only while `k × beatMs` is before the measure's actual end and not before `startOffsetMs`; offsets are relative to `startOffsetMs`; `accent` is `k = 0`.
+- When playback enters a measure (its start column, then each later measure's first column) and the metronome is on, `App` schedules that measure's clicks with `window.setTimeout`. The handles are kept in `metronomeTimeoutsRef` and cleared on Stop, effect cleanup and song end, so no click outlives playback.
 
 One shared `AudioContext` is created on first use and resumed if suspended.
 
@@ -364,7 +392,14 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 | `isPlaying`, `playingBeatId`, `enableMetronome`, `playbackSpeed` | Playback |
 | `showHelpModal`, `showChordPaletteModal`, `showDuplicateModal` | Dialog visibility |
 
-All document changes go through `setDocument` with immutable updates. Keyboard handling is one `keydown` listener on `window`, ignored while focus is in an input, textarea or select. It merges two digits typed within 600 ms when the result is ≤ 20.
+All document changes go through `setDocument` with immutable updates.
+
+**Keyboard**: one `keydown` listener on `window`, ignored while focus is in an input, textarea or select. It calls `findShortcut(e)` on the single `SHORTCUTS` table (`src/utils/shortcuts.ts`). Each entry has an `id`, a display `keys` label, a `description`, `requiresSelection` and `matches(e)`, and no event matches two entries.
+- No match: nothing happens.
+- `requiresSelection` and no selected beat: the key is left to the browser.
+- Otherwise: `preventDefault`, then the action for that id runs in `App`.
+
+Two-digit frets use `resolveFretDigit(digit, pendingDigit, msSinceLastDigit)`, which merges digits typed within `TWO_DIGIT_FRET_WINDOW_MS` (600) when the result is at most `TWO_DIGIT_FRET_MAX` (20). The help panel (`ShortcutHelp`) renders every `SHORTCUTS` entry, and the specification's shortcut table is checked against `SHORTCUTS` by `docsConsistency.test.ts`.
 
 ---
 
@@ -374,17 +409,23 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 
 | File | Covers |
 |---|---|
-| `utils/musicTheory.test.ts` | Pitch across ukulele tunings, note names, beat durations (dotted, triplet, speed), alternate frets and `maxFretLimit`, transposition clamping, chord extraction/detection/lookup, palettes, base fret |
+| `utils/musicTheory.test.ts` | Pitch across ukulele tunings, note names, beat durations (dotted, triplet, speed), alternate frets and `maxFretLimit`, exact-pitch transposition (relocation, tie-break, occupied strings, clamping and count, `maxFret`), chord extraction/detection/lookup, palettes, base fret; regressions: transposition keeps pitch and never doubles a string |
 | `utils/multiString.test.tsx` | 6-string theory functions; 6-string `ChordDiagram` and `TabRenderer` output |
 | `utils/guitarProImporter.test.ts` | Duration and lyric helpers; tuning resolution; compatibility check; end-to-end imports from GP7 bytes generated with alphaTab (guitar fingering, capo, dead notes, custom tuning, track choice, bass, ukulele re-voicing) |
 | `utils/sampleData.test.ts` | Blank document and sample songs |
-| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, regression: entering a note keeps the beat duration |
+| `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature |
+| `utils/notationLayout.test.ts` | Flag counts, beat lengths and groups, beams and stubs (eighths, sixteenths, dotted, 6/8, 1/32, triplet eighths), triplet chunking, time-signature display; regressions: beams never touch rests and break at beat groups |
+| `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column |
+| `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry |
+| `components/ShortcutHelp.test.tsx` | Help panel lists every `SHORTCUTS` entry; close button |
+| `components/InspectorPanel.test.tsx` | Measure time-signature control: current values, options, out-of-list values, callback, hidden without a callback |
+| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; shortcuts ignored while typing; regression: metronome clicks once per beat; no clicks after Stop |
 | `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table |
 | `types/tab.test.ts` | `DURATION_OPTIONS`, `DURATION_KEY_MAP` |
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile |
 | `instruments/guitar.test.ts`, `bass.test.ts` | Registration; tuning labels match pitches; every library chord sounds exactly its named chord tones with the root in the bass; blank documents; base fret of high barre chords |
 | `instruments/chordSpelling.testUtil.ts` | Shared assertions for the two files above (not a test file) |
-| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration |
+| `components/TabRenderer.test.tsx` | Staff, labels, time signature, notes, lyrics; popover duration also sets the active duration; triplet bracket, 1/32 rest and flags, time-signature change, beam coordinates and stubs |
 | `components/ChordDiagram.test.tsx` | Dots, open circles, muted marks, base fret label |
 | `components/ChordPaletteModal.test.tsx` | Library list, close, tab switching |
 | `components/DuplicateMeasuresModal.test.tsx` | Open/closed rendering, confirm callback |

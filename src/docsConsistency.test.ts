@@ -1,17 +1,15 @@
+/// <reference types="vite/client" />
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, relative, basename } from 'path';
+import SPEC from '../docs/PROJECT_SPECIFICATION.md?raw';
+import ARCH from '../docs/SOFTWARE_ARCHITECTURE.md?raw';
 import { INSTRUMENT_LIST } from './instruments';
 import { InstrumentProfile } from './types/tab';
+import { SHORTCUTS } from './utils/shortcuts';
 
 /**
  * Keeps docs/ in step with the code: each check fails when a document and the implementation disagree,
  * so behaviour changes must update the documentation in the same commit.
  */
-
-const ROOT = join(__dirname, '..');
-const SPEC = readFileSync(join(ROOT, 'docs/PROJECT_SPECIFICATION.md'), 'utf8');
-const ARCH = readFileSync(join(ROOT, 'docs/SOFTWARE_ARCHITECTURE.md'), 'utf8');
 
 /**
  * Text of the section whose heading starts with the given prefix (e.g. '### 3.1'), up to the next heading
@@ -37,18 +35,19 @@ function tableRows(text: string): string[][] {
     .map(l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
 }
 
-function listFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap(name => {
-    const full = join(dir, name);
-    return statSync(full).isDirectory() ? listFiles(full) : [relative(ROOT, full).replace(/\\/g, '/')];
-  });
-}
+const stripBackticks = (text: string) => text.replace(/`/g, '');
+const basename = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
-const SRC_FILES = listFiles(join(ROOT, 'src'));
+// Every file under src/ as 'src/...' paths (the glob is resolved by Vite; no module is loaded). The glob
+// leaves out the importing file, so this file is added explicitly.
+const SRC_FILES = [
+  ...Object.keys(import.meta.glob('./**/*.{ts,tsx,css}')).map(f => `src/${f.replace(/^\.\//, '')}`),
+  'src/docsConsistency.test.ts'
+];
 const isTestFile = (f: string) => /\.test\.tsx?$/.test(f);
 const isTestHelper = (f: string) => /\.testUtil\.ts$/.test(f);
 
-describe('docs: Product Specification matches the instrument profiles', () => {
+describe('docs: Product Specification matches the code', () => {
   it('§3.1 tuning table lists every preset in menu order with its labels', () => {
     const documented = tableRows(section(SPEC, '### 3.1')).map(([instrument, name, labels]) => [instrument, name, labels]);
     const expected = INSTRUMENT_LIST.flatMap(p => p.tunings.map(t => [p.name, t.name, t.stringsDisplay.join(' ')]));
@@ -63,6 +62,11 @@ describe('docs: Product Specification matches the instrument profiles', () => {
       expect(Number(row![1].match(/\d+/)![0]), `${p.name} library size`).toBe(Object.keys(p.chordLibrary).length);
       expect(row![2], `${p.name} default palette`).toBe(p.defaultChordNames.join(' '));
     });
+  });
+
+  it('§5.5 shortcut table lists every shortcut with its keys and description, in order', () => {
+    const documented = tableRows(section(SPEC, '### 5.5')).map(([keys, action]) => [stripBackticks(keys), stripBackticks(action)]);
+    expect(documented).toEqual(SHORTCUTS.map(s => [s.keys, s.description]));
   });
 
   it('§8 lists every tuning preset key', () => {
@@ -92,7 +96,7 @@ describe('docs: Software Architecture matches the code', () => {
 
   it('§4 profile table matches numeric profile fields and library sizes', () => {
     const rows = tableRows(section(ARCH, '## 4.'));
-    const numericFields: (keyof InstrumentProfile)[] = ['stringCount', 'defaultMaxFretLimit', 'importMaxFret'];
+    const numericFields: (keyof InstrumentProfile)[] = ['stringCount', 'defaultMaxFretLimit', 'maxFret', 'importMaxFret'];
     numericFields.forEach(field => {
       const row = rows.find(r => r[0] === `\`${field}\``);
       expect(row, `${field} row`).toBeDefined();

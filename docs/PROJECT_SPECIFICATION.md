@@ -77,6 +77,7 @@ Library shapes are fret patterns for the instrument's default tuning. They are o
 | Setting | Ukulele | Guitar | Bass |
 |---|---|---|---|
 | Default Max Fret Limit | 12 | 12 | 12 |
+| Highest fret (transposition range) | 20 | 24 | 24 |
 | Playback voice | triangle-wave pluck, 0.6 s | sawtooth pluck, 1.2 s | sawtooth pluck, 1.4 s |
 | Guitar Pro import | re-fits all notes onto the ukulele | keeps a matching 6-string track's fingering | keeps a matching 4-string bass track's fingering |
 
@@ -86,10 +87,11 @@ Library shapes are fret patterns for the instrument's default tuning. They are o
 
 ### 4.1 Staff & Measures
 - The staff has one horizontal line per string, 24 px apart at 100% zoom.
-- **First measure of the document only**: string labels (from the tuning) at the far left, a heavy double barline, and the time signature of the first measure. No other measure shows string labels or a time signature, including measures that start a new row. Time signatures of later measures are stored but not displayed.
+- **First measure of the document only**: string labels (from the tuning) at the far left and a heavy double barline. No other measure shows string labels, including measures that start a new row.
+- **Time signature**: shown on the first measure and on every measure whose time signature differs from the previous measure's (either number).
 - Each measure ends with a single barline. The last measure of the document also has a heavy final barline.
 - On screen, each measure shows a small `M{n}` measure-number badge (not printed).
-- Measure width is proportional to its number of beat columns: 62 px per column plus 15 px padding on each side, plus 60 px string-label header and 32 px time signature on the first measure. All sizes scale with zoom.
+- Measure width is proportional to its number of beat columns: 62 px per column plus 15 px padding on each side, plus a 60 px string-label header on the first measure and 32 px on each measure that shows a time signature. All sizes scale with zoom.
 - **Row wrapping**: measures are laid out left to right and wrap to a new row when the next measure does not fit the available width. A measure is never split across rows or pages.
 - **Zoom**: 75%, 100% (default), 150% scales the whole tab.
 
@@ -116,11 +118,15 @@ Stems are drawn below the staff by default; **Stems** toggles them above. For ea
 | Quarter (`1/4`) | Plain stem |
 | Eighth (`1/8`) | Stem with one flag, or a beam (below) |
 | Sixteenth (`1/16`) | Stem with two flags, or beams (below) |
-| Thirty-second (`1/32`) | Plain stem (no flags; this duration only arises from Guitar Pro import) |
+| Thirty-second (`1/32`) | Stem with three flags, or beams (below). This duration only arises from Guitar Pro import. |
 
 - **Dotted**: a dot beside the stem near the staff. A dotted rest has a dot beside the rest symbol.
-- **Beams**: within a measure, every two adjacent beat columns whose durations are both `1/8` or `1/16` are joined by a primary beam. Rest columns are included, and beams are not split at beat boundaries. Adjacent beamed `1/16` columns are also joined by a secondary beam. A beamed `1/16` with no beamed `1/16` neighbour gets a short secondary stub (16 px) pointing toward its previous beamed neighbour, or toward its next one if there is no previous one. Beamed columns do not draw flags.
-- **Triplets**: the triplet flag changes playback timing only (Section 6). No bracket or "3" is drawn.
+- **Beams**: two adjacent beat columns of the same measure are joined when both are notes (not rests), both are `1/8`, `1/16` or `1/32`, and both start in the same **beat group**:
+  - Beat-group length: in compound time (beat unit 8 or 16 with the number of beats divisible by 3, e.g. 3/8, 6/8, 9/8, 12/8) three beat units, i.e. a dotted quarter for x/8. Otherwise one beat unit, but at least a quarter note (x/4: a quarter; x/2: a half; x/1: a whole; other x/8: a quarter).
+  - Positions in the measure count every column, including rests, dotted lengths (×1.5) and triplet lengths (×2/3).
+  - Joined columns share one beam per flag they both have (eighth 1, sixteenth 2, thirty-second 3). A further beam level that only one column has is drawn as a 16 px stub pointing toward its previous joined neighbour, or toward the next one if there is no previous one.
+  - Beam levels are 6 px apart, the first at the stem end. Beamed columns draw no flags.
+- **Triplets**: consecutive triplet columns are marked in groups of three (a last group may have one or two columns) by a bracket with a "3", drawn on the stem side 14 px beyond the stem ends. Triplets also shorten playback (Section 6).
 - **On screen**, a small badge under each stem shows the duration, e.g. `1/8.` for a dotted eighth (not printed).
 
 ### 4.6 Rests
@@ -131,7 +137,7 @@ The two lines either side of the staff middle are called the upper and lower mid
 | Whole | Block hanging below the upper middle line |
 | Half | Block sitting on the lower middle line |
 | Quarter, eighth, sixteenth | Traditional symbol centred on the lower middle line |
-| Thirty-second | No symbol drawn |
+| Thirty-second | Traditional three-hook symbol centred on the lower middle line |
 
 ### 4.7 Lyrics
 Each beat column may carry one lyric syllable, centred under the column. It sits below the stems when stems are below, or below the staff when stems are above.
@@ -168,6 +174,7 @@ Shown above the selected beat column:
 ### 5.3 Inspector Panel (screen only)
 Fixed at the bottom of the window. It can be collapsed, and is closed by deselecting.
 - Buttons: **+ Beat**, **+ Rest**, **Toggle Rest**, **Triplet (3:2)**, **Tie (Sustain)**, **Delete Beat**, **Close**. There is also a **Lyric** text field.
+- **Measure {n} Time Signature**: number of beats (1–12) and beat unit (2, 4, 8, 16) of the selected beat's measure. Changing it affects that measure only and does not change its beats. A stored value outside these lists (e.g. from Guitar Pro import) is shown as an extra option.
 - **Chord section** (`{Instrument} Chord Diagram`): palette chord buttons; **Manage Palette / Create Chord**; **Clear Chord**. A chord name field and one fret selector per string (`X`, `0`, `1`–`15`, listed String N first) edit the beat's chord marker; changing a fret recalculates its base fret.
 - **String section**: fret pad `X`, `0` … Max Fret Limit for the selected string, **Clear Note**, and the selected note's pitch (e.g. `Fret 3 (G4)`).
 - **Alternate Frets** list: clicking one adds that note (Section 4.4).
@@ -178,7 +185,7 @@ Fixed at the bottom of the window. It can be collapsed, and is closed by deselec
 - **Chord Palette & Editor** (also **Manage Chord Palette** in the header): opens the chord palette window (Section 5.7).
 - **New Tab**: a menu of instruments ("New Guitar Tab · 6 strings", …), with the current instrument first. After confirmation, it replaces the document with a blank one for that instrument: title `Untitled {Instrument} Tab`, default tuning, tempo 120, the default palette, and one 4/4 measure of four empty quarter beats.
 - **Open .uketab**, **Open Guitar Pro** (a menu of instruments to import as), **Save .uketab**, **Export PDF** (Section 9).
-- **+ Beat**: insert a beat after the selected beat. **Add Measure**: append a 4/4 measure of four empty quarter beats. **Duplicate Measures**: copy measures *start*–*end* (1-based, clamped to the song) and append the copies to the end of the song.
+- **+ Beat**: insert a beat after the selected beat. **Add Measure**: append a measure with the last measure's time signature (4/4 if the song is empty), holding one empty beat per beat unit (e.g. 3/4: three quarters; 6/8: six eighths; 2/2: two halves). **Duplicate Measures**: copy measures *start*–*end* (1-based, clamped to the song) and append the copies to the end of the song.
 - Settings row:
   - **Tuning** (Section 3.1).
   - **Stems** (below / above).
@@ -187,11 +194,11 @@ Fixed at the bottom of the window. It can be collapsed, and is closed by deselec
   - **Transpose** −1 / +1 semitone (Section 7).
   - **Tempo** (40–240 BPM).
   - **Speed** (0.5×, 0.75×, 1.0×, 1.25×).
-- **Shortcuts & Guide** (header): toggles a short help panel.
+- **Shortcuts & Guide** (header): toggles a help panel listing every keyboard shortcut of Section 5.5.
 - The **Max Fret Limit** sets the highest fret offered by the popover and inspector fret buttons, and the highest alternate-fret suggestion. It does not limit keyboard entry, the chord fret selectors, or imports.
 
 ### 5.5 Keyboard Shortcuts
-Shortcuts are ignored while typing in a text field or menu. Most require a selected beat.
+Shortcuts are ignored while typing in a text field or menu. Shortcuts that edit a beat require a selected beat; without one the key is left to the browser. Modifier keys (Ctrl, Alt, Meta) are not checked, so with a beat selected, Ctrl+R and Ctrl+S act as `r` and `s`.
 
 | Key | Action |
 |---|---|
@@ -204,8 +211,10 @@ Shortcuts are ignored while typing in a text field or menu. Most require a selec
 | `t` | Toggle triplet |
 | `l` | Toggle tie |
 | `+` or `Shift+Enter` | Insert a beat after the selected beat |
-| `←` / `→` | Previous / next beat column, across measures |
-| `↑` / `↓` | Previous / next string (stops at String 1 / String N) |
+| `←` | Previous beat column, across measures |
+| `→` | Next beat column, across measures |
+| `↑` | Previous string (stops at String 1) |
+| `↓` | Next string (stops at String N) |
 | `Space` | Play / pause (no selection needed) |
 
 ### 5.6 Beat & Measure Operations
@@ -225,14 +234,17 @@ Shortcuts are ignored while typing in a text field or menu. Most require a selec
 - Each beat column lasts `(60000 / tempo) × d × 1.5 (if dotted) × 2/3 (if triplet) ÷ speed` milliseconds, where d = 4, 2, 1, 0.5, 0.25, 0.125 for `1/1` … `1/32`.
 - All notes of a column sound together, using the instrument's voice (Section 3.3). Every note decays over the voice's fixed length, regardless of the beat's duration. Muted notes sound as a short click. Rests are silent.
 - A column marked **Tie** is silent: its notes continue from the previous column.
-- **Metronome**: a click on every beat column, accented on the first column of each measure.
+- **Metronome**: one click per beat of the measure's time signature, i.e. every `(60000 / tempo) × (4 / beat unit) ÷ speed` ms (6/8 at 120 BPM: six clicks 250 ms apart), with beat 1 accented. Clicks stop at the measure's actual length: a measure shorter than its time signature gets fewer clicks and a longer one gets no extra clicks. When playback starts mid-measure, only that measure's remaining beat clicks sound. No click sounds after Stop.
 - The playing column is highlighted and its fret numbers turn amber.
 
 ---
 
 ## 7. Transposition
-- **Transpose −1 / +1** shifts every non-muted note of the song by one semitone **on the same string** (fret −1 / +1).
-- Frets are clamped to 0–20, so notes that would go past either limit change pitch. Muted notes are unchanged.
+- **Transpose −1 / +1** shifts every note of the song by one semitone and keeps its exact new pitch whenever some string can play it:
+  1. A note whose new fret is within 0 and the instrument's highest fret (Section 3.3) stays on its string.
+  2. Otherwise, in the order of the notes in the beat, it moves to a string that has no note in that beat, choosing the lowest valid fret (ties: the lower string number).
+  3. A note that no free string can play stays on its string with its fret clamped to the valid range; an alert then reports how many notes could not be transposed exactly.
+- Muted notes are unchanged. Note ties are kept. Two notes never end up on one string.
 - Chord markers (names and diagrams) and the chord palette are **not** transposed.
 
 ---
@@ -287,7 +299,7 @@ A `.uketab` file is the document saved as JSON (2-space indented). The file name
 | `chordPalette[].frets` | One fret value per string, **bottom line first** (String N … String 1) |
 | `chordPalette[].baseFret` | First fret of the diagram window (optional) |
 | `measures[].index` | 1-based measure number |
-| `measures[].timeSignature` | `[beats, beat unit]`. Only the first measure's is displayed. It does not affect playback. |
+| `measures[].timeSignature` | `[beats, beat unit]`. Shown where it changes (Section 4.1); sets beam grouping and metronome clicks. Edits accept beats 1–16 and beat units 1, 2, 4, 8, 16, 32. |
 | `beats[].duration` | `"1/1"`, `"1/2"`, `"1/4"`, `"1/8"`, `"1/16"` or `"1/32"` |
 | `beats[].isDotted` / `isTriplet` / `isRest` / `isTied` | Optional flags (Sections 4–6) |
 | `beats[].notes[]` | `{ id, string, fret, isTied? }`: string 1…N, fret per Section 2 |
@@ -351,8 +363,10 @@ See Section 8.
 ---
 
 ## 10. Known Limitations
-- Only the first measure shows string labels and a time signature; time signature changes are not displayed and there is no control to edit a measure's time signature.
-- Triplets are not marked on the staff. `1/32` notes have no flags and `1/32` rests have no symbol. Beams also join rest columns and are not grouped by beat.
+- Only the first measure shows string labels.
+- `1/32` has no duration button or shortcut; it only comes from Guitar Pro import.
+- On screen, a triplet bracket's "3" can overlap the duration badge of the middle column (print is unaffected).
+- Irregular meters such as 5/8 and 7/8 beam in quarter-note groups.
 - Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.
 - There is no capo setting; imported capos are folded into fret numbers.
 - A document's instrument cannot be changed after creation.
