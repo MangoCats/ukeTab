@@ -16,7 +16,7 @@ export const DURATION_KEY_MAP: Record<string, DurationType> = {
   's': '1/16'
 };
 
-export interface UkuleleNote {
+export interface TabNote {
   id: string;
   string: number;        // 1 = Top line (highest string, A4 on ukulele) .. N = Bottom line (N = tuning string count)
   fret: number;          // 0 = Open, 1..20 = Fretted
@@ -37,7 +37,7 @@ export interface BeatColumn {
   isTriplet?: boolean;
   isRest?: boolean;
   isTied?: boolean; // When true, sustains into the next beat without re-strumming (Continued Note)
-  notes: UkuleleNote[];
+  notes: TabNote[];
   chord?: ChordMarker | null; // Optional Ukulele Chord Diagram attached above beat (null = explicitly cleared None)
   lyric?: string;
 }
@@ -92,7 +92,7 @@ export interface LayoutOptions {
   maxFretLimit: number;              // Default: 12 (user selectable 7..20)
 }
 
-export interface UkuleleTabDocument {
+export interface TabDocument {
   id: string;
   title: string;
   artist: string;

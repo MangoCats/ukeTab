@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { ChordDiagram } from './ChordDiagram';
-import { ChordMarker } from '../types/ukulele';
+import { ChordMarker } from '../types/tab';
 
 describe('ChordDiagram Component', () => {
   it('renders standard C chord diagram with open strings and 1 fretted dot', () => {

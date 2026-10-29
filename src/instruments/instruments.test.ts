@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getInstrumentProfile, DEFAULT_INSTRUMENT_ID, INSTRUMENT_PROFILES } from './index';
 import { UKULELE_PROFILE } from './ukulele';
-import { InstrumentProfile } from '../types/ukulele';
+import { InstrumentProfile } from '../types/tab';
 import {
   TUNING_PRESETS,
   UKULELE_CHORD_LIBRARY,

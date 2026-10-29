@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
-import { UkuleleTabDocument, DurationType, TuningPresetKey } from '../types/ukulele';
+import { TabDocument, DurationType, TuningPresetKey } from '../types/tab';
 import { getInstrumentProfile } from '../instruments';
-import { parseGuitarProToUkuleleTab } from '../utils/guitarProImporter';
+import { parseGuitarProToTab } from '../utils/guitarProImporter';
 import {
   Play,
   Pause,
@@ -22,12 +22,12 @@ import {
 } from 'lucide-react';
 
 interface EditorToolbarProps {
-  document: UkuleleTabDocument;
+  document: TabDocument;
   isPlaying: boolean;
   activeDuration: DurationType;
   enableMetronome: boolean;
   playbackSpeed: number;
-  onUpdateDocument: React.Dispatch<React.SetStateAction<UkuleleTabDocument>>;
+  onUpdateDocument: React.Dispatch<React.SetStateAction<TabDocument>>;
   onTogglePlayback: () => void;
   onToggleMetronome: () => void;
   onChangeSpeed: (speed: number) => void;
@@ -41,7 +41,7 @@ interface EditorToolbarProps {
   onTranspose: (semitones: number) => void;
   onNewSong?: () => void;
   onExportJson: () => void;
-  onImportJson: (doc: UkuleleTabDocument) => void;
+  onImportJson: (doc: TabDocument) => void;
   onExportPdf: () => void;
   onOpenChordPaletteModal?: () => void;
 }
@@ -112,7 +112,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        const parsed = JSON.parse(content) as UkuleleTabDocument;
+        const parsed = JSON.parse(content) as TabDocument;
         if (parsed && parsed.title && Array.isArray(parsed.measures)) {
           onImportJson(parsed);
         } else {
@@ -134,7 +134,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     reader.onload = (event) => {
       try {
         const buffer = event.target?.result as ArrayBuffer;
-        const parsedDoc = parseGuitarProToUkuleleTab(buffer, file.name, profile);
+        const parsedDoc = parseGuitarProToTab(buffer, file.name, profile);
         onImportJson(parsedDoc);
       } catch (err: any) {
         alert(`Could not parse Guitar Pro file: ${err?.message || err}`);
@@ -226,7 +226,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <button
               onClick={onNewSong}
               className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
-              title="Start a new blank Ukulele tab chart"
+              title={`Start a new blank ${profile.name} tab chart`}
             >
               <FilePlus className="w-4 h-4 text-emerald-400" />
               <span>New Tab</span>
@@ -247,7 +247,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <button
             onClick={() => gpFileInputRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
-            title="Import a Guitar Pro (.gp/.gp3/.gp4/.gp5/.gpx) file to auto-generate a clean Ukulele tab chart"
+            title={`Import a Guitar Pro (.gp/.gp3/.gp4/.gp5/.gpx) file to auto-generate a clean ${profile.name} tab chart`}
           >
             <Upload className="w-4 h-4 text-amber-400" />
             <span>Open Guitar Pro</span>

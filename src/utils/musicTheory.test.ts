@@ -14,7 +14,7 @@ import {
   getDefaultChordPalette,
   getEffectiveChordPalette
 } from './musicTheory';
-import { UkuleleNote } from '../types/ukulele';
+import { TabNote } from '../types/tab';
 
 describe('musicTheory: Pitch & Tuning Calculations', () => {
   it('calculates exact MIDI pitch across standard High-G tuning (gCEA)', () => {
@@ -95,7 +95,7 @@ describe('musicTheory: Alternate Fret Suggestions', () => {
   it('suggests alternate frets for a note on other strings', () => {
     // Note on String 3 (C4), fret 4 = E4 (64)
     // String 2 open is E4 (fret 0)
-    const notes: UkuleleNote[] = [{ id: 'n1', string: 3, fret: 4 }];
+    const notes: TabNote[] = [{ id: 'n1', string: 3, fret: 4 }];
     const suggestions = getAlternateFretSuggestions(notes, tuning, 12);
 
     expect(suggestions).toEqual(
@@ -109,7 +109,7 @@ describe('musicTheory: Alternate Fret Suggestions', () => {
     // Note on String 2 (E4), fret 0 = E4 (64)
     // String 3 (C4) needs fret 4 (64 - 60 = 4)
     // String 4 (G4) cannot play E4 lower than fret 0 (64 - 67 = -3 -> discarded)
-    const notes: UkuleleNote[] = [{ id: 'n1', string: 2, fret: 0 }];
+    const notes: TabNote[] = [{ id: 'n1', string: 2, fret: 0 }];
 
     // When maxFretLimit is 3, candidate fret 4 on String 3 should be excluded
     const suggestionsMax3 = getAlternateFretSuggestions(notes, tuning, 3);
@@ -125,7 +125,7 @@ describe('musicTheory: Pitch Transposition', () => {
   const tuning = TUNING_PRESETS.gCEA;
 
   it('transposes note pitches up and down by semitones', () => {
-    const notes: UkuleleNote[] = [
+    const notes: TabNote[] = [
       { id: 'n1', string: 1, fret: 0 }, // A4
       { id: 'n2', string: 3, fret: 0 }  // C4
     ];
@@ -142,11 +142,11 @@ describe('musicTheory: Pitch Transposition', () => {
   });
 
   it('clamps frets within 0 to 20 bounds', () => {
-    const notes: UkuleleNote[] = [{ id: 'n1', string: 1, fret: 0 }];
+    const notes: TabNote[] = [{ id: 'n1', string: 1, fret: 0 }];
     const transposedNegative = transposePitches(notes, -5, tuning);
     expect(transposedNegative[0].fret).toBe(0);
 
-    const highNotes: UkuleleNote[] = [{ id: 'n1', string: 1, fret: 18 }];
+    const highNotes: TabNote[] = [{ id: 'n1', string: 1, fret: 18 }];
     const transposedOver = transposePitches(highNotes, 10, tuning);
     expect(transposedOver[0].fret).toBe(20);
   });
@@ -154,7 +154,7 @@ describe('musicTheory: Pitch Transposition', () => {
 
 describe('musicTheory: Chord Palette, Detection & 4-String Extraction', () => {
   it('extracts 4-string frets in [S4, S3, S2, S1] order', () => {
-    const completeNotes: UkuleleNote[] = [
+    const completeNotes: TabNote[] = [
       { id: 'n1', string: 1, fret: 3 }, // A4 string -> Fret 3
       { id: 'n2', string: 2, fret: 0 }, // E4 string -> Fret 0
       { id: 'n3', string: 3, fret: 0 }, // C4 string -> Fret 0
@@ -163,7 +163,7 @@ describe('musicTheory: Chord Palette, Detection & 4-String Extraction', () => {
     // C major = [0, 0, 0, 3] (S4, S3, S2, S1)
     expect(extractChordFrets(completeNotes, 4)).toEqual([0, 0, 0, 3]);
 
-    const partialNotes: UkuleleNote[] = [
+    const partialNotes: TabNote[] = [
       { id: 'n1', string: 1, fret: 3 },
       { id: 'n2', string: 2, fret: 0 }
     ];
@@ -171,7 +171,7 @@ describe('musicTheory: Chord Palette, Detection & 4-String Extraction', () => {
   });
 
   it('automatically detects standard chords from 4-string notes', () => {
-    const cMajorNotes: UkuleleNote[] = [
+    const cMajorNotes: TabNote[] = [
       { id: 'n1', string: 1, fret: 3 },
       { id: 'n2', string: 2, fret: 0 },
       { id: 'n3', string: 3, fret: 0 },
@@ -182,7 +182,7 @@ describe('musicTheory: Chord Palette, Detection & 4-String Extraction', () => {
     expect(detected?.name).toBe('C');
     expect(detected?.frets).toEqual([0, 0, 0, 3]);
 
-    const gMajorNotes: UkuleleNote[] = [
+    const gMajorNotes: TabNote[] = [
       { id: 'n1', string: 1, fret: 2 },
       { id: 'n2', string: 2, fret: 3 },
       { id: 'n3', string: 3, fret: 2 },

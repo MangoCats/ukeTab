@@ -1,8 +1,8 @@
-import { UkuleleTabDocument, InstrumentProfile } from '../types/ukulele';
+import { TabDocument, InstrumentProfile } from '../types/tab';
 import { TUNING_PRESETS, getChordPreset, getDefaultChordPalette } from './musicTheory';
 import { getInstrumentProfile } from '../instruments';
 
-export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
+export const THREE_IS_A_MAGIC_NUMBER_TAB: TabDocument = {
   id: 'tab-three-is-a-magic-number-001',
   title: 'Three Is a Magic Number',
   artist: 'Bob Dorough (Schoolhouse Rock!)',
@@ -350,7 +350,7 @@ export const THREE_IS_A_MAGIC_NUMBER_TAB: UkuleleTabDocument = {
   ]
 };
 
-export const ALOHA_GROOVE_TAB: UkuleleTabDocument = {
+export const ALOHA_GROOVE_TAB: TabDocument = {
   id: 'tab-aloha-groove-001',
   title: 'Aloha Ukulele Groove',
   artist: 'Traditional Ukulele Spec',
@@ -470,7 +470,7 @@ export const ALOHA_GROOVE_TAB: UkuleleTabDocument = {
   ]
 };
 
-export const CONJUNCTION_JUNCTION_TAB: UkuleleTabDocument = {
+export const CONJUNCTION_JUNCTION_TAB: TabDocument = {
   id: 'tab-conjunction-junction-001',
   title: 'Conjunction Junction',
   artist: 'Bob Dorough (Schoolhouse Rock!)',
@@ -655,7 +655,7 @@ export const CONJUNCTION_JUNCTION_TAB: UkuleleTabDocument = {
   ]
 };
 
-export const createBlankTabDocument = (profile: InstrumentProfile = getInstrumentProfile()): UkuleleTabDocument => ({
+export const createBlankTabDocument = (profile: InstrumentProfile = getInstrumentProfile()): TabDocument => ({
   id: `tab-blank-${Date.now()}`,
   title: `Untitled ${profile.name} Tab`,
   artist: '',

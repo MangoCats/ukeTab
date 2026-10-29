@@ -123,7 +123,7 @@ Tabs are stored as JSON files (`.uketab`):
 2. **Guitar Pro Import Parser (`src/utils/guitarProImporter.test.ts`)**:
    - AlphaTab duration code mappings (`convertGpDuration`).
    - Clean lyric syllable hyphenation and whitespace handling (`cleanGpLyric`).
-3. **Ukulele Domain Types & Constants (`src/types/ukulele.test.ts`)**:
+3. **Tab Domain Types & Constants (`src/types/tab.test.ts`)**:
    - Validation of `DURATION_OPTIONS` and keyboard shortcut mappings `DURATION_KEY_MAP`.
 4. **Sample Tab Documents & Generator (`src/utils/sampleData.test.ts`)**:
    - Validation of default sample tab files and blank tab document generation.

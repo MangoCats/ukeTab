@@ -1,4 +1,4 @@
-import { BeatColumn, TuningConfig, SynthVoice } from '../types/ukulele';
+import { BeatColumn, TuningConfig, SynthVoice } from '../types/tab';
 import { calculatePitch } from './musicTheory';
 import { UKULELE_PROFILE } from '../instruments/ukulele';
 

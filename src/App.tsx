@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, ChordMarker, DURATION_KEY_MAP } from './types/ukulele';
+import { TabDocument, DurationType, TabNote, Measure, BeatColumn, ChordMarker, DURATION_KEY_MAP } from './types/tab';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
 import { transposePitches, getBeatDurationMs, getEffectiveChordPalette, autoDetectChordFromBeatNotes, extractChordFrets } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
@@ -12,7 +12,7 @@ import { DuplicateMeasuresModal } from './components/DuplicateMeasuresModal';
 import { Sparkles, Keyboard, Music2 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [document, setDocument] = useState<UkuleleTabDocument>(() => ({
+  const [document, setDocument] = useState<TabDocument>(() => ({
     ...SAMPLE_TAB_DOCUMENT,
     chordPalette: getEffectiveChordPalette(SAMPLE_TAB_DOCUMENT.chordPalette)
   }));
@@ -29,6 +29,7 @@ export const App: React.FC = () => {
   const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false);
 
   const playbackTimeoutRef = useRef<number | null>(null);
+  const profile = getInstrumentProfile(document.instrument);
   const lastKeyTimeRef = useRef<number>(0);
   const lastDigitRef = useRef<string>('');
 
@@ -69,7 +70,7 @@ export const App: React.FC = () => {
       const isFirstBeatInMeasure = (currentIndex === 0) || (allBeats[currentIndex - 1].measureIndex !== beatInfo.measureIndex);
 
       if (!beatInfo.isRest && !beatInfo.isTied) {
-        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure, getInstrumentProfile(document.instrument).synthVoice);
+        playBeatChord(beatInfo, document.tuning, false, isFirstBeatInMeasure, profile.synthVoice);
       }
       if (enableMetronome && isFirstBeatInMeasure) {
         playMetronomeClick(true);
@@ -257,7 +258,7 @@ export const App: React.FC = () => {
         beats: m.beats.map(b => {
           if (b.id !== beatId) return b;
           const existingFiltered = b.notes.filter(n => n.string !== stringIndex && !n.isGhost);
-          const newNote: UkuleleNote = {
+          const newNote: TabNote = {
             id: `n-${Date.now()}-${stringIndex}`,
             string: stringIndex,
             fret: fret
@@ -549,7 +550,7 @@ export const App: React.FC = () => {
         const newMeasureId = `m-${Date.now()}-${mOffset}-${Math.random().toString(36).substring(2, 6)}`;
         const newBeats: BeatColumn[] = m.beats.map((b, bOffset) => {
           const newBeatId = `b-${newMeasureId}-${bOffset}`;
-          const newNotes: UkuleleNote[] = b.notes.map((n, nOffset) => ({
+          const newNotes: TabNote[] = b.notes.map((n, nOffset) => ({
             ...n,
             id: `n-${Date.now()}-${bOffset}-${nOffset}-${Math.random().toString(36).substring(2, 5)}`
           }));
@@ -581,7 +582,6 @@ export const App: React.FC = () => {
   };
 
   const handleNewSong = () => {
-    const profile = getInstrumentProfile(document.instrument);
     if (window.confirm(`Create a new blank ${profile.name.toLowerCase()} tab chart? Unsaved changes will be replaced.`)) {
       const blankDoc = createBlankTabDocument(profile);
       setDocument(blankDoc);
@@ -599,12 +599,12 @@ export const App: React.FC = () => {
     downloadAnchor.remove();
   };
 
-  const handleImportJson = (importedDoc: UkuleleTabDocument) => {
-    const profile = getInstrumentProfile(importedDoc.instrument);
+  const handleImportJson = (importedDoc: TabDocument) => {
+    const importedProfile = getInstrumentProfile(importedDoc.instrument);
     setDocument({
       ...importedDoc,
-      instrument: profile.id,
-      chordPalette: getEffectiveChordPalette(importedDoc.chordPalette, profile)
+      instrument: importedProfile.id,
+      chordPalette: getEffectiveChordPalette(importedDoc.chordPalette, importedProfile)
     });
     const firstBeat = importedDoc.measures[0]?.beats[0]?.id || null;
     setSelectedBeatId(firstBeat);
@@ -636,7 +636,7 @@ export const App: React.FC = () => {
         activePalette={document.chordPalette || []}
         onUpdatePalette={handleUpdateChordPalette}
         initialFrets={selectedBeatInitialFrets}
-        profile={getInstrumentProfile(document.instrument)}
+        profile={profile}
         tuning={document.tuning}
       />
 
@@ -659,7 +659,7 @@ export const App: React.FC = () => {
               UkeTab Studio
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              Interactive 4-Line Ukulele Tab Chart Creator & Synthesizer
+              Interactive {document.tuning.pitches.length}-Line {profile.name} Tab Chart Creator & Synthesizer
             </p>
           </div>
         </div>
@@ -754,7 +754,7 @@ export const App: React.FC = () => {
           @media print {
             @page {
               @bottom-center {
-                content: ${JSON.stringify((document.title || 'Untitled Ukulele Tab') + ' ')} counter(page) " of " counter(pages);
+                content: ${JSON.stringify((document.title || `Untitled ${profile.name} Tab`) + ' ')} counter(page) " of " counter(pages);
                 font-size: 9pt;
                 font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 color: #0f172a;
@@ -767,7 +767,7 @@ export const App: React.FC = () => {
 
         {/* Dedicated Printable Title Header (Visible ONLY in Print / PDF Mode) */}
         <div className="print-title-header">
-          <h1>{document.title || 'Untitled Ukulele Tab'}</h1>
+          <h1>{document.title || `Untitled ${profile.name} Tab`}</h1>
           {document.artist && <p className="artist">{document.artist}</p>}
           <p className="meta">
             Tuning: {document.tuning.name} ({document.tuning.stringsDisplay.join('-')}) &bull; Tempo: {document.tempo} BPM
@@ -822,7 +822,7 @@ export const App: React.FC = () => {
       {/* Footer (Hidden in Print) */}
       <footer className="no-print mt-8 pt-6 border-t border-slate-800/80 text-center text-xs text-slate-500 flex flex-wrap justify-between items-center gap-4">
         <div>
-          <span className="font-semibold text-slate-400">UkeTab Engine v1.0.0</span> &bull; Ukulele Tab Creator with Traditional Rhythm Notation
+          <span className="font-semibold text-slate-400">UkeTab Engine v1.0.0</span> &bull; {profile.name} Tab Creator with Traditional Rhythm Notation
         </div>
         <div className="flex items-center gap-4 font-medium text-slate-400">
           <a href="/docs/PROJECT_SPECIFICATION.md" className="hover:text-amber-400 transition">Project Spec</a>

@@ -2,10 +2,10 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { TabRenderer } from './TabRenderer';
-import { UkuleleTabDocument } from '../types/ukulele';
+import { TabDocument } from '../types/tab';
 import { TUNING_PRESETS, getDefaultChordPalette } from '../utils/musicTheory';
 
-const mockTabDocument: UkuleleTabDocument = {
+const mockTabDocument: TabDocument = {
   id: 'test-tab-1',
   title: 'Test Song',
   artist: 'Test Artist',

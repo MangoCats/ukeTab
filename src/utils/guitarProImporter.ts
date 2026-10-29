@@ -1,5 +1,5 @@
 import * as alphaTab from '@coderline/alphatab';
-import { UkuleleTabDocument, Measure, BeatColumn, UkuleleNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/ukulele';
+import { TabDocument, Measure, BeatColumn, TabNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/tab';
 import { autoDetectChordFromBeatNotes, getDefaultChordPalette, getStringNumbers } from './musicTheory';
 import { getInstrumentProfile } from '../instruments';
 
@@ -28,13 +28,13 @@ export function cleanGpLyric(lyrics: string[] | null | undefined): string | unde
 }
 
 /**
- * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean UkuleleTabDocument with Tied Notes & Precision Tick-Synchronized Lyrics.
+ * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean TabDocument with Tied Notes & Precision Tick-Synchronized Lyrics.
  */
-export function parseGuitarProToUkuleleTab(
+export function parseGuitarProToTab(
   arrayBuffer: ArrayBuffer,
   fileName: string = 'Imported Song',
   profile: InstrumentProfile = getInstrumentProfile()
-): UkuleleTabDocument {
+): TabDocument {
   const uint8Array = new Uint8Array(arrayBuffer);
   const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(uint8Array);
 
@@ -105,7 +105,7 @@ export function parseGuitarProToUkuleleTab(
         const { duration, isDotted } = convertGpDuration(gpBeat.duration, gpBeat.dots > 0);
         const isRest = gpBeat.isRest || !gpBeat.notes || gpBeat.notes.length === 0;
 
-        const ukeNotes: UkuleleNote[] = [];
+        const tabNotes: TabNote[] = [];
         const assignedStrings = new Set<number>();
         let hasTiedNote = false;
 
@@ -125,7 +125,7 @@ export function parseGuitarProToUkuleleTab(
               while (pitch > maxPitch) pitch -= 12;
             }
 
-            // Solve optimal Ukulele string & fret
+            // Solve optimal string & fret on the instrument
             const targetStrings = getStringNumbers(tuning.pitches.length);
             let bestString: number | null = null;
             let bestFret = 999;
@@ -154,7 +154,7 @@ export function parseGuitarProToUkuleleTab(
 
             if (bestString) {
               assignedStrings.add(bestString);
-              ukeNotes.push({
+              tabNotes.push({
                 id: `gp-n-${mIdx}-${bIdx}-${nIdx}`,
                 string: bestString,
                 fret: bestFret,
@@ -164,7 +164,7 @@ export function parseGuitarProToUkuleleTab(
           });
         }
 
-        const autoChord = autoDetectChordFromBeatNotes(ukeNotes, chordPalette, profile);
+        const autoChord = autoDetectChordFromBeatNotes(tabNotes, chordPalette, profile);
 
         // Synchronize lyric syllable using exact measure index + playbackStart tick timestamp
         const tickKey = `${mIdx}-${gpBeat.playbackStart}`;
@@ -176,7 +176,7 @@ export function parseGuitarProToUkuleleTab(
           isDotted: isDotted,
           isRest: isRest,
           isTied: hasTiedNote, // Mark BeatColumn as tied/continued note
-          notes: ukeNotes,
+          notes: tabNotes,
           chord: autoChord || undefined,
           lyric: beatLyric
         });

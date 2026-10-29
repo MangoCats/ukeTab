@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { DURATION_OPTIONS, DURATION_KEY_MAP } from './ukulele';
+import { DURATION_OPTIONS, DURATION_KEY_MAP } from './tab';
 
-describe('ukulele domain types & constants', () => {
+describe('tab domain types & constants', () => {
   it('defines all standard duration options', () => {
     expect(DURATION_OPTIONS).toHaveLength(5);
     expect(DURATION_OPTIONS.map(d => d.value)).toEqual(['1/1', '1/2', '1/4', '1/8', '1/16']);

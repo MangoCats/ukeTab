@@ -1,4 +1,4 @@
-import { TuningConfig, UkuleleNote, ChordMarker, ChordFretLibrary, InstrumentProfile } from '../types/ukulele';
+import { TuningConfig, TabNote, ChordMarker, ChordFretLibrary, InstrumentProfile } from '../types/tab';
 import { UKULELE_PROFILE, UKULELE_TUNINGS, UKULELE_CHORD_LIBRARY, UKULELE_DEFAULT_CHORD_NAMES } from '../instruments/ukulele';
 
 // Ukulele tuning and chord data live in the ukulele instrument profile; re-exported here for existing callers
@@ -30,7 +30,7 @@ export function getStringNumbers(stringCount: number): number[] {
 /**
  * Extracts chord fret array [SN, ..., S2, S1] from note objects if every string has a note defined.
  */
-export function extractChordFrets(notes: UkuleleNote[], stringCount: number): number[] | null {
+export function extractChordFrets(notes: TabNote[], stringCount: number): number[] | null {
   const activeNotes = notes.filter(n => !n.isGhost);
   const frets: number[] = [];
 
@@ -93,7 +93,7 @@ export function findExistingChordsByFrets(
  * Automatically detects a matching chord from the defined library when all strings have fingerings defined (including 0 for open).
  */
 export function autoDetectChordFromBeatNotes(
-  notes: UkuleleNote[],
+  notes: TabNote[],
   customPalette: ChordMarker[] = [],
   profile: InstrumentProfile = UKULELE_PROFILE
 ): ChordMarker | null {
@@ -182,11 +182,11 @@ export function getBeatDurationMs(beat: { duration: string; isDotted?: boolean; 
  * Capped by user-configured maxFretLimit (default 12).
  */
 export function getAlternateFretSuggestions(
-  currentNotes: UkuleleNote[],
+  currentNotes: TabNote[],
   tuning: TuningConfig,
   maxFretLimit: number = 12
-): UkuleleNote[] {
-  const ghostNotes: UkuleleNote[] = [];
+): TabNote[] {
+  const ghostNotes: TabNote[] = [];
   const assignedStrings = new Set(currentNotes.map(n => n.string));
 
   currentNotes.forEach(activeNote => {
@@ -215,10 +215,10 @@ export function getAlternateFretSuggestions(
  * Shifts key by a given semitone amount, adjusting fret numbers across the document.
  */
 export function transposePitches(
-  notes: UkuleleNote[],
+  notes: TabNote[],
   semitoneShift: number,
   tuning: TuningConfig
-): UkuleleNote[] {
+): TabNote[] {
   return notes.map(note => {
     if (note.fret < 0) return note; // Muted X notes remain muted X
     const currentPitch = calculatePitch(note.string, note.fret, tuning);

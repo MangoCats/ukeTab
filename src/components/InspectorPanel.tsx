@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
+import { TabDocument, TabNote, ChordMarker } from '../types/tab';
 import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
 import { getInstrumentProfile } from '../instruments';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface InspectorPanelProps {
-  document: UkuleleTabDocument;
+  document: TabDocument;
   selectedBeatId: string | null;
   selectedString: number | null;
   onUpdateBeatLyric: (beatId: string, lyric: string) => void;
@@ -78,7 +78,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   if (!selectedBeat) return null;
 
-  const currentNotes: UkuleleNote[] = selectedBeat.notes.filter((n: UkuleleNote) => !n.isGhost);
+  const currentNotes: TabNote[] = selectedBeat.notes.filter((n: TabNote) => !n.isGhost);
   const activeNote = selectedString ? currentNotes.find(n => n.string === selectedString) : null;
   const ghostNotes = getAlternateFretSuggestions(currentNotes, tuning, maxFretLimit);
 
@@ -221,13 +221,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       {/* Expandable Editing Sections (Chord Diagrams, Fret Selection Pad, Alternate Frets) */}
       {!isCollapsed && (
         <div className="space-y-3.5 pt-1">
-          {/* Ukulele Chord Diagram Chart Inspector Section */}
+          {/* Chord Diagram Chart Inspector Section */}
           <div className="border-b border-slate-800/80 pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-2.5">
               <div className="flex items-center gap-2">
                 <Music className="w-4 h-4 text-amber-400" />
                 <span className="font-bold text-xs text-amber-400 uppercase tracking-wide font-outfit">
-                  Ukulele Chord Diagram (Rendered Above Staff)
+                  {profile.name} Chord Diagram (Rendered Above Staff)
                 </span>
               </div>
 

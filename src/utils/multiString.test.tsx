@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { TabRenderer } from '../components/TabRenderer';
 import { ChordDiagram } from '../components/ChordDiagram';
-import { InstrumentProfile, TuningConfig, UkuleleNote, UkuleleTabDocument } from '../types/ukulele';
+import { InstrumentProfile, TuningConfig, TabNote, TabDocument } from '../types/tab';
 import { UKULELE_PROFILE } from '../instruments/ukulele';
 import {
   getStringNumbers,
@@ -33,7 +33,7 @@ const SIX_STRING_PROFILE: InstrumentProfile = {
 };
 
 // C major open shape, notes keyed by string number (1 = high E)
-const C_MAJOR_NOTES: UkuleleNote[] = [
+const C_MAJOR_NOTES: TabNote[] = [
   { id: 'n1', string: 1, fret: 0 },
   { id: 'n2', string: 2, fret: 1 },
   { id: 'n3', string: 3, fret: 0 },
@@ -65,13 +65,13 @@ describe('musicTheory: N-String Support', () => {
 
   it('suggests alternate frets on all unassigned strings of the tuning', () => {
     // E4 (string 1 open) is also B3 fret 5, G3 fret 9, D3 fret 14, A2 fret 19, E2 fret 24
-    const notes: UkuleleNote[] = [{ id: 'n1', string: 1, fret: 0 }];
+    const notes: TabNote[] = [{ id: 'n1', string: 1, fret: 0 }];
     const suggestions = getAlternateFretSuggestions(notes, SIX_STRING_TUNING, 20);
     expect(suggestions.map(g => [g.string, g.fret])).toEqual([[2, 5], [3, 9], [4, 14], [5, 19]]);
   });
 
   it('transposes notes on strings beyond the fourth', () => {
-    const notes: UkuleleNote[] = [{ id: 'n6', string: 6, fret: 3 }];
+    const notes: TabNote[] = [{ id: 'n6', string: 6, fret: 3 }];
     expect(transposePitches(notes, 2, SIX_STRING_TUNING)[0]).toMatchObject({ string: 6, fret: 5 });
   });
 });
@@ -88,7 +88,7 @@ describe('Components: N-String Rendering', () => {
   });
 
   it('renders one staff line, label and note per string on a 6-string tab', () => {
-    const doc: UkuleleTabDocument = {
+    const doc: TabDocument = {
       id: 'six-string-tab',
       title: 'Six String Song',
       artist: '',

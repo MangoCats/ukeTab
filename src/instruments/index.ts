@@ -1,4 +1,4 @@
-import { InstrumentId, InstrumentProfile } from '../types/ukulele';
+import { InstrumentId, InstrumentProfile } from '../types/tab';
 import { UKULELE_PROFILE } from './ukulele';
 
 export const DEFAULT_INSTRUMENT_ID: InstrumentId = 'ukulele';

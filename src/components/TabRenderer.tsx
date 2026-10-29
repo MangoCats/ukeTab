@@ -1,12 +1,12 @@
 import React from 'react';
-import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/ukulele';
+import { TabDocument, TabNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/tab';
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
 import { getInstrumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
 
 interface TabRendererProps {
-  document: UkuleleTabDocument;
+  document: TabDocument;
   selectedBeatId: string | null;
   selectedString: number | null;
   playingBeatId: string | null;
@@ -61,7 +61,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const beatWidth = 62 * zoom;
 
   // Selected beat info for Chord Diagram & Inspector
-  let activeChordNotes: UkuleleNote[] = [];
+  let activeChordNotes: TabNote[] = [];
   let currentBeatDuration: DurationType = '1/4';
   let currentBeatDotted: boolean = false;
   let currentBeatChord: ChordMarker | null | undefined = undefined;
@@ -232,7 +232,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             <ChordDiagram notes={activeChordNotes} tuning={tuning} chordName={effectiveChord?.name} />
           </div>
           <div className="text-xs text-slate-400 font-mono hidden md:block">
-            Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">Ukulele Chord Diagram</span> rendered above the staff lines.
+            Tip: Select any beat to assign a <span className="text-amber-400 font-semibold">{profile.name} Chord Diagram</span> rendered above the staff lines.
           </div>
         </div>
       )}
@@ -506,7 +506,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                           className="playhead-highlight no-print transition-colors duration-150 group-hover:fill-slate-800/40"
                         />
 
-                        {/* Ukulele Chord Diagram Chart Rendered Above Staff */}
+                        {/* Chord Diagram Chart Rendered Above Staff */}
                         {displayChord && (
                           <g
                             transform={`translate(${beatX - 25 * zoom}, ${string1Y - 78 * zoom}) scale(${zoom})`}

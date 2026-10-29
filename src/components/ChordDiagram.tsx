@@ -1,8 +1,8 @@
 import React from 'react';
-import { UkuleleNote, TuningConfig, ChordMarker } from '../types/ukulele';
+import { TabNote, TuningConfig, ChordMarker } from '../types/tab';
 
 interface ChordDiagramProps {
-  notes?: UkuleleNote[];
+  notes?: TabNote[];
   chord?: ChordMarker;
   tuning?: TuningConfig;
   chordName?: string;

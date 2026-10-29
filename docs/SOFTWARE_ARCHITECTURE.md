@@ -15,7 +15,7 @@
 +-------------------------------------------------------------------------+
 |                        Application Logic & State                        |
 |   +-----------------------------------------------------------------+   |
-|   |                      UkuleleTab Document State                   |   |
+|   |                      Tab Document State                         |   |
 |   +-----------------------------------------------------------------+   |
 |     |                     |                    |                   |    |
 |  +--v-------------+  +----v-----------+  +-----v-----------+  +----v--+ |
@@ -50,7 +50,7 @@ The domain model represents the hierarchical structure of a ukulele tab document
 ```typescript
 export type DurationType = '1/1' | '1/2' | '1/4' | '1/8' | '1/16' | '1/32';
 
-export interface UkuleleNote {
+export interface TabNote {
   id: string;
   string: number;        // 1 = Top line (A4 on ukulele) .. N = Bottom line (N = tuning string count)
   fret: number;          // 0 = Open, 1..20 = Fretted
@@ -71,7 +71,7 @@ export interface BeatColumn {
   isTriplet?: boolean;
   isRest?: boolean;
   isTied?: boolean; // When true, sustains note duration into next beat without re-strumming
-  notes: UkuleleNote[];
+  notes: TabNote[];
   chord?: ChordMarker | null;
   lyric?: string;
 }
@@ -97,7 +97,7 @@ export interface LayoutOptions {
   maxFretLimit: number;              // Default: 12 (user selectable 7..20)
 }
 
-export interface UkuleleTabDocument {
+export interface TabDocument {
   id: string;
   title: string;
   artist: string;
@@ -144,10 +144,10 @@ When the user shifts the song key by $N$ semitones or changes string tuning (e.g
 
 ```typescript
 export function transposePitches(
-  notes: UkuleleNote[],
+  notes: TabNote[],
   semitoneShift: number,
   tuning: TuningConfig
-): UkuleleNote[] {
+): TabNote[] {
   return notes.map(note => {
     const currentPitch = calculatePitch(note.string, note.fret, tuning);
     const newPitch = currentPitch + semitoneShift;
@@ -230,7 +230,7 @@ Decodes binary `.gp`, `.gp3`–`.gp5`, and `.gpx` files using `@coderline/alphat
           | - ghost notes      |          |
           | - transposition    |          v
           +--------------------+ +--------------------+
-                     |           | ukulele.test       |
+                     |           | tab.test           |
                      v           | sampleData.test    |
           +--------------------+ +--------------------+
           | TypeScript (tsc)   |

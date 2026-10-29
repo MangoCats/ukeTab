@@ -1,4 +1,4 @@
-import { ChordFretLibrary, InstrumentProfile, TuningConfig, TuningPresetKey } from '../types/ukulele';
+import { ChordFretLibrary, InstrumentProfile, TuningConfig, TuningPresetKey } from '../types/tab';
 
 // Standard Ukulele Tunings Catalog
 export const UKULELE_TUNINGS: Record<TuningPresetKey, TuningConfig> = {

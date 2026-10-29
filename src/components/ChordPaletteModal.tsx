@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChordMarker, InstrumentProfile, TuningConfig } from '../types/ukulele';
+import { ChordMarker, InstrumentProfile, TuningConfig } from '../types/tab';
 import { getChordPreset, createChordMarker, findExistingChordsByFrets, getStringNumbers } from '../utils/musicTheory';
 import { getInstrumentProfile } from '../instruments';
 import { ChordDiagram } from './ChordDiagram';
