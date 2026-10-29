@@ -16,7 +16,9 @@ import {
   getEffectiveChordPalette,
   adaptChordFrets,
   transposeChordName,
-  transposeChordMarker
+  transposeChordMarker,
+  getSoundingTuning,
+  assignNotesToStrings
 } from './musicTheory';
 import { TabNote, TuningConfig } from '../types/tab';
 import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
@@ -60,6 +62,40 @@ describe('musicTheory: Pitch & Tuning Calculations', () => {
     expect(midiToNoteName(64)).toBe('E4');
     expect(midiToNoteName(67)).toBe('G4');
     expect(midiToNoteName(72)).toBe('C5');
+  });
+});
+
+describe('musicTheory: Capo & String Assignment', () => {
+  it('raises every open string by the capo for the sounding tuning, and returns the tuning itself without one', () => {
+    const tuning = TUNING_PRESETS.gCEA;
+    expect(getSoundingTuning({ tuning })).toBe(tuning);
+    expect(getSoundingTuning({ tuning, capo: 0 })).toBe(tuning);
+
+    const capo3 = getSoundingTuning({ tuning, capo: 3 });
+    expect(capo3.pitches).toEqual([72, 67, 63, 70]);
+    expect(capo3.stringsDisplay).toEqual(tuning.stringsDisplay);
+    expect(tuning.pitches).toEqual([69, 64, 60, 67]);
+    // Fret 2 on the A string with capo 3 sounds D5
+    expect(midiToNoteName(calculatePitch(1, 2, capo3))).toBe('D5');
+  });
+
+  it('assigns each pitch to the free string with the lowest fret, folding into the range first', () => {
+    const tuning = GUITAR_TUNINGS.EADGBE;
+    // E4 is open String 1; B3 then takes String 2; E2 folded up into [52, 88] is E3, String 4 fret 2
+    expect(assignNotesToStrings([64, 59, 40], tuning, 24, { pitchRange: [52, 88] })).toEqual([
+      { string: 1, fret: 0 }, { string: 2, fret: 0 }, { string: 4, fret: 2 }
+    ]);
+    // Used strings are skipped: A4 goes to the E string at fret 5
+    expect(assignNotesToStrings([69], TUNING_PRESETS.GCEA, 12, { usedStrings: [1] })).toEqual([{ string: 2, fret: 5 }]);
+  });
+
+  it('clamps a pitch no free string can play onto the first free string, and gives null once every string is taken', () => {
+    const tuning = TUNING_PRESETS.gCEA;
+    expect(assignNotesToStrings([40], tuning, 15)).toEqual([{ string: 1, fret: 0 }]);
+    expect(assignNotesToStrings([100], tuning, 15, { usedStrings: [1] })).toEqual([{ string: 2, fret: 15 }]);
+    expect(assignNotesToStrings([69, 64, 60, 67, 72], tuning, 15)).toEqual([
+      { string: 1, fret: 0 }, { string: 2, fret: 0 }, { string: 3, fret: 0 }, { string: 4, fret: 0 }, null
+    ]);
   });
 });
 

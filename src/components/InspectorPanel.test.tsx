@@ -93,3 +93,18 @@ describe('InspectorPanel Component: Measure Time Signature', () => {
     expect(queryByLabelText('Time signature beats per measure')).toBeNull();
   });
 });
+
+describe('InspectorPanel Component: Note Pitch', () => {
+  it('shows the sounding pitch of the selected note, including the capo', () => {
+    const doc = makeDoc();
+    doc.measures[0].beats[0].notes = [{ id: 'n1', string: 1, fret: 3 }];
+
+    // Ukulele A string, fret 3: C5, or D5 with a capo at fret 2
+    const plain = renderPanel(doc, 'b1');
+    expect(plain.getByText('Fret 3 (C5)')).toBeTruthy();
+    plain.unmount();
+
+    const { getByText } = renderPanel({ ...doc, capo: 2 }, 'b1');
+    expect(getByText('Fret 3 (D5)')).toBeTruthy();
+  });
+});

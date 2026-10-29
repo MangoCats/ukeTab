@@ -85,3 +85,58 @@ describe('EditorToolbar Component: Instrument Menus', () => {
     expect(updated.chordPalette!.find(c => c.name === 'E')?.frets).toEqual([2, 2, 2, 1, 0, 0]);
   });
 });
+
+describe('EditorToolbar Component: Capo & Instrument Conversion', () => {
+  it('offers no capo or a capo at frets 1-12, and sets it keeping the notes', () => {
+    const onUpdateDocument = vi.fn();
+    const doc = createBlankTabDocument(GUITAR_PROFILE);
+    doc.measures[0].beats[0] = { ...doc.measures[0].beats[0], notes: [{ id: 'n1', string: 6, fret: 3 }] };
+    const { getByLabelText } = renderToolbar(doc, vi.fn(), onUpdateDocument);
+
+    const capoSelect = getByLabelText('Capo') as HTMLSelectElement;
+    expect(capoSelect.value).toBe('0');
+    expect(Array.from(capoSelect.options).map(o => o.textContent)).toEqual(['None', ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)]);
+
+    fireEvent.change(capoSelect, { target: { value: '3' } });
+    const updated: TabDocument = onUpdateDocument.mock.calls[0][0](doc);
+    expect(updated.capo).toBe(3);
+    expect(updated.measures).toBe(doc.measures);
+  });
+
+  it('shows the document\'s capo', () => {
+    const { getByLabelText } = renderToolbar({ ...createBlankTabDocument(), capo: 5 });
+    expect((getByLabelText('Capo') as HTMLSelectElement).value).toBe('5');
+  });
+
+  it('lists only the other instruments in the Convert menu', () => {
+    const onConvertInstrument = vi.fn();
+    const noop = vi.fn();
+    const { getByText, getAllByRole, queryByRole } = render(
+      <EditorToolbar
+        document={createBlankTabDocument(GUITAR_PROFILE)}
+        isPlaying={false}
+        activeDuration="1/4"
+        enableMetronome={false}
+        playbackSpeed={1}
+        onUpdateDocument={noop}
+        onTogglePlayback={noop}
+        onToggleMetronome={noop}
+        onChangeSpeed={noop}
+        onSelectDuration={noop}
+        onAddMeasure={noop}
+        onTranspose={noop}
+        onConvertInstrument={onConvertInstrument}
+        onExportJson={noop}
+        onImportJson={noop}
+        onExportPdf={noop}
+      />
+    );
+
+    fireEvent.click(getByText('Convert'));
+    expect(getAllByRole('menuitem').map(el => el.textContent)).toEqual(['Convert to Ukulele4 strings', 'Convert to Bass4 strings']);
+
+    fireEvent.click(getByText('Convert to Bass'));
+    expect(onConvertInstrument).toHaveBeenCalledWith('bass');
+    expect(queryByRole('menu')).toBeNull();
+  });
+});

@@ -108,6 +108,7 @@ export interface TabDocument {
   tempo: number;
   keySignature: string;     // Stored only; not displayed or used by any engine
   tuning: TuningConfig;
+  capo?: number;            // Capo fret 0..12 (absent = 0, no capo); fret numbers are relative to the capo
   layout: LayoutOptions;
   measures: Measure[];
   chordPalette?: ChordMarker[]; // Composition-specific active chord palette

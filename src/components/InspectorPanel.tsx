@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TabDocument, TabNote, ChordMarker, Measure } from '../types/tab';
-import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
+import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette, getStringNumbers, getSoundingTuning } from '../utils/musicTheory';
 import { getDocumentProfile } from '../instruments';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
 
@@ -97,7 +97,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const ghostNotes = getAlternateFretSuggestions(currentNotes, tuning, maxFretLimit);
 
   const stringName = selectedString ? tuning.stringsDisplay[selectedString - 1] : null;
-  const pitchMidi = selectedString && activeNote ? calculatePitch(selectedString, activeNote.fret, tuning) : null;
+  // The pitch heard includes the capo; alternate frets above stay capo-relative and use the plain tuning
+  const pitchMidi = selectedString && activeNote ? calculatePitch(selectedString, activeNote.fret, getSoundingTuning(document)) : null;
   const pitchName = pitchMidi && pitchMidi > 0 ? midiToNoteName(pitchMidi) : null;
 
   // Active composition chords palette

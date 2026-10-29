@@ -1,6 +1,7 @@
 import { BeatColumn, ChordMarker, DurationType, InstrumentProfile, Measure, TabDocument, TabNote, TuningConfig } from '../types/tab';
 import {
-  adaptChordFrets, autoDetectChordFromBeatNotes, createChordMarker, transposeBeatNotes, transposeChordMarker
+  adaptChordFrets, assignNotesToStrings, autoDetectChordFromBeatNotes, calculatePitch, createChordMarker,
+  getChordPreset, getDefaultChordPalette, getSoundingTuning, transposeBeatNotes, transposeChordMarker
 } from './musicTheory';
 
 /**
@@ -201,11 +202,24 @@ export function retuneDocument(doc: TabDocument, newTuning: TuningConfig): TabDo
   return { ...retuned, tuning: newTuning };
 }
 
+// Highest capo fret offered by the toolbar and accepted by setCapo
+export const MAX_CAPO = 12;
+
+/**
+ * Sets the capo fret (0 = no capo). Notes keep their fret numbers, which are relative to the capo, so the song
+ * sounds higher or lower; chord diagrams and names are capo-relative shapes and stay as they are. Ignored unless
+ * the capo is an integer 0..MAX_CAPO.
+ */
+export function setCapo(doc: TabDocument, capo: number): TabDocument {
+  if (!Number.isInteger(capo) || capo < 0 || capo > MAX_CAPO) return doc;
+  return { ...doc, capo };
+}
+
 /**
  * Shifts every note in the song by the given number of semitones within the profile's fret range
  * (see transposeBeatNotes), and transposes every chord marker's name and diagram (see transposeChordMarker).
- * The profile should be the document's tuning-adapted profile. inexactCount is the number of notes that could not
- * keep their exact pitch.
+ * The fret range ends capo frets lower, since frets count from the capo. The profile should be the document's
+ * tuning-adapted profile. inexactCount is the number of notes that could not keep their exact pitch.
  */
 export function transposeDocument(
   doc: TabDocument,
@@ -213,12 +227,13 @@ export function transposeDocument(
   profile: InstrumentProfile
 ): { document: TabDocument; inexactCount: number } {
   let inexactCount = 0;
+  const maxFret = Math.max(0, profile.maxFret - (doc.capo ?? 0));
   const withNotes: TabDocument = {
     ...doc,
     measures: doc.measures.map(m => ({
       ...m,
       beats: m.beats.map(b => {
-        const transposed = transposeBeatNotes(b.notes, semitones, doc.tuning, profile.maxFret);
+        const transposed = transposeBeatNotes(b.notes, semitones, doc.tuning, maxFret);
         inexactCount += transposed.inexactCount;
         return { ...b, notes: transposed.notes };
       })
@@ -226,6 +241,74 @@ export function transposeDocument(
   };
   const document = mapChordMarkers(withNotes, c => transposeChordMarker(c, semitones, profile));
   return { document, inexactCount };
+}
+
+/**
+ * Converts the song to another instrument, in the target's default tuning without a capo. Each beat's sounding
+ * notes are re-voiced like a Guitar Pro import (see assignNotesToStrings): sounding pitch folded into the target's
+ * importPitchRange, placed on the free string with the lowest fret up to importMaxFret. Muted notes keep their
+ * string number when the target has that string, and claim it before the sounding notes are placed. Note ids and
+ * ties are kept. Beat and palette chords become the target library's chord of the same name; other beat chords
+ * are unset (so auto-detection can apply) and cleared ones stay cleared; a palette left empty becomes the
+ * target's default palette. droppedCount is the number of notes no target string could take.
+ */
+export function convertInstrument(
+  doc: TabDocument,
+  target: InstrumentProfile
+): { document: TabDocument; droppedCount: number } {
+  const sourceTuning = getSoundingTuning(doc);
+  const tuning = target.defaultTuning;
+  const stringCount = tuning.pitches.length;
+  let droppedCount = 0;
+
+  const convertNotes = (notes: TabNote[]): TabNote[] => {
+    const stored = notes.filter(n => !n.isGhost);
+    const sounding = stored.filter(n => n.fret >= 0);
+    const muted = stored.filter(n => n.fret < 0 && n.string >= 1 && n.string <= stringCount);
+
+    const placements = assignNotesToStrings(
+      sounding.map(n => calculatePitch(n.string, n.fret, sourceTuning)),
+      tuning,
+      target.importMaxFret,
+      { pitchRange: target.importPitchRange, usedStrings: muted.map(n => n.string) }
+    );
+    const placed = new Map<TabNote, TabNote>();
+    sounding.forEach((note, i) => {
+      const placement = placements[i];
+      if (placement) placed.set(note, { ...note, string: placement.string, fret: placement.fret });
+    });
+    muted.forEach(note => placed.set(note, note));
+
+    droppedCount += stored.length - placed.size;
+    return stored.filter(n => placed.has(n)).map(n => placed.get(n)!);
+  };
+
+  // Chords are kept by name only when the target library has them
+  const targetChord = (chord: ChordMarker): ChordMarker | null => getChordPreset(chord.name, target);
+
+  const palette: ChordMarker[] = [];
+  (doc.chordPalette ?? []).forEach(c => {
+    const preset = targetChord(c);
+    if (preset && !palette.some(p => p.name === preset.name)) palette.push(preset);
+  });
+
+  const document: TabDocument = {
+    ...doc,
+    instrument: target.id,
+    tuning,
+    capo: 0,
+    layout: { ...doc.layout, maxFretLimit: target.defaultMaxFretLimit },
+    chordPalette: palette.length > 0 ? palette : getDefaultChordPalette(target),
+    measures: doc.measures.map(m => ({
+      ...m,
+      beats: m.beats.map(b => ({
+        ...b,
+        notes: convertNotes(b.notes),
+        chord: b.chord ? (targetChord(b.chord) ?? undefined) : b.chord
+      }))
+    }))
+  };
+  return { document, droppedCount };
 }
 
 // Beat duration matching each valid time signature denominator
