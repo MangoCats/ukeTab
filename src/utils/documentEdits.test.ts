@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { BeatColumn, TabDocument } from '../types/tab';
-import { UKULELE_PROFILE } from '../instruments/ukulele';
-import { GUITAR_PROFILE } from '../instruments/guitar';
+import { UKULELE_PROFILE, UKULELE_TUNINGS } from '../instruments/ukulele';
+import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
 import { BASS_PROFILE } from '../instruments/bass';
+import { getDocumentProfile } from '../instruments';
 import { createBlankTabDocument } from './sampleData';
-import { getChordPreset } from './musicTheory';
+import { createChordMarker, getChordPreset } from './musicTheory';
 import {
   IdFactory, assignChordOnSelect, addNote, removeNote, insertBeatAfter, toggleRest, toggleTriplet, toggleTie,
-  setBeatChord, setBeatDuration, setBeatLyric, setChordPalette, deleteBeat, transposeDocument, addMeasure,
-  duplicateMeasureRange, setMeasureTimeSignature
+  setBeatChord, setBeatDuration, setBeatLyric, setChordPalette, deleteBeat, transposeDocument, retuneDocument,
+  addMeasure, duplicateMeasureRange, setMeasureTimeSignature
 } from './documentEdits';
 
 const sequentialIds = (): IdFactory => {
@@ -64,12 +65,14 @@ describe('documentEdits: notes', () => {
   it('does not mutate the input document', () => {
     const start = makeDoc();
     start.measures[0].beats[1].notes = [{ id: 'n9', string: 2, fret: 20 }];
+    start.measures[0].beats[1].chord = getChordPreset('Am');
     const snapshot = JSON.stringify(start);
     addNote(start, 'b1', 2, 1, UKULELE_PROFILE);
     removeNote(start, 'b1', 1, UKULELE_PROFILE);
     deleteBeat(start, 'b1');
     transposeDocument(start, 1, UKULELE_PROFILE);
     transposeDocument(start, -12, UKULELE_PROFILE);
+    retuneDocument(start, UKULELE_TUNINGS['aDF#B']);
     setMeasureTimeSignature(start, 'm1', [6, 8]);
     addMeasure(start);
     expect(JSON.stringify(start)).toBe(snapshot);
@@ -235,5 +238,70 @@ describe('documentEdits: measures & song', () => {
     expect(beat(up.document, 'b1').notes).toEqual([{ id: 'n1', string: 1, fret: 16 }]);
     expect(up.inexactCount).toBe(0);
     expect(transposeDocument(start, -1, UKULELE_PROFILE).inexactCount).toBe(2);
+  });
+});
+
+// Guitar document: b1 = E chord with its notes, b2 = explicitly cleared chord, b3 = chord never set
+function makeGuitarDoc(): TabDocument {
+  const eNotes = [0, 2, 2, 1, 0, 0].map((fret, i) => ({ id: `e${i}`, string: 6 - i, fret }));
+  return {
+    ...createBlankTabDocument(GUITAR_PROFILE),
+    measures: [{
+      id: 'm1',
+      index: 1,
+      timeSignature: [4, 4],
+      beats: [
+        { id: 'b1', duration: '1/4', notes: eNotes, chord: getChordPreset('E', GUITAR_PROFILE) },
+        { id: 'b2', duration: '1/4', notes: [{ id: 'n2', string: 1, fret: 3 }], chord: null },
+        { id: 'b3', duration: '1/4', notes: [] }
+      ]
+    }]
+  };
+}
+
+describe('documentEdits: chords follow tuning changes and transposition', () => {
+  it('retunes the song, re-fingering beat chords and the palette while notes keep their frets', () => {
+    const start = makeGuitarDoc();
+    const doc = retuneDocument(start, GUITAR_TUNINGS.DADGBE);
+    const dropD = getDocumentProfile(doc);
+
+    expect(doc.tuning).toBe(GUITAR_TUNINGS.DADGBE);
+    expect(beat(doc, 'b1').chord).toEqual({ name: 'E', frets: [2, 2, 2, 1, 0, 0], baseFret: 1 });
+    expect(beat(doc, 'b1').notes).toEqual(beat(start, 'b1').notes);
+    expect(beat(doc, 'b2').chord).toBeNull();
+    expect(beat(doc, 'b3').chord).toBeUndefined();
+    expect(doc.chordPalette).toEqual(GUITAR_PROFILE.defaultChordNames.map(n => getChordPreset(n, dropD)));
+    expect(doc.chordPalette!.find(c => c.name === 'G')).toEqual({ name: 'G', frets: [5, 2, 0, 0, 0, 3], baseFret: 2 });
+  });
+
+  it('retunes custom chords and recomputes their base fret', () => {
+    const start = setChordPalette(makeDoc(), [createChordMarker('Mine', [0, 0, 0, 3])]);
+    const doc = retuneDocument(start, UKULELE_TUNINGS['aDF#B']);
+    expect(doc.chordPalette).toEqual([{ name: 'Mine', frets: [10, 10, 10, 13], baseFret: 10 }]);
+    expect(retuneDocument(start, UKULELE_TUNINGS.GCEA).chordPalette).toEqual(start.chordPalette);
+  });
+
+  it('transposes beat chords and the palette, preferring library shapes, and keeps unset and cleared chords', () => {
+    const start = setBeatChord(setBeatChord(makeDoc(), 'b1', getChordPreset('C')), 'b2', null);
+    const { document } = transposeDocument(start, 2, UKULELE_PROFILE);
+
+    expect(beat(document, 'b1').chord).toEqual(getChordPreset('D'));
+    expect(beat(document, 'b2').chord).toBeNull();
+    expect(beat(document, 'b3').chord).toBeUndefined();
+    expect(document.chordPalette!.map(c => c.name)).toEqual(['D', 'A', 'Bm', 'G', 'F#m', 'Em', 'E', 'F#7', 'F#7m']);
+    // F#7 and F#7m are not in the library, so E7 and E7m shift up two frets
+    expect(document.chordPalette!.slice(-2).map(c => c.frets)).toEqual([[3, 4, 2, 4], [2, 4, 2, 4]]);
+  });
+
+  it('regression: transposing a song transposes its chord names and diagrams', () => {
+    const start = makeGuitarDoc();
+    const { document } = transposeDocument(start, 5, getDocumentProfile(start));
+    expect(beat(document, 'b1').chord).toEqual(getChordPreset('A', GUITAR_PROFILE));
+    expect(beat(document, 'b1').notes.map(n => n.fret)).toEqual([5, 7, 7, 6, 5, 5]);
+
+    // In Drop D the adapted library shapes are used
+    const dropDStart = retuneDocument(start, GUITAR_TUNINGS.DADGBE);
+    const dropD = transposeDocument(dropDStart, 3, getDocumentProfile(dropDStart)).document;
+    expect(beat(dropD, 'b1').chord).toEqual({ name: 'G', frets: [5, 2, 0, 0, 0, 3], baseFret: 2 });
   });
 });

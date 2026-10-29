@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TabDocument, TabNote, ChordMarker, Measure } from '../types/tab';
 import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
-import { getInstrumentProfile } from '../instruments';
+import { getDocumentProfile } from '../instruments';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface InspectorPanelProps {
@@ -50,7 +50,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const { tuning, measures, layout, chordPalette } = document;
-  const profile = getInstrumentProfile(document.instrument);
+  const profile = getDocumentProfile(document);
   const stringCount = tuning.pitches.length;
   const maxFretLimit = layout.maxFretLimit ?? profile.defaultMaxFretLimit;
   const fretButtonList = [-1, ...Array.from({ length: maxFretLimit + 1 }, (_, i) => i)];

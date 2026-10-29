@@ -1,7 +1,7 @@
 import * as alphaTab from '@coderline/alphatab';
 import { TabDocument, Measure, BeatColumn, TabNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/tab';
 import { autoDetectChordFromBeatNotes, getDefaultChordPalette, getStringNumbers, midiToNoteName } from './musicTheory';
-import { getInstrumentProfile } from '../instruments';
+import { getInstrumentProfile, getTuningProfile } from '../instruments';
 
 /**
  * Convert alphaTab duration number to UkeTab DurationType
@@ -88,8 +88,6 @@ export function parseGuitarProToTab(
   const artist = score.artist || 'Guitar Pro Import';
   const tempo = Math.round(score.tempo || 120);
 
-  const chordPalette = getDefaultChordPalette(profile);
-
   if (!score.tracks || score.tracks.length === 0) {
     throw new Error('Guitar Pro file contains no tracks.');
   }
@@ -132,6 +130,10 @@ export function parseGuitarProToTab(
     ? resolveSourceTuning(staff.tuning, profile)
     : profile.defaultTuning;
   const stringCount = tuning.pitches.length;
+
+  // Chord palette and detection use library shapes adapted to the resolved tuning
+  const chordProfile = getTuningProfile(profile, tuning);
+  const chordPalette = getDefaultChordPalette(chordProfile);
 
   const measures: Measure[] = [];
 
@@ -223,7 +225,7 @@ export function parseGuitarProToTab(
           });
         }
 
-        const autoChord = autoDetectChordFromBeatNotes(tabNotes, chordPalette, profile);
+        const autoChord = autoDetectChordFromBeatNotes(tabNotes, chordPalette, chordProfile);
 
         // Synchronize lyric syllable using exact measure index + playbackStart tick timestamp
         const tickKey = `${mIdx}-${gpBeat.playbackStart}`;

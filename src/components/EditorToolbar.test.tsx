@@ -3,10 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { EditorToolbar } from './EditorToolbar';
 import { createBlankTabDocument } from '../utils/sampleData';
-import { GUITAR_PROFILE } from '../instruments/guitar';
+import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
+import { getChordPreset } from '../utils/musicTheory';
 import { TabDocument } from '../types/tab';
 
-function renderToolbar(document: TabDocument, onNewSong = vi.fn()) {
+function renderToolbar(document: TabDocument, onNewSong = vi.fn(), onUpdateDocument = vi.fn()) {
   const noop = vi.fn();
   return render(
     <EditorToolbar
@@ -15,7 +16,7 @@ function renderToolbar(document: TabDocument, onNewSong = vi.fn()) {
       activeDuration="1/4"
       enableMetronome={false}
       playbackSpeed={1}
-      onUpdateDocument={noop}
+      onUpdateDocument={onUpdateDocument}
       onTogglePlayback={noop}
       onToggleMetronome={noop}
       onChangeSpeed={noop}
@@ -66,5 +67,21 @@ describe('EditorToolbar Component: Instrument Menus', () => {
     const tuningSelect = Array.from(container.querySelectorAll('select')).find(s => s.value === 'custom')!;
     const options = Array.from(tuningSelect.options).map(o => o.textContent);
     expect(options).toEqual([...GUITAR_PROFILE.tunings.map(t => t.name), 'Custom (C2 A2 D3 G3 B3 E4)']);
+  });
+
+  it('changes the tuning with chord diagrams re-fingered and notes kept', () => {
+    const onUpdateDocument = vi.fn();
+    const doc = createBlankTabDocument(GUITAR_PROFILE);
+    doc.measures[0].beats[0] = { ...doc.measures[0].beats[0], notes: [{ id: 'n1', string: 6, fret: 3 }], chord: getChordPreset('G', GUITAR_PROFILE) };
+    const { container } = renderToolbar(doc, vi.fn(), onUpdateDocument);
+
+    const tuningSelect = Array.from(container.querySelectorAll('select')).find(s => s.value === 'EADGBE')!;
+    fireEvent.change(tuningSelect, { target: { value: 'DADGBE' } });
+
+    const updated: TabDocument = onUpdateDocument.mock.calls[0][0](doc);
+    expect(updated.tuning).toBe(GUITAR_TUNINGS.DADGBE);
+    expect(updated.measures[0].beats[0].notes).toEqual([{ id: 'n1', string: 6, fret: 3 }]);
+    expect(updated.measures[0].beats[0].chord?.frets).toEqual([5, 2, 0, 0, 0, 3]);
+    expect(updated.chordPalette!.find(c => c.name === 'E')?.frets).toEqual([2, 2, 2, 1, 0, 0]);
   });
 });

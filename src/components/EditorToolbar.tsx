@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { TabDocument, DurationType, TuningPresetKey, InstrumentId, InstrumentProfile } from '../types/tab';
 import { getInstrumentProfile, INSTRUMENT_LIST } from '../instruments';
 import { parseGuitarProToTab } from '../utils/guitarProImporter';
+import { retuneDocument } from '../utils/documentEdits';
 import {
   Play,
   Pause,
@@ -107,10 +108,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [openMenu, setOpenMenu] = useState<'new' | 'gp' | null>(null);
 
   const handleTuningChange = (key: TuningPresetKey) => {
-    onUpdateDocument(prev => ({
-      ...prev,
-      tuning: profile.tunings.find(t => t.key === key) || profile.defaultTuning
-    }));
+    // Notes keep their frets; chord diagrams are re-fingered to sound the same chords in the new tuning
+    onUpdateDocument(prev => retuneDocument(prev, profile.tunings.find(t => t.key === key) || profile.defaultTuning));
   };
 
   const handleStemsToggle = () => {

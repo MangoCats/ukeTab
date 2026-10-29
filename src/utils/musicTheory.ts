@@ -144,6 +144,67 @@ export function createChordMarker(
   };
 }
 
+/**
+ * Moves a chord shape [SN, ..., S1] from one tuning to another, keeping each string's pitch class: every non-muted
+ * fret (including open) rises by the strings' pitch difference mod 12, muted strings stay muted. If every non-muted
+ * fret ends up at 12 or above, the shape drops an octave. Shapes for tunings of a different string count are
+ * returned unchanged.
+ */
+export function adaptChordFrets(frets: number[], fromTuning: TuningConfig, toTuning: TuningConfig): number[] {
+  const stringCount = frets.length;
+  if (fromTuning.pitches.length !== stringCount || toTuning.pitches.length !== stringCount) return [...frets];
+
+  // frets[i] is String (N - i); its open pitch is pitches[N - 1 - i]
+  const adapted = frets.map((f, i) => {
+    if (f < 0) return f;
+    const s = stringCount - i;
+    const d = (((fromTuning.pitches[s - 1] - toTuning.pitches[s - 1]) % 12) + 12) % 12;
+    return f + d;
+  });
+
+  const played = adapted.filter(f => f >= 0);
+  return played.length > 0 && played.every(f => f >= 12) ? adapted.map(f => (f < 0 ? f : f - 12)) : adapted;
+}
+
+// Chord root spelling used by transposition: sharps for C#/F#, flats for Eb/Ab/Bb
+const CHORD_ROOT_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const NATURAL_PITCH_CLASSES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+function transposeNoteName(note: string, semitones: number): string {
+  const accidental = note[1] === '#' ? 1 : note[1] === 'b' ? -1 : 0;
+  const pitchClass = NATURAL_PITCH_CLASSES[note[0]] + accidental + semitones;
+  return CHORD_ROOT_NAMES[((pitchClass % 12) + 12) % 12];
+}
+
+/**
+ * Transposes a chord name's root and optional slash bass (e.g. "G/B" + 1 = "Ab/C"), keeping the suffix.
+ * Names that do not start with a note letter A-G are returned unchanged.
+ */
+export function transposeChordName(name: string, semitones: number): string {
+  const match = /^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/.exec(name);
+  if (!match) return name;
+  const [, root, suffix, bass] = match;
+  return transposeNoteName(root, semitones) + suffix + (bass ? `/${transposeNoteName(bass, semitones)}` : '');
+}
+
+/**
+ * Transposes a chord marker: the name is transposed, and the diagram becomes the profile's preset for the new name
+ * if there is one, otherwise every non-muted fret shifts by the semitones (up an octave if any would go below 0).
+ */
+export function transposeChordMarker(marker: ChordMarker, semitones: number, profile: InstrumentProfile = UKULELE_PROFILE): ChordMarker {
+  const name = transposeChordName(marker.name, semitones);
+  const preset = getChordPreset(name, profile);
+  if (preset) return { ...preset, name };
+
+  // The octave shift is worked out from the played frets, so a fret shifted to -1 is never mistaken for a muted string
+  const played = marker.frets.filter(f => f >= 0);
+  const lowest = played.length ? Math.min(...played) + semitones : 0;
+  const octaveShift = lowest < 0 ? Math.ceil(-lowest / 12) * 12 : 0;
+
+  const frets = marker.frets.map(f => (f < 0 ? f : f + semitones + octaveShift));
+  return createChordMarker(name, frets, undefined, profile);
+}
+
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 export function midiToNoteName(midi: number): string {
