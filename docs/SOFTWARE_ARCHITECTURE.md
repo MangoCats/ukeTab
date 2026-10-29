@@ -136,7 +136,7 @@ export interface TabDocument {
 }
 ```
 
-`DURATION_OPTIONS` (`1/1` … `1/16`) drives the popover duration buttons. `DURATION_KEY_MAP` maps `w h q e s` to durations.
+`DURATION_OPTIONS` (`1/1` … `1/32`) drives the popover duration buttons. `DURATION_KEY_MAP` maps `w h q e s d` to `1/1` … `1/32`.
 
 **Invariant**: the string count is always `tuning.pitches.length`. Rendering, alternate frets, chord extraction and the importer's string solver read it from the tuning. Profile-level code (default chord markers, palette window) uses `profile.stringCount`. Both agree because every preset of a profile has `stringCount` pitches (enforced by tests), and a custom tuning is only created when its length equals `stringCount`.
 
@@ -387,14 +387,14 @@ One shared `AudioContext` is created on first use and resumed if suspended.
 | State | Purpose |
 |---|---|
 | `document` | The `TabDocument` being edited (initially the "Conjunction Junction" sample with its effective palette) |
-| `selectedBeatId`, `selectedString` | Current selection; `selectedString` is clamped to the string count on open and New Tab |
-| `activeDuration` | Duration given to inserted beats and rests; set by `w h q e s` and by the popover duration buttons (`TabRenderer` `onSelectActiveDuration`) |
+| `selectedBeatId`, `selectedString` | Current selection (initially the sample's first beat and String 1); `selectedString` is clamped to the string count on open and New Tab |
+| `activeDuration` | Duration given to inserted beats and rests; set by `w h q e s d` and by the popover duration buttons (`TabRenderer` `onSelectActiveDuration`) |
 | `isPlaying`, `playingBeatId`, `enableMetronome`, `playbackSpeed` | Playback |
 | `showHelpModal`, `showChordPaletteModal`, `showDuplicateModal` | Dialog visibility |
 
 All document changes go through `setDocument` with immutable updates.
 
-**Keyboard**: one `keydown` listener on `window`, ignored while focus is in an input, textarea or select. It calls `findShortcut(e)` on the single `SHORTCUTS` table (`src/utils/shortcuts.ts`). Each entry has an `id`, a display `keys` label, a `description`, `requiresSelection` and `matches(e)`, and no event matches two entries.
+**Keyboard**: one `keydown` listener on `window`, ignored while focus is in an input, textarea or select. It calls `findShortcut(e)` on the single `SHORTCUTS` table; `findShortcut` returns nothing while Ctrl, Alt or Meta is held (`src/utils/shortcuts.ts`). Each entry has an `id`, a display `keys` label, a `description`, `requiresSelection` and `matches(e)`, and no event matches two entries.
 - No match: nothing happens.
 - `requiresSelection` and no selected beat: the key is left to the browser.
 - Otherwise: `preventDefault`, then the action for that id runs in `App`.
@@ -416,10 +416,10 @@ Vitest runs every `src/**/*.test.ts(x)` file in jsdom. `tsc` runs as part of `np
 | `utils/documentEdits.test.ts` | Every edit operation, non-mutation, chord auto-detection rules, time-signature edits and Add Measure inheritance, transposition within `maxFret`; regressions: entering a note keeps the beat duration, Add Measure copies the time signature |
 | `utils/notationLayout.test.ts` | Flag counts, beat lengths and groups, beams and stubs (eighths, sixteenths, dotted, 6/8, 1/32, triplet eighths), triplet chunking, time-signature display; regressions: beams never touch rests and break at beat groups |
 | `utils/playbackTiming.test.ts` | Measure length, column offsets, metronome clicks for 4/4, 6/8, half speed, under/overfull measures and mid-measure starts; regression: one click per beat, not per column |
-| `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry |
+| `utils/shortcuts.test.ts` | Every shortcut matches its events, no event matches two shortcuts, unbound keys, selection requirements, two-digit fret entry; regressions: Ctrl/Alt/Meta combinations are left to the browser, `d` sets thirty-seconds |
 | `components/ShortcutHelp.test.tsx` | Help panel lists every `SHORTCUTS` entry; close button |
 | `components/InspectorPanel.test.tsx` | Measure time-signature control: current values, options, out-of-list values, callback, hidden without a callback |
-| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; shortcuts ignored while typing; regression: metronome clicks once per beat; no clicks after Stop |
+| `App.test.tsx` | Help panel lists all shortcuts; `e` and `r` shortcuts on a selected beat; Ctrl combinations ignored; shortcuts ignored while typing; regressions: first beat selected on startup, metronome clicks once per beat; no clicks after Stop |
 | `docsConsistency.test.ts` | Documentation matches the code: spec tuning table, chord library sizes and palettes, tuning keys; architecture source layout, test inventory and profile table |
 | `types/tab.test.ts` | `DURATION_OPTIONS`, `DURATION_KEY_MAP` |
 | `instruments/instruments.test.ts` | Registry fallback; legacy aliases; chord helpers honour the given profile |

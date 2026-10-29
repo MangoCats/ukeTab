@@ -11,7 +11,7 @@ const BOUND_EVENTS: [ShortcutKeyEvent, ShortcutId][] = [
   [{ key: 'M', code: 'KeyM', shiftKey: true }, 'mutedNote'],
   [{ key: 'Backspace', code: 'Backspace' }, 'removeNote'],
   [{ key: 'Delete', code: 'Delete' }, 'removeNote'],
-  ...'whqesWHQES'.split('').map((key): [ShortcutKeyEvent, ShortcutId] => [{ key, code: `Key${key.toUpperCase()}` }, 'setDuration']),
+  ...'whqesdWHQESD'.split('').map((key): [ShortcutKeyEvent, ShortcutId] => [{ key, code: `Key${key.toUpperCase()}` }, 'setDuration']),
   [{ key: '.', code: 'Period' }, 'toggleDot'],
   [{ key: 'r', code: 'KeyR' }, 'toggleRest'],
   [{ key: 'R', code: 'KeyR', shiftKey: true }, 'toggleRest'],
@@ -44,7 +44,14 @@ const UNBOUND_EVENTS: ShortcutKeyEvent[] = [
   { key: 'Tab', code: 'Tab' },
   { key: 'Shift', code: 'ShiftLeft', shiftKey: true },
   { key: 'F5', code: 'F5' },
-  { key: 'Home', code: 'Home' }
+  { key: 'Home', code: 'Home' },
+  // Ctrl, Alt and Meta combinations belong to the browser and system
+  { key: 'r', code: 'KeyR', ctrlKey: true },
+  { key: 's', code: 'KeyS', ctrlKey: true },
+  { key: 's', code: 'KeyS', metaKey: true },
+  { key: '5', code: 'Digit5', altKey: true },
+  { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true },
+  { key: ' ', code: 'Space', ctrlKey: true }
 ];
 
 describe('shortcuts: SHORTCUTS table', () => {
@@ -101,5 +108,17 @@ describe('shortcuts: two-digit fret entry', () => {
   it('starts a new pending digit after the window or with nothing pending', () => {
     expect(resolveFretDigit('2', '1', 600)).toEqual({ fret: 2, pendingDigit: '2' });
     expect(resolveFretDigit('7', '', 10)).toEqual({ fret: 7, pendingDigit: '7' });
+  });
+});
+
+describe('shortcuts: regressions', () => {
+  it('regression: Ctrl/Alt/Meta combinations are left to the browser (Ctrl+R reloads, Ctrl+S saves)', () => {
+    expect(findShortcut({ key: 'r', code: 'KeyR', ctrlKey: true })).toBeUndefined();
+    expect(findShortcut({ key: 's', code: 'KeyS', ctrlKey: true })).toBeUndefined();
+    expect(findShortcut({ key: 'r', code: 'KeyR' })?.id).toBe('toggleRest');
+  });
+
+  it('regression: thirty-second notes have a shortcut (d)', () => {
+    expect(findShortcut({ key: 'd', code: 'KeyD' })?.id).toBe('setDuration');
   });
 });

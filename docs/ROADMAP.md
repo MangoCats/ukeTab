@@ -38,10 +38,7 @@ All phases below are complete. This records the work that fixed the application 
 
 Found while doing the work above; each is also listed in the specification's Known Limitations or noted here.
 
-- Shortcuts ignore Ctrl/Alt/Meta, so with a beat selected Ctrl+R and Ctrl+S toggle a rest / set a sixteenth instead of reloading / saving.
-- The app starts with `selectedBeatId = 'b1-1'`, which does not exist in the startup sample, so nothing is selected until a beat is clicked.
 - On screen, a triplet bracket's "3" can overlap the middle column's duration badge (print is unaffected).
-- `1/32` has no duration button or shortcut.
 - Irregular meters (5/8, 7/8) beam in quarter-note groups.
 - Only the first measure shows string labels.
 - Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.

@@ -25,7 +25,7 @@ export const App: React.FC = () => {
     chordPalette: getEffectiveChordPalette(SAMPLE_TAB_DOCUMENT.chordPalette)
   }));
 
-  const [selectedBeatId, setSelectedBeatId] = useState<string | null>('b1-1');
+  const [selectedBeatId, setSelectedBeatId] = useState<string | null>(SAMPLE_TAB_DOCUMENT.measures[0]?.beats[0]?.id ?? null);
   const [selectedString, setSelectedString] = useState<number>(1);
   const [activeDuration, setActiveDuration] = useState<DurationType>('1/4');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);

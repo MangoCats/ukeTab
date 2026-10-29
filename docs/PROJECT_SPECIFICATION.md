@@ -14,7 +14,7 @@ UkeTab is a browser application for writing, editing, playing back, printing and
 
 A tab shows fret numbers on staff lines, rhythm stems/flags/beams, rests, lyrics and chord diagrams. It can be played through a built-in synthesizer, saved and reopened as a `.uketab` file, imported from Guitar Pro files, and printed or saved as PDF through the browser's print dialog.
 
-On startup the application shows the built-in ukulele sample song "Conjunction Junction".
+On startup the application shows the built-in ukulele sample song "Conjunction Junction" with its first beat selected.
 
 ---
 
@@ -118,7 +118,7 @@ Stems are drawn below the staff by default; **Stems** toggles them above. For ea
 | Quarter (`1/4`) | Plain stem |
 | Eighth (`1/8`) | Stem with one flag, or a beam (below) |
 | Sixteenth (`1/16`) | Stem with two flags, or beams (below) |
-| Thirty-second (`1/32`) | Stem with three flags, or beams (below). This duration only arises from Guitar Pro import. |
+| Thirty-second (`1/32`) | Stem with three flags, or beams (below) |
 
 - **Dotted**: a dot beside the stem near the staff. A dotted rest has a dot beside the rest symbol.
 - **Beams**: two adjacent beat columns of the same measure are joined when both are notes (not rests), both are `1/8`, `1/16` or `1/32`, and both start in the same **beat group**:
@@ -166,7 +166,7 @@ Each beat column may carry one lyric syllable, centred under the column. It sits
 
 ### 5.2 Floating Beat Popover (screen only)
 Shown above the selected beat column:
-- Duration buttons `1`, `1/2`, `1/4`, `1/8`, `1/16`: set the selected beat's duration and the active duration. A **Dot** toggle changes the selected beat only.
+- Duration buttons `1`, `1/2`, `1/4`, `1/8`, `1/16`, `1/32`: set the selected beat's duration and the active duration. A **Dot** toggle changes the selected beat only.
 - **+ Beat** (insert a beat after it), **Del Beat**, and close (deselect).
 - **Chord** dropdown: `(None)` clears the chord; the other entries are the palette chords, plus the beat's current chord if it is not in the palette.
 - **Fret** buttons `X`, `0` … Max Fret Limit for the selected string, and a delete-note button.
@@ -198,14 +198,14 @@ Fixed at the bottom of the window. It can be collapsed, and is closed by deselec
 - The **Max Fret Limit** sets the highest fret offered by the popover and inspector fret buttons, and the highest alternate-fret suggestion. It does not limit keyboard entry, the chord fret selectors, or imports.
 
 ### 5.5 Keyboard Shortcuts
-Shortcuts are ignored while typing in a text field or menu. Shortcuts that edit a beat require a selected beat; without one the key is left to the browser. Modifier keys (Ctrl, Alt, Meta) are not checked, so with a beat selected, Ctrl+R and Ctrl+S act as `r` and `s`.
+Shortcuts are ignored while typing in a text field or menu, and whenever Ctrl, Alt or Meta is held (so browser combinations such as Ctrl+R and Ctrl+S keep working). Shortcuts that edit a beat require a selected beat; without one the key is left to the browser.
 
 | Key | Action |
 |---|---|
 | `0`–`9` | Set the fret on the selected string. A second digit within 600 ms makes a two-digit fret if the result is ≤ 20 (e.g. `1` then `2` = 12). |
 | `x` or `m` | Muted note (`X`) on the selected string |
 | `Backspace`, `Delete` | Remove the note on the selected string |
-| `w` `h` `q` `e` `s` | Set the active duration and the selected beat to whole, half, quarter, eighth, sixteenth |
+| `w` `h` `q` `e` `s` `d` | Set the active duration and the selected beat to whole, half, quarter, eighth, sixteenth, thirty-second |
 | `.` | Toggle dotted |
 | `r` | Toggle rest (making a beat a rest removes its notes) |
 | `t` | Toggle triplet |
@@ -364,7 +364,6 @@ See Section 8.
 
 ## 10. Known Limitations
 - Only the first measure shows string labels.
-- `1/32` has no duration button or shortcut; it only comes from Guitar Pro import.
 - On screen, a triplet bracket's "3" can overlap the duration badge of the middle column (print is unaffected).
 - Irregular meters such as 5/8 and 7/8 beam in quarter-note groups.
 - Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.

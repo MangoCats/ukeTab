@@ -5,7 +5,8 @@ export const DURATION_OPTIONS: { label: string; value: DurationType }[] = [
   { label: '1/2', value: '1/2' },
   { label: '1/4', value: '1/4' },
   { label: '1/8', value: '1/8' },
-  { label: '1/16', value: '1/16' }
+  { label: '1/16', value: '1/16' },
+  { label: '1/32', value: '1/32' }
 ];
 
 export const DURATION_KEY_MAP: Record<string, DurationType> = {
@@ -13,7 +14,8 @@ export const DURATION_KEY_MAP: Record<string, DurationType> = {
   'h': '1/2',
   'q': '1/4',
   'e': '1/8',
-  's': '1/16'
+  's': '1/16',
+  'd': '1/32'
 };
 
 export interface TabNote {

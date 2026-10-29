@@ -21,6 +21,9 @@ export interface ShortcutKeyEvent {
   key: string;
   code?: string;
   shiftKey?: boolean;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  metaKey?: boolean;
 }
 
 export interface ShortcutDefinition {
@@ -63,8 +66,8 @@ export const SHORTCUTS: ShortcutDefinition[] = [
   },
   {
     id: 'setDuration',
-    keys: 'w h q e s',
-    description: 'Set the active duration and the selected beat to whole, half, quarter, eighth, sixteenth',
+    keys: 'w h q e s d',
+    description: 'Set the active duration and the selected beat to whole, half, quarter, eighth, sixteenth, thirty-second',
     requiresSelection: true,
     matches: e => Object.prototype.hasOwnProperty.call(DURATION_KEY_MAP, e.key.toLowerCase())
   },
@@ -140,7 +143,12 @@ export const SHORTCUTS: ShortcutDefinition[] = [
   }
 ];
 
+/**
+ * The shortcut for a key event. Events with Ctrl, Alt or Meta held never match, so browser and system
+ * combinations (Ctrl+R reload, Ctrl+S save, …) keep working; Shift is allowed (Shift+Enter, '+').
+ */
 export function findShortcut(e: ShortcutKeyEvent): ShortcutDefinition | undefined {
+  if (e.ctrlKey || e.altKey || e.metaKey) return undefined;
   return SHORTCUTS.find(shortcut => shortcut.matches(e));
 }
 

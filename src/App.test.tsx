@@ -51,6 +51,21 @@ describe('App: keyboard shortcuts', () => {
     expect(getByText(/1\/8 Rest Event/)).not.toBeNull();
   });
 
+  it('regression: the first beat is selected on startup, so shortcuts work before any click', () => {
+    const { getByText } = render(<App />);
+    expect(getByText(/Measure 1 • 1\/4 Note Event/)).not.toBeNull();
+
+    press('e');
+    expect(getByText(/Measure 1 • 1\/8 Note Event/)).not.toBeNull();
+  });
+
+  it('leaves Ctrl combinations to the browser', () => {
+    const { container, getByText } = render(<App />);
+    selectBeat(container, 0);
+    press('r', { ctrlKey: true });
+    expect(getByText(/1\/4 Note Event/)).not.toBeNull();
+  });
+
   it('ignores shortcuts while typing in a text field', () => {
     const { container, getByText, getByPlaceholderText } = render(<App />);
     selectBeat(container, 0);
