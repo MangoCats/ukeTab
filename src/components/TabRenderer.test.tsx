@@ -124,9 +124,9 @@ describe('TabRenderer Component', () => {
     const b = (id: string, duration: BeatColumn['duration'], extra: Partial<BeatColumn> = {}): BeatColumn => ({
       id, duration, notes: extra.isRest ? [] : note(id), ...extra
     });
-    const renderMeasures = (measures: Measure[]) => render(
+    const renderMeasures = (measures: Measure[], stemsPlacement: 'below' | 'above' = 'below') => render(
       <TabRenderer
-        document={{ ...mockTabDocument, measures }}
+        document={{ ...mockTabDocument, measures, layout: { ...mockTabDocument.layout, stemsPlacement } }}
         selectedBeatId={null}
         selectedString={null}
         playingBeatId={null}
@@ -166,8 +166,8 @@ describe('TabRenderer Component', () => {
       // Measure 3 reserves the 32 px time-signature width; measure 2 does not
       expect(blocks[1].querySelector('svg')!.getAttribute('width')).toBe(String(2 * 62 + 30));
       expect(blocks[2].querySelector('svg')!.getAttribute('width')).toBe(String(2 * 62 + 30 + 32));
-      // String labels stay first-measure only
-      expect(Array.from(blocks[2].querySelectorAll('text')).map(t => t.textContent)).not.toContain('A4');
+      // In-block string labels stay first-measure only (later measures only get gutter labels outside the measure SVG)
+      expect(Array.from(blocks[2].querySelector('svg')!.querySelectorAll('text')).map(t => t.textContent)).not.toContain('A4');
     });
 
     it('regression: beams never connect rest columns', () => {
@@ -203,6 +203,122 @@ describe('TabRenderer Component', () => {
       ]);
       expect(container.querySelectorAll('.rhythm-flag')).toHaveLength(3);
       expect(container.querySelectorAll('.rhythm-beam')).toHaveLength(0);
+    });
+
+    // Vertical range [min, max] of all y coordinates in an SVG path ("M x y L x y ...")
+    const pathYRange = (d: string) => {
+      const ys = d.trim().split(/\s*[ML]\s*/).filter(Boolean).map(pair => Number(pair.trim().split(/\s+/)[1]));
+      return [Math.min(...ys), Math.max(...ys)];
+    };
+
+    it('regression: triplet bracket clears the duration badge and lyrics clear the "3" (stems below)', () => {
+      const triplets = ['t1', 't2', 't3'].map(id => b(id, '1/8', { isTriplet: true, lyric: id }));
+      const { container } = renderMeasures([
+        { id: 'm1', index: 1, timeSignature: [2, 4], beats: [...triplets, b('q1', '1/4', { lyric: 'q1' })] },
+        { id: 'm2', index: 2, timeSignature: [2, 4], beats: [b('q2', '1/4', { lyric: 'q2' }), b('q3', '1/4')] }
+      ]);
+      const blocks = Array.from(container.querySelectorAll('.measure-svg-block'));
+      const [bracketTop, bracketBottom] = pathYRange(blocks[0].querySelector('.triplet-bracket')!.getAttribute('d')!);
+      const badge = blocks[0].querySelector('.duration-badge rect')!;
+      const badgeTop = Number(badge.getAttribute('y'));
+      const badgeBottom = badgeTop + Number(badge.getAttribute('height'));
+      // Stems end 36 below the last string; badge 4–16 beyond, bracket line 22 beyond with hooks 5 toward the staff
+      expect(badgeBottom).toBeLessThan(bracketTop);
+      expect(bracketBottom - bracketTop).toBe(5);
+      const numberY = Number(blocks[0].querySelector('.triplet-number')!.getAttribute('y'));
+      expect(numberY).toBe(bracketBottom);
+      const lyricY = (block: Element) => Number(block.querySelector('.tab-lyric-text')!.getAttribute('y'));
+      // The "3" is 11 px, centred on the line: the top of the lyric (13 px text above its baseline) stays beyond it
+      expect(lyricY(blocks[0]) - 13).toBeGreaterThan(numberY + 5.5);
+      // Measure without triplets: lyric and height as before; the triplet measure grows by 14
+      expect(lyricY(blocks[0]) - lyricY(blocks[1])).toBe(14);
+      const height = (block: Element) => Number(block.querySelector('svg')!.getAttribute('height'));
+      expect(height(blocks[1])).toBe(42 + 3 * 24 + 50);
+      expect(height(blocks[0]) - height(blocks[1])).toBe(14);
+    });
+
+    it('keeps stems-above lyrics and heights unchanged in triplet measures', () => {
+      const { container } = renderMeasures([
+        { id: 'm1', index: 1, timeSignature: [2, 4], beats: [b('t1', '1/8', { isTriplet: true, lyric: 'a' }), b('t2', '1/8', { isTriplet: true }), b('t3', '1/8', { isTriplet: true })] },
+        { id: 'm2', index: 2, timeSignature: [2, 4], beats: [b('q2', '1/4', { lyric: 'b' })] }
+      ], 'above');
+      const blocks = Array.from(container.querySelectorAll('.measure-svg-block'));
+      const lyricYs = blocks.map(bl => bl.querySelector('.tab-lyric-text')!.getAttribute('y'));
+      expect(lyricYs[0]).toBe(lyricYs[1]);
+      expect(blocks.map(bl => bl.querySelector('svg')!.getAttribute('height'))).toEqual([String(60 + 72 + 28), String(60 + 72 + 28)]);
+      // Bracket line 22 beyond the stem end (stem end 36 above String 1 at y 60): 60 − 58 = 2; hooks 5 toward the staff
+      expect(pathYRange(blocks[0].querySelector('.triplet-bracket')!.getAttribute('d')!)).toEqual([2, 7]);
+    });
+  });
+
+  describe('row-start string labels', () => {
+    const noop = vi.fn();
+    const measures: Measure[] = [1, 2, 3, 4].map(i => ({
+      id: `m${i}`, index: i, timeSignature: [4, 4], beats: [{ id: `q${i}`, duration: '1/4', notes: [{ id: `n${i}`, string: 1, fret: i }] }]
+    }));
+    const renderDoc = (doc: TabDocument) => render(
+      <TabRenderer
+        document={doc}
+        selectedBeatId={null}
+        selectedString={null}
+        playingBeatId={null}
+        onSelectBeat={noop}
+        onAddNote={noop}
+        onRemoveNote={noop}
+        onInsertBeat={noop}
+        onDeleteBeatColumn={noop}
+        onUpdateBeatDuration={noop}
+        onUpdateBeatLyric={noop}
+      />
+    );
+    const labelsOf = (el: Element) => Array.from(el.querySelectorAll('text')).map(t => t.textContent);
+
+    it('keeps the first-measure labels in its block and draws no gutter labels for a single measure', () => {
+      const { container } = renderDoc(mockTabDocument);
+      const block = container.querySelector('.measure-svg-block')!;
+      expect(labelsOf(block.querySelector('svg')!)).toEqual(expect.arrayContaining(['g4', 'C4', 'E4', 'A4']));
+      expect(container.querySelectorAll('.string-gutter-labels')).toHaveLength(0);
+    });
+
+    it('renders print-only gutter labels for every measure after the first, one per string line', () => {
+      const { container } = renderDoc({ ...mockTabDocument, measures });
+      const blocks = Array.from(container.querySelectorAll('.measure-svg-block'));
+      expect(blocks.map(bl => bl.querySelectorAll('.print-gutter-labels').length)).toEqual([0, 1, 1, 1]);
+      const gutter = blocks[1].querySelector('.print-gutter-labels')!;
+      expect(gutter.classList.contains('string-gutter-labels')).toBe(true);
+      expect(gutter.classList.contains('no-print')).toBe(false);
+      // String 1 (A4) on top down to String 4 (g4), right-aligned on each line's y (+4 baseline offset)
+      expect(labelsOf(gutter)).toEqual(['A4', 'E4', 'C4', 'g4']);
+      const texts = Array.from(gutter.querySelectorAll('text'));
+      expect(texts.map(t => t.getAttribute('y'))).toEqual(['46', '70', '94', '118']);
+      expect(texts.every(t => t.getAttribute('text-anchor') === 'end')).toBe(true);
+      // Gutter labels never change measure widths
+      expect(blocks[1].querySelector('svg')!.getAttribute('width')).toBe(String(62 + 30));
+      // jsdom lays nothing out (every offsetTop is 0), so no measure is detected as a row start on screen
+      expect(container.querySelectorAll('.screen-gutter-labels')).toHaveLength(0);
+    });
+
+    it('renders screen gutter labels only for measures detected as starting a row', () => {
+      const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetTop');
+      // Measures 1–2 on the first row, 3–4 on the second
+      Object.defineProperty(HTMLElement.prototype, 'offsetTop', {
+        configurable: true,
+        get(this: HTMLElement) {
+          if (!this.classList.contains('measure-svg-block') || !this.parentElement) return 0;
+          return Array.from(this.parentElement.children).indexOf(this) >= 2 ? 180 : 0;
+        }
+      });
+      try {
+        const { container } = renderDoc({ ...mockTabDocument, measures });
+        const blocks = Array.from(container.querySelectorAll('.measure-svg-block'));
+        expect(blocks.map(bl => bl.querySelectorAll('.screen-gutter-labels').length)).toEqual([0, 0, 1, 0]);
+        const screenGutter = blocks[2].querySelector('.screen-gutter-labels')!;
+        expect(screenGutter.classList.contains('no-print')).toBe(true);
+        expect(labelsOf(screenGutter)).toEqual(['A4', 'E4', 'C4', 'g4']);
+      } finally {
+        if (original) Object.defineProperty(HTMLElement.prototype, 'offsetTop', original);
+        else Reflect.deleteProperty(HTMLElement.prototype, 'offsetTop');
+      }
     });
   });
 });
