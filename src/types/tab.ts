@@ -19,7 +19,7 @@ export const DURATION_KEY_MAP: Record<string, DurationType> = {
 export interface TabNote {
   id: string;
   string: number;        // 1 = Top line (highest string, A4 on ukulele) .. N = Bottom line (N = tuning string count)
-  fret: number;          // -1 = Muted (X), 0 = Open, 1+ = Fretted (editor input up to 20; Guitar Pro import up to the profile's importMaxFret)
+  fret: number;          // -1 = Muted (X), 0 = Open, 1+ = Fretted (editor input up to 20; Guitar Pro import up to the profile's importMaxFret; transposition up to its maxFret)
   isGhost?: boolean;     // Visual alternate fret suggestion flag
   isTied?: boolean;      // Continued / sustained note from previous beat without re-strumming
 }
@@ -83,8 +83,9 @@ export interface InstrumentProfile {
   chordLibrary: ChordFretLibrary;
   defaultChordNames: string[];            // Initial composition chord palette
   defaultMaxFretLimit: number;
+  maxFret: number;                        // Highest fret on the instrument; transposition range
   importPitchRange: [number, number] | null; // Guitar Pro import folds pitches into this MIDI range by octaves (null = keep original pitch)
-  importMaxFret: number;                  // Highest fret the Guitar Pro importer will assign
+  importMaxFret: number;                  // Highest fret the Guitar Pro importer will assign (<= maxFret)
   importKeepsSourceFingering: boolean;    // Matching Guitar Pro tracks (same string count, lowest string within an octave) keep their own tuning, strings and frets
   importTrackKeywords: string[];          // Preferred Guitar Pro track name keywords (lowercase)
   synthVoice: SynthVoice;

@@ -126,6 +126,7 @@ export const GUITAR_PROFILE: InstrumentProfile = {
   chordLibrary: GUITAR_CHORD_LIBRARY,
   defaultChordNames: GUITAR_DEFAULT_CHORD_NAMES,
   defaultMaxFretLimit: 12,
+  maxFret: 24,
   importPitchRange: [40, 88], // Standard guitar range E2..E6 when re-voicing other instruments' tracks
   importMaxFret: 24,
   importKeepsSourceFingering: true,

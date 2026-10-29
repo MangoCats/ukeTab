@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { BeatColumn, TabDocument } from '../types/tab';
 import { UKULELE_PROFILE } from '../instruments/ukulele';
+import { GUITAR_PROFILE } from '../instruments/guitar';
+import { BASS_PROFILE } from '../instruments/bass';
 import { createBlankTabDocument } from './sampleData';
 import { getChordPreset } from './musicTheory';
 import {
   IdFactory, assignChordOnSelect, addNote, removeNote, insertBeatAfter, toggleRest, toggleTriplet, toggleTie,
   setBeatChord, setBeatDuration, setBeatLyric, setChordPalette, deleteBeat, transposeDocument, addMeasure,
-  duplicateMeasureRange
+  duplicateMeasureRange, setMeasureTimeSignature
 } from './documentEdits';
 
 const sequentialIds = (): IdFactory => {
@@ -61,10 +63,15 @@ describe('documentEdits: notes', () => {
 
   it('does not mutate the input document', () => {
     const start = makeDoc();
+    start.measures[0].beats[1].notes = [{ id: 'n9', string: 2, fret: 20 }];
     const snapshot = JSON.stringify(start);
     addNote(start, 'b1', 2, 1, UKULELE_PROFILE);
     removeNote(start, 'b1', 1, UKULELE_PROFILE);
     deleteBeat(start, 'b1');
+    transposeDocument(start, 1, UKULELE_PROFILE);
+    transposeDocument(start, -12, UKULELE_PROFILE);
+    setMeasureTimeSignature(start, 'm1', [6, 8]);
+    addMeasure(start);
     expect(JSON.stringify(start)).toBe(snapshot);
   });
 
@@ -144,6 +151,55 @@ describe('documentEdits: measures & song', () => {
     expect(doc.measures[2].index).toBe(3);
   });
 
+  const withLastTimeSignature = (timeSignature: [number, number]) =>
+    setMeasureTimeSignature(makeDoc(), 'm2', timeSignature);
+
+  it('regression: Add Measure copies the last measure\'s time signature instead of always adding 4/4', () => {
+    const waltz = addMeasure(withLastTimeSignature([3, 4]), sequentialIds()).measures[2];
+    expect(waltz.timeSignature).toEqual([3, 4]);
+    expect(waltz.beats).toEqual([
+      { id: 'new-b2', duration: '1/4', notes: [] },
+      { id: 'new-b3', duration: '1/4', notes: [] },
+      { id: 'new-b4', duration: '1/4', notes: [] }
+    ]);
+
+    const compound = addMeasure(withLastTimeSignature([6, 8])).measures[2];
+    expect(compound.timeSignature).toEqual([6, 8]);
+    expect(compound.beats.map(b => b.duration)).toEqual(Array(6).fill('1/8'));
+
+    const cutTime = addMeasure(withLastTimeSignature([2, 2])).measures[2];
+    expect(cutTime.timeSignature).toEqual([2, 2]);
+    expect(cutTime.beats.map(b => b.duration)).toEqual(['1/2', '1/2']);
+  });
+
+  it('adds a 4/4 measure of four empty quarter beats to a song without measures', () => {
+    const doc = addMeasure({ ...makeDoc(), measures: [] }, sequentialIds());
+    expect(doc.measures).toEqual([{
+      id: 'new-m1',
+      index: 1,
+      timeSignature: [4, 4],
+      beats: ['new-b2', 'new-b3', 'new-b4', 'new-b5'].map(id => ({ id, duration: '1/4', notes: [] }))
+    }]);
+  });
+
+  it('sets one measure\'s time signature without touching its beats or other measures', () => {
+    const start = makeDoc();
+    const doc = setMeasureTimeSignature(start, 'm1', [6, 8]);
+    expect(doc.measures[0].timeSignature).toEqual([6, 8]);
+    expect(doc.measures[0].beats).toBe(start.measures[0].beats);
+    expect(doc.measures[1]).toBe(start.measures[1]);
+
+    expect(setMeasureTimeSignature(start, 'm1', [16, 32]).measures[0].timeSignature).toEqual([16, 32]);
+    expect(setMeasureTimeSignature(start, 'm1', [1, 1]).measures[0].timeSignature).toEqual([1, 1]);
+  });
+
+  it('ignores invalid time signatures', () => {
+    const start = makeDoc();
+    [[0, 4], [17, 4], [2.5, 4], [NaN, 4], [4, 3], [4, 0], [4, 64], [4, NaN]].forEach(ts => {
+      expect(setMeasureTimeSignature(start, 'm1', ts as [number, number])).toBe(start);
+    });
+  });
+
   it('duplicates a clamped measure range to the end with fresh ids', () => {
     const doc = duplicateMeasureRange(makeDoc(), 0, 1, sequentialIds());
     expect(doc.measures.map(m => m.index)).toEqual([1, 2, 3]);
@@ -154,7 +210,30 @@ describe('documentEdits: measures & song', () => {
   });
 
   it('transposes every note of the song', () => {
-    const doc = transposeDocument(makeDoc(), 2);
-    expect(beat(doc, 'b1').notes[0].fret).toBe(5);
+    const { document, inexactCount } = transposeDocument(makeDoc(), 2, UKULELE_PROFILE);
+    expect(beat(document, 'b1').notes[0].fret).toBe(5);
+    expect(inexactCount).toBe(0);
+  });
+
+  it('transposes within the profile\'s maxFret and sums inexact notes over the song', () => {
+    expect([UKULELE_PROFILE.maxFret, GUITAR_PROFILE.maxFret, BASS_PROFILE.maxFret]).toEqual([20, 24, 24]);
+    [UKULELE_PROFILE, GUITAR_PROFILE, BASS_PROFILE].forEach(p => expect(p.importMaxFret).toBeLessThanOrEqual(p.maxFret));
+
+    // Guitar fret 22 + 2 = 24 stays on its string
+    const guitarDoc = createBlankTabDocument(GUITAR_PROFILE);
+    guitarDoc.measures[0].beats[0].notes = [{ id: 'g1', string: 1, fret: 22 }];
+    const guitar = transposeDocument(guitarDoc, 2, GUITAR_PROFILE);
+    expect(guitar.document.measures[0].beats[0].notes).toEqual([{ id: 'g1', string: 1, fret: 24 }]);
+    expect(guitar.inexactCount).toBe(0);
+
+    // Ukulele E-string fret 20 + 1 moves to the A string at fret 16; C-string open - 1 (B3) cannot be played
+    const start = makeDoc();
+    start.measures[0].beats[0].notes = [{ id: 'n1', string: 2, fret: 20 }];
+    start.measures[1].beats[0].notes = [{ id: 'n2', string: 3, fret: 0 }];
+    start.measures[0].beats[1].notes = [{ id: 'n3', string: 3, fret: 0 }];
+    const up = transposeDocument(start, 1, UKULELE_PROFILE);
+    expect(beat(up.document, 'b1').notes).toEqual([{ id: 'n1', string: 1, fret: 16 }]);
+    expect(up.inexactCount).toBe(0);
+    expect(transposeDocument(start, -1, UKULELE_PROFILE).inexactCount).toBe(2);
   });
 });

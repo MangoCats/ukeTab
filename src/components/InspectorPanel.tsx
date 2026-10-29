@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TabDocument, TabNote, ChordMarker } from '../types/tab';
+import { TabDocument, TabNote, ChordMarker, Measure } from '../types/tab';
 import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
 import { getInstrumentProfile } from '../instruments';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
@@ -18,9 +18,17 @@ interface InspectorPanelProps {
   onToggleTie?: (beatId: string) => void;
   onDeleteBeatColumn: (beatId: string) => void;
   onSetBeatChord?: (beatId: string, chord: ChordMarker | null) => void;
+  onSetMeasureTimeSignature?: (measureId: string, timeSignature: [number, number]) => void;
   onOpenChordPaletteModal?: () => void;
   onDeselectBeat?: () => void;
 }
+
+const TIME_SIGNATURE_NUMERATORS = Array.from({ length: 12 }, (_, i) => i + 1);
+const TIME_SIGNATURE_DENOMINATORS = [2, 4, 8, 16];
+
+// Selector options, plus the stored value when it is outside the list so the select still shows it
+const withCurrentValue = (options: number[], current: number) =>
+  options.includes(current) ? options : [...options, current].sort((a, b) => a - b);
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   document,
@@ -36,6 +44,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onToggleTie,
   onDeleteBeatColumn,
   onSetBeatChord,
+  onSetMeasureTimeSignature,
   onOpenChordPaletteModal,
   onDeselectBeat
 }) => {
@@ -65,18 +74,23 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   }
 
   let selectedBeat: any = null;
+  let selectedMeasure: Measure | null = null;
   let activeMeasureIndex = 1;
 
   for (const m of measures) {
     const b = m.beats.find(beat => beat.id === selectedBeatId);
     if (b) {
       selectedBeat = b;
+      selectedMeasure = m;
       activeMeasureIndex = m.index;
       break;
     }
   }
 
-  if (!selectedBeat) return null;
+  if (!selectedBeat || !selectedMeasure) return null;
+
+  const [timeSigNumerator, timeSigDenominator] = selectedMeasure.timeSignature;
+  const measureId = selectedMeasure.id;
 
   const currentNotes: TabNote[] = selectedBeat.notes.filter((n: TabNote) => !n.isGhost);
   const activeNote = selectedString ? currentNotes.find(n => n.string === selectedString) : null;
@@ -196,6 +210,36 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               className="bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-1 text-xs text-slate-100 outline-none w-32 transition font-medium"
             />
           </div>
+
+          {/* Time Signature of the selected beat's measure */}
+          {onSetMeasureTimeSignature && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400 font-medium">Measure {activeMeasureIndex} Time Signature:</span>
+              <select
+                aria-label="Time signature beats per measure"
+                value={timeSigNumerator}
+                onChange={(e) => onSetMeasureTimeSignature(measureId, [parseInt(e.target.value, 10), timeSigDenominator])}
+                className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono font-bold rounded px-1.5 py-0.5 outline-none"
+                title="Beats per measure"
+              >
+                {withCurrentValue(TIME_SIGNATURE_NUMERATORS, timeSigNumerator).map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span className="text-xs text-slate-500 font-bold">/</span>
+              <select
+                aria-label="Time signature beat unit"
+                value={timeSigDenominator}
+                onChange={(e) => onSetMeasureTimeSignature(measureId, [timeSigNumerator, parseInt(e.target.value, 10)])}
+                className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono font-bold rounded px-1.5 py-0.5 outline-none"
+                title="Beat unit (note value that gets one count)"
+              >
+                {withCurrentValue(TIME_SIGNATURE_DENOMINATORS, timeSigDenominator).map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {onDeselectBeat && (
             <button
