@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChordMarker, InstrumentProfile, TuningConfig } from '../types/tab';
 import { getChordPreset, createChordMarker, findExistingChordsByFrets, getStringNumbers } from '../utils/musicTheory';
 import { getInstrumentProfile } from '../instruments';
-import { ChordDiagram } from './ChordDiagram';
+import { ChordDiagram, getChordDiagramWidth } from './ChordDiagram';
 import { Music, Check, Plus, AlertTriangle, X, Sparkles } from 'lucide-react';
 
 interface ChordPaletteModalProps {
@@ -164,7 +164,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
                     }`}
                   >
                     {chordMarker && (
-                      <ChordDiagram chord={chordMarker} width={42} height={62} />
+                      <ChordDiagram chord={chordMarker} width={getChordDiagramWidth(stringCount, 42)} height={62} />
                     )}
 
                     <div className="flex items-center gap-1.5 w-full justify-center">
@@ -261,7 +261,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
                     name: newChordName || 'New Chord',
                     frets: currentFrets
                   }}
-                  width={54}
+                  width={getChordDiagramWidth(stringCount, 54)}
                   height={78}
                 />
               </div>

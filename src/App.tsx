@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TabDocument, DurationType, TabNote, Measure, BeatColumn, ChordMarker, DURATION_KEY_MAP } from './types/tab';
+import { TabDocument, InstrumentId, DurationType, TabNote, Measure, BeatColumn, ChordMarker, DURATION_KEY_MAP } from './types/tab';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
 import { transposePitches, getBeatDurationMs, getEffectiveChordPalette, autoDetectChordFromBeatNotes, extractChordFrets } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
@@ -581,11 +581,13 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleNewSong = () => {
-    if (window.confirm(`Create a new blank ${profile.name.toLowerCase()} tab chart? Unsaved changes will be replaced.`)) {
-      const blankDoc = createBlankTabDocument(profile);
+  const handleNewSong = (instrumentId: InstrumentId) => {
+    const newProfile = getInstrumentProfile(instrumentId);
+    if (window.confirm(`Create a new blank ${newProfile.name.toLowerCase()} tab chart? Unsaved changes will be replaced.`)) {
+      const blankDoc = createBlankTabDocument(newProfile);
       setDocument(blankDoc);
       setSelectedBeatId(blankDoc.measures[0]?.beats[0]?.id || null);
+      setSelectedString(prev => Math.min(prev, blankDoc.tuning.pitches.length));
     }
   };
 

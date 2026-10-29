@@ -16,6 +16,7 @@ For step-by-step instructions on setting up your environment, running the develo
 ## ✨ Key Features
 
 - 🎼 **4-Line Ukulele Staff**: Engineered specifically for Ukulele with High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), Soprano D ($aDF\#B$), and custom tunings.
+- 🎸 **6-String Guitar Mode**: Choose Ukulele or Guitar from **New Tab** or **Open Guitar Pro**. Guitar tabs use a 6-line staff with Standard, Drop D, Half-Step Down, Open G, Open D and DADGAD tunings, a guitar chord library (open, E-shape and A-shape barre, and power chords), 6-string chord diagrams, and Guitar Pro import that keeps the source tuning, strings and frets (capo folded into fret numbers, dead notes as `X`).
 - 🪕 **Ukulele Chord Diagram Charts Above Tabs**: Render 4-line fingering grids with filled dots (frets), open circles `○` (open strings), `✕` (muted strings), base fret indicators (e.g. `3fr`), and chord name labels (`Am`, `E7`, `G`, `D`, `F`, `C`, `Dm`) positioned directly above tabs in both web editor and PDF export.
 - 🎼 **Continuous System Engraving**: Staff lines run continuously across measures with 1 clef string header and 1 time signature per system row.
 - ⏱️ **Traditional Vertically Stacked Time Signatures**: Numerator stacked over denominator ($\mathbf{\frac{4}{4}}$) in bold classical serif typography with background masking over staff lines.

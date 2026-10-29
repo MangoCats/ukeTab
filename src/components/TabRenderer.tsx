@@ -1,7 +1,7 @@
 import React from 'react';
 import { TabDocument, TabNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/tab';
 import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
-import { ChordDiagram } from './ChordDiagram';
+import { ChordDiagram, getChordDiagramWidth } from './ChordDiagram';
 import { getInstrumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
 
@@ -48,6 +48,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const profile = getInstrumentProfile(document.instrument);
   const stringCount = tuning.pitches.length;
   const stringNumbers = getStringNumbers(stringCount);
+  const chordDiagramWidth = getChordDiagramWidth(stringCount);
   const zoom = layout.zoomScale;
   const stemsBelow = layout.stemsPlacement === 'below';
   const maxFretLimit = layout.maxFretLimit ?? profile.defaultMaxFretLimit;
@@ -509,12 +510,12 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                         {/* Chord Diagram Chart Rendered Above Staff */}
                         {displayChord && (
                           <g
-                            transform={`translate(${beatX - 25 * zoom}, ${string1Y - 78 * zoom}) scale(${zoom})`}
+                            transform={`translate(${beatX - (chordDiagramWidth / 2) * zoom}, ${string1Y - 78 * zoom}) scale(${zoom})`}
                             className="chord-chart-rendering"
                           >
                             <ChordDiagram
                               chord={displayChord}
-                              width={50}
+                              width={chordDiagramWidth}
                               height={72}
                               textColor="#f59e0b"
                               dotColor="#f59e0b"

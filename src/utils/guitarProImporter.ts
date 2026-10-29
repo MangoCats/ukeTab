@@ -1,6 +1,6 @@
 import * as alphaTab from '@coderline/alphatab';
 import { TabDocument, Measure, BeatColumn, TabNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/tab';
-import { autoDetectChordFromBeatNotes, getDefaultChordPalette, getStringNumbers } from './musicTheory';
+import { autoDetectChordFromBeatNotes, getDefaultChordPalette, getStringNumbers, midiToNoteName } from './musicTheory';
 import { getInstrumentProfile } from '../instruments';
 
 /**
@@ -28,6 +28,44 @@ export function cleanGpLyric(lyrics: string[] | null | undefined): string | unde
 }
 
 /**
+ * Picks the track to import. Instruments that keep source fingering prefer a track with the same string count;
+ * otherwise the first track named like a guitar or ukulele wins, falling back to the first track.
+ */
+export function selectImportTrack(tracks: alphaTab.model.Track[], profile: InstrumentProfile): alphaTab.model.Track {
+  const isNamedFretted = (t: alphaTab.model.Track) => {
+    const nameLower = t.name.toLowerCase();
+    return nameLower.includes('guitar') || nameLower.includes('ukulele') || nameLower.includes('acoustic');
+  };
+
+  if (profile.importKeepsSourceFingering) {
+    const sameStringCount = tracks.filter(t => t.staves[0]?.tuning.length === profile.stringCount);
+    const match = sameStringCount.find(isNamedFretted) || sameStringCount[0];
+    if (match) return match;
+  }
+
+  return tracks.find(isNamedFretted) || tracks[0];
+}
+
+/**
+ * Resolves the tuning of a source staff whose fingering is kept (pitches listed top line first):
+ * the profile preset with identical pitches, or a custom tuning named after its notes (low to high).
+ */
+export function resolveSourceTuning(staffTuning: number[], profile: InstrumentProfile): TuningConfig {
+  const preset = profile.tunings.find(
+    t => t.pitches.length === staffTuning.length && t.pitches.every((p, i) => p === staffTuning[i])
+  );
+  if (preset) return preset;
+
+  const stringsDisplay = staffTuning.map(midiToNoteName);
+  return {
+    key: 'custom',
+    name: `Custom (${[...stringsDisplay].reverse().join(' ')})`,
+    pitches: [...staffTuning],
+    stringsDisplay
+  };
+}
+
+/**
  * Parses a Guitar Pro (.gp, .gp3, .gp4, .gp5, .gpx) ArrayBuffer and converts it into a clean TabDocument with Tied Notes & Precision Tick-Synchronized Lyrics.
  */
 export function parseGuitarProToTab(
@@ -42,7 +80,6 @@ export function parseGuitarProToTab(
   const artist = score.artist || 'Guitar Pro Import';
   const tempo = Math.round(score.tempo || 120);
 
-  const tuning: TuningConfig = profile.defaultTuning;
   const chordPalette = getDefaultChordPalette(profile);
 
   if (!score.tracks || score.tracks.length === 0) {
@@ -73,21 +110,20 @@ export function parseGuitarProToTab(
     });
   });
 
-  // 2. Select the optimal instrumental track (prefer Guitar/Uke or track with highest note density)
-  let targetTrack = score.tracks.find(t => {
-    const nameLower = t.name.toLowerCase();
-    return nameLower.includes('guitar') || nameLower.includes('ukulele') || nameLower.includes('acoustic');
-  });
-
-  if (!targetTrack) {
-    targetTrack = score.tracks[0];
-  }
-
+  // 2. Select the instrumental track to import
+  const targetTrack = selectImportTrack(score.tracks, profile);
   const staff = targetTrack.staves[0];
 
   if (!staff || !staff.bars || staff.bars.length === 0) {
     throw new Error('Guitar Pro track contains no measures.');
   }
+
+  // 3. Keep the source tuning, strings and frets when the track matches the instrument; otherwise re-voice notes
+  const keepSourceFingering = profile.importKeepsSourceFingering && staff.tuning.length === profile.stringCount;
+  const tuning: TuningConfig = keepSourceFingering
+    ? resolveSourceTuning(staff.tuning, profile)
+    : profile.defaultTuning;
+  const stringCount = tuning.pitches.length;
 
   const measures: Measure[] = [];
 
@@ -118,6 +154,21 @@ export function parseGuitarProToTab(
               hasTiedNote = true;
             }
 
+            if (keepSourceFingering) {
+              // alphaTab string 1 is the bottom line; frets are played relative to the capo
+              const sourceString = stringCount - gpNote.string + 1;
+              if (!assignedStrings.has(sourceString)) {
+                assignedStrings.add(sourceString);
+                tabNotes.push({
+                  id: `gp-n-${mIdx}-${bIdx}-${nIdx}`,
+                  string: sourceString,
+                  fret: gpNote.isDead ? -1 : gpNote.fret + staff.capo,
+                  isTied: isTied
+                });
+              }
+              return;
+            }
+
             // Fold by octaves into the instrument's playable pitch range
             if (profile.importPitchRange) {
               const [minPitch, maxPitch] = profile.importPitchRange;
@@ -126,7 +177,7 @@ export function parseGuitarProToTab(
             }
 
             // Solve optimal string & fret on the instrument
-            const targetStrings = getStringNumbers(tuning.pitches.length);
+            const targetStrings = getStringNumbers(stringCount);
             let bestString: number | null = null;
             let bestFret = 999;
 

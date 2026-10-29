@@ -112,7 +112,7 @@ export interface TabDocument {
 
 ### 2.1 Instrument Profiles (`src/instruments/`)
 
-Instrument-specific data is grouped into an `InstrumentProfile` so that further fretted instruments (6-string guitar, 4-string bass) can be added alongside the ukulele. Ukulele is currently the only profile.
+Instrument-specific data is grouped into an `InstrumentProfile` so that fretted instruments share one editor. Profiles: ukulele (`instruments/ukulele.ts`, 4 strings) and guitar (`instruments/guitar.ts`, 6 strings). A 4-string bass can be added as another profile.
 
 ```typescript
 export interface InstrumentProfile {
@@ -126,10 +126,14 @@ export interface InstrumentProfile {
   defaultMaxFretLimit: number;
   importPitchRange: [number, number] | null; // Guitar Pro octave folding range
   importMaxFret: number;
+  importKeepsSourceFingering: boolean;       // Keep Guitar Pro tuning/strings/frets for same-string-count tracks
   synthVoice: SynthVoice;                    // Pluck oscillator, filter and envelope settings
 }
 ```
 
+- A document's instrument is chosen when it is created (**New Tab** menu) or imported (**Open Guitar Pro** menu) and does not change afterwards.
+- Guitar Pro import with `importKeepsSourceFingering` (guitar): picks a track with the profile's string count, keeps its tuning (a matching preset, else a `custom` tuning named low to high), maps alphaTab string `s` (1 = bottom line) to `N - s + 1`, adds the capo to fret numbers so pitches stay correct, and imports dead notes as muted `X`. Other tracks, and ukulele imports, are re-voiced by octave folding into `importPitchRange`.
+- Chord diagrams widen by 5px per string beyond four (`getChordDiagramWidth`), so 4-string output is unchanged.
 - `getInstrumentProfile(document.instrument)` resolves a document's profile. `instrument` is optional; `.uketab` files saved before it existed resolve to ukulele.
 - Chord helpers (`getChordPreset`, `findExistingChordsByFrets`, `autoDetectChordFromBeatNotes`, `createChordMarker`, `getDefaultChordPalette`, `getEffectiveChordPalette`), the Guitar Pro importer, `createBlankTabDocument` and `playBeatChord` take an optional profile argument defaulting to ukulele.
 - The number of strings comes from the tuning (`tuning.pitches.length`). Staff lines, string labels, note cells, rest placement (the two middle lines), time signature placement (centred on the staff), chord diagrams, chord detection and the Guitar Pro string solver all follow it.

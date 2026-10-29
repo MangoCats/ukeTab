@@ -14,12 +14,19 @@ interface ChordDiagramProps {
   isSvgInline?: boolean;
 }
 
+/**
+ * Diagram width that keeps string spacing readable as strings are added (4 strings = base width).
+ */
+export function getChordDiagramWidth(stringCount: number, baseWidth: number = 50): number {
+  return baseWidth + Math.max(0, stringCount - 4) * 5;
+}
+
 export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   notes,
   chord,
   tuning,
   chordName: chordNameProp,
-  width = 50,
+  width: widthProp,
   height = 72,
   textColor = '#f59e0b',
   dotColor = '#f59e0b',
@@ -50,6 +57,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
     });
   }
 
+  const width = widthProp ?? getChordDiagramWidth(stringCount);
   const numFrets = 4;
   const topMargin = 26; // Expanded whitespace between 60% larger chord title and nut line / open circles
   const sideMargin = 9;

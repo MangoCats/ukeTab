@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
-import { TabDocument, DurationType, TuningPresetKey } from '../types/tab';
-import { getInstrumentProfile } from '../instruments';
+import React, { useRef, useState } from 'react';
+import { TabDocument, DurationType, TuningPresetKey, InstrumentId, InstrumentProfile } from '../types/tab';
+import { getInstrumentProfile, INSTRUMENT_LIST } from '../instruments';
 import { parseGuitarProToTab } from '../utils/guitarProImporter';
 import {
   Play,
@@ -39,12 +39,43 @@ interface EditorToolbarProps {
   onToggleTriplet?: () => void;
   onToggleTie?: () => void;
   onTranspose: (semitones: number) => void;
-  onNewSong?: () => void;
+  onNewSong?: (instrument: InstrumentId) => void;
   onExportJson: () => void;
   onImportJson: (doc: TabDocument) => void;
   onExportPdf: () => void;
   onOpenChordPaletteModal?: () => void;
 }
+
+/**
+ * Dropdown list of instruments shown under a toolbar button; the current document's instrument is listed first.
+ */
+const InstrumentMenu: React.FC<{
+  currentId: InstrumentId;
+  getLabel: (profile: InstrumentProfile) => string;
+  onPick: (profile: InstrumentProfile) => void;
+}> = ({ currentId, getLabel, onPick }) => {
+  const ordered = [...INSTRUMENT_LIST].sort((a, b) => Number(b.id === currentId) - Number(a.id === currentId));
+  return (
+    <div
+      role="menu"
+      className="absolute left-0 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1"
+      style={{ top: '100%', marginTop: 4, minWidth: 190 }}
+    >
+      {ordered.map(p => (
+        <button
+          key={p.id}
+          role="menuitem"
+          onClick={() => onPick(p)}
+          className="w-full px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800 transition flex items-center justify-between gap-3"
+          style={{ background: 'transparent', border: 'none', whiteSpace: 'nowrap', cursor: 'pointer' }}
+        >
+          <span>{getLabel(p)}</span>
+          <span className="text-[10px] font-mono text-slate-500">{p.stringCount} strings</span>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   document,
@@ -72,6 +103,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const profile = getInstrumentProfile(document.instrument);
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
   const gpFileInputRef = useRef<HTMLInputElement>(null);
+  const gpImportProfileRef = useRef<InstrumentProfile>(profile);
+  const [openMenu, setOpenMenu] = useState<'new' | 'gp' | null>(null);
 
   const handleTuningChange = (key: TuningPresetKey) => {
     onUpdateDocument(prev => ({
@@ -134,7 +167,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     reader.onload = (event) => {
       try {
         const buffer = event.target?.result as ArrayBuffer;
-        const parsedDoc = parseGuitarProToTab(buffer, file.name, profile);
+        const parsedDoc = parseGuitarProToTab(buffer, file.name, gpImportProfileRef.current);
         onImportJson(parsedDoc);
       } catch (err: any) {
         alert(`Could not parse Guitar Pro file: ${err?.message || err}`);
@@ -221,16 +254,33 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </button>
           )}
 
-          {/* New Blank Song Button */}
+          {/* Click-away layer closing an open instrument menu */}
+          {openMenu && <div className="fixed z-40" style={{ inset: 0 }} onClick={() => setOpenMenu(null)} />}
+
+          {/* New Blank Song Button (choose instrument) */}
           {onNewSong && (
-            <button
-              onClick={onNewSong}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
-              title={`Start a new blank ${profile.name} tab chart`}
-            >
-              <FilePlus className="w-4 h-4 text-emerald-400" />
-              <span>New Tab</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setOpenMenu(openMenu === 'new' ? null : 'new')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+                title="Start a new blank tab chart for a chosen instrument"
+                aria-haspopup="menu"
+                aria-expanded={openMenu === 'new'}
+              >
+                <FilePlus className="w-4 h-4 text-emerald-400" />
+                <span>New Tab</span>
+              </button>
+              {openMenu === 'new' && (
+                <InstrumentMenu
+                  currentId={profile.id}
+                  getLabel={p => `New ${p.name} Tab`}
+                  onPick={p => {
+                    setOpenMenu(null);
+                    onNewSong(p.id);
+                  }}
+                />
+              )}
+            </div>
           )}
 
           {/* Open / Import .uketab Document */}
@@ -243,15 +293,30 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <span>Open .uketab</span>
           </button>
 
-          {/* Open / Import Guitar Pro (.gp, .gp3-5, .gpx) File */}
-          <button
-            onClick={() => gpFileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
-            title={`Import a Guitar Pro (.gp/.gp3/.gp4/.gp5/.gpx) file to auto-generate a clean ${profile.name} tab chart`}
-          >
-            <Upload className="w-4 h-4 text-amber-400" />
-            <span>Open Guitar Pro</span>
-          </button>
+          {/* Open / Import Guitar Pro (.gp, .gp3-5, .gpx) File (choose target instrument) */}
+          <div className="relative">
+            <button
+              onClick={() => setOpenMenu(openMenu === 'gp' ? null : 'gp')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+              title="Import a Guitar Pro (.gp/.gp3/.gp4/.gp5/.gpx) file as a clean tab chart for a chosen instrument"
+              aria-haspopup="menu"
+              aria-expanded={openMenu === 'gp'}
+            >
+              <Upload className="w-4 h-4 text-amber-400" />
+              <span>Open Guitar Pro</span>
+            </button>
+            {openMenu === 'gp' && (
+              <InstrumentMenu
+                currentId={profile.id}
+                getLabel={p => `Import as ${p.name} Tab`}
+                onPick={p => {
+                  setOpenMenu(null);
+                  gpImportProfileRef.current = p;
+                  gpFileInputRef.current?.click();
+                }}
+              />
+            )}
+          </div>
 
           {/* Save .uketab Document */}
           <button
@@ -321,6 +386,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               {profile.tunings.map(t => (
                 <option key={t.key} value={t.key}>{t.name}</option>
               ))}
+              {!profile.tunings.some(t => t.key === tuning.key) && (
+                <option value={tuning.key}>{tuning.name}</option>
+              )}
             </select>
           </div>
 

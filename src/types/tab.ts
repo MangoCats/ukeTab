@@ -49,7 +49,9 @@ export interface Measure {
   beats: BeatColumn[];
 }
 
-export type TuningPresetKey = 'gCEA' | 'GCEA' | 'DGBE' | 'aDF#B' | 'custom';
+export type UkuleleTuningKey = 'gCEA' | 'GCEA' | 'DGBE' | 'aDF#B';
+export type GuitarTuningKey = 'EADGBE' | 'DADGBE' | 'EbAbDbGbBbEb' | 'DGDGBD' | 'DADF#AD' | 'DADGAD';
+export type TuningPresetKey = UkuleleTuningKey | GuitarTuningKey | 'custom';
 
 export interface TuningConfig {
   key: TuningPresetKey;
@@ -58,7 +60,7 @@ export interface TuningConfig {
   stringsDisplay: string[];  // Label names e.g. ['A4', 'E4', 'C4', 'g4']
 }
 
-export type InstrumentId = 'ukulele';
+export type InstrumentId = 'ukulele' | 'guitar';
 
 export type ChordFretLibrary = Record<string, number[]>; // Chord name -> frets, bottom line first [String N, ..., String 1]
 
@@ -82,6 +84,7 @@ export interface InstrumentProfile {
   defaultMaxFretLimit: number;
   importPitchRange: [number, number] | null; // Guitar Pro import folds pitches into this MIDI range by octaves (null = keep original pitch)
   importMaxFret: number;                  // Highest fret the Guitar Pro importer will assign
+  importKeepsSourceFingering: boolean;    // Guitar Pro tracks with the same string count keep their own tuning, strings and frets
   synthVoice: SynthVoice;
 }
 

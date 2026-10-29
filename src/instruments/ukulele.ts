@@ -1,7 +1,7 @@
-import { ChordFretLibrary, InstrumentProfile, TuningConfig, TuningPresetKey } from '../types/tab';
+import { ChordFretLibrary, InstrumentProfile, TuningConfig, UkuleleTuningKey } from '../types/tab';
 
 // Standard Ukulele Tunings Catalog
-export const UKULELE_TUNINGS: Record<TuningPresetKey, TuningConfig> = {
+export const UKULELE_TUNINGS: Record<UkuleleTuningKey | 'custom', TuningConfig> = {
   gCEA: {
     key: 'gCEA',
     name: 'Standard High-G (gCEA)',
@@ -119,6 +119,7 @@ export const UKULELE_PROFILE: InstrumentProfile = {
   defaultMaxFretLimit: 12,
   importPitchRange: [60, 84], // High-G Ukulele pitch range
   importMaxFret: 15,
+  importKeepsSourceFingering: false, // Re-voice every source note onto the ukulele's strings
   synthVoice: {
     // Acoustic ukulele pluck: triangle wave with a closing low-pass filter
     oscillatorType: 'triangle',
