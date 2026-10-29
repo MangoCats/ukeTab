@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as alphaTab from '@coderline/alphatab';
-import { convertGpDuration, cleanGpLyric, parseGuitarProToTab, resolveSourceTuning } from './guitarProImporter';
+import { convertGpDuration, cleanGpLyric, parseGuitarProToTab, resolveSourceTuning, isCompatibleSourceTuning } from './guitarProImporter';
 import { GUITAR_PROFILE, GUITAR_TUNINGS } from '../instruments/guitar';
+import { BASS_PROFILE, BASS_TUNINGS } from '../instruments/bass';
 import { UKULELE_PROFILE } from '../instruments/ukulele';
 import { calculatePitch } from './musicTheory';
 
@@ -91,6 +92,44 @@ describe('guitarProImporter: Guitar Import Keeps Source Fingering', () => {
 
     expect(doc.tuning).toBe(GUITAR_TUNINGS.EADGBE);
     expect(doc.measures[0].beats[0].notes[0]).toMatchObject({ string: 5, fret: 2 });
+  });
+});
+
+describe('guitarProImporter: Bass Import', () => {
+  // Ukulele track listed first: same string count as bass, but far too high to keep its fingering
+  const UKE_AND_BASS_TEX = String.raw`\track "Ukulele" \tuning a4 e4 c4 g4 0.1.4 |
+\track "Bass" \tuning g2 d2 a1 e1 3.4.4 0.3.4 5.2.2 |`;
+
+  it('accepts only same-count tracks whose lowest string is within an octave of the bass', () => {
+    expect(isCompatibleSourceTuning([43, 38, 33, 28], BASS_PROFILE)).toBe(true);
+    expect(isCompatibleSourceTuning([43, 38, 33, 26], BASS_PROFILE)).toBe(true);
+    expect(isCompatibleSourceTuning([69, 64, 60, 67], BASS_PROFILE)).toBe(false);
+    expect(isCompatibleSourceTuning([43, 38, 33, 28, 23], BASS_PROFILE)).toBe(false);
+    expect(isCompatibleSourceTuning([64, 59, 55, 50, 45, 40], GUITAR_PROFILE)).toBe(true);
+    expect(isCompatibleSourceTuning([43, 38, 33, 28, 23, 18], GUITAR_PROFILE)).toBe(false);
+  });
+
+  it('keeps the fingering of a bass track listed after a ukulele track', () => {
+    const doc = parseGuitarProToTab(buildGpBytes(UKE_AND_BASS_TEX), 'band.gp', BASS_PROFILE);
+
+    expect(doc.instrument).toBe('bass');
+    expect(doc.tuning).toBe(BASS_TUNINGS.EADG);
+    const fingering = doc.measures[0].beats.map(b => b.notes.map(n => [n.string, n.fret]));
+    expect(fingering).toEqual([[[4, 3]], [[3, 0]], [[2, 5]]]);
+  });
+
+  it('re-voices a ukulele-only file into the bass range', () => {
+    const tex = String.raw`\track "Ukulele" \tuning a4 e4 c4 g4 0.1.4 3.1.4 0.3.4 |`;
+    const doc = parseGuitarProToTab(buildGpBytes(tex), 'uke.gp', BASS_PROFILE);
+
+    expect(doc.tuning).toBe(BASS_TUNINGS.EADG);
+    const notes = doc.measures[0].beats.flatMap(b => b.notes);
+    expect(notes).toHaveLength(3);
+    notes.forEach(n => {
+      const pitch = calculatePitch(n.string, n.fret, doc.tuning);
+      expect(pitch).toBeGreaterThanOrEqual(28);
+      expect(pitch).toBeLessThanOrEqual(55);
+    });
   });
 });
 

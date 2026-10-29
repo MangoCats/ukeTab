@@ -129,6 +129,7 @@ export const GUITAR_PROFILE: InstrumentProfile = {
   importPitchRange: [40, 88], // Standard guitar range E2..E6 when re-voicing other instruments' tracks
   importMaxFret: 24,
   importKeepsSourceFingering: true,
+  importTrackKeywords: ['guitar', 'acoustic'],
   synthVoice: {
     // Steel-string pluck: brighter sawtooth with a closing low-pass filter and longer sustain
     oscillatorType: 'sawtooth',

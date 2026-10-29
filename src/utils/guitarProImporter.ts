@@ -28,22 +28,30 @@ export function cleanGpLyric(lyrics: string[] | null | undefined): string | unde
 }
 
 /**
- * Picks the track to import. Instruments that keep source fingering prefer a track with the same string count;
- * otherwise the first track named like a guitar or ukulele wins, falling back to the first track.
+ * Whether a source staff's fingering can be kept on the instrument: same string count, and lowest open
+ * string within an octave of the instrument's default tuning (so a 4-string ukulele track is not taken as bass).
+ */
+export function isCompatibleSourceTuning(staffTuning: number[], profile: InstrumentProfile): boolean {
+  if (!profile.importKeepsSourceFingering || staffTuning.length !== profile.stringCount) return false;
+  return Math.abs(Math.min(...staffTuning) - Math.min(...profile.defaultTuning.pitches)) <= 12;
+}
+
+/**
+ * Picks the track to import. Instruments that keep source fingering prefer a compatible track (see
+ * isCompatibleSourceTuning); otherwise the first track named with one of the profile's keywords wins,
+ * falling back to the first track.
  */
 export function selectImportTrack(tracks: alphaTab.model.Track[], profile: InstrumentProfile): alphaTab.model.Track {
-  const isNamedFretted = (t: alphaTab.model.Track) => {
+  const isNamedForInstrument = (t: alphaTab.model.Track) => {
     const nameLower = t.name.toLowerCase();
-    return nameLower.includes('guitar') || nameLower.includes('ukulele') || nameLower.includes('acoustic');
+    return profile.importTrackKeywords.some(k => nameLower.includes(k));
   };
 
-  if (profile.importKeepsSourceFingering) {
-    const sameStringCount = tracks.filter(t => t.staves[0]?.tuning.length === profile.stringCount);
-    const match = sameStringCount.find(isNamedFretted) || sameStringCount[0];
-    if (match) return match;
-  }
+  const compatible = tracks.filter(t => isCompatibleSourceTuning(t.staves[0]?.tuning ?? [], profile));
+  const match = compatible.find(isNamedForInstrument) || compatible[0];
+  if (match) return match;
 
-  return tracks.find(isNamedFretted) || tracks[0];
+  return tracks.find(isNamedForInstrument) || tracks[0];
 }
 
 /**
@@ -119,7 +127,7 @@ export function parseGuitarProToTab(
   }
 
   // 3. Keep the source tuning, strings and frets when the track matches the instrument; otherwise re-voice notes
-  const keepSourceFingering = profile.importKeepsSourceFingering && staff.tuning.length === profile.stringCount;
+  const keepSourceFingering = isCompatibleSourceTuning(staff.tuning, profile);
   const tuning: TuningConfig = keepSourceFingering
     ? resolveSourceTuning(staff.tuning, profile)
     : profile.defaultTuning;

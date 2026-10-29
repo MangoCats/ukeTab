@@ -179,20 +179,20 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   return (
     <div className="no-print EditorToolbar bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-4">
-      {/* Hidden File Inputs for .uketab and .gp imports */}
+      {/* Hidden File Inputs for .uketab and .gp imports (hidden attribute: index.css has no .hidden utility) */}
       <input
         type="file"
         ref={jsonFileInputRef}
         onChange={handleJsonFileChange}
         accept=".uketab,.json"
-        className="hidden"
+        hidden
       />
       <input
         type="file"
         ref={gpFileInputRef}
         onChange={handleGpFileChange}
         accept=".gp,.gp3,.gp4,.gp5,.gpx"
-        className="hidden"
+        hidden
       />
 
       {/* Upper Control Bar: Title Input & Main Actions */}

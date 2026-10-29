@@ -48,7 +48,14 @@ describe('EditorToolbar Component: Instrument Menus', () => {
 
     fireEvent.click(getByText('Open Guitar Pro'));
     const items = getAllByRole('menuitem').map(el => el.textContent);
-    expect(items).toEqual(['Import as Guitar Tab6 strings', 'Import as Ukulele Tab4 strings']);
+    expect(items).toEqual(['Import as Guitar Tab6 strings', 'Import as Ukulele Tab4 strings', 'Import as Bass Tab4 strings']);
+  });
+
+  it('keeps the native file pickers hidden', () => {
+    const { container } = renderToolbar(createBlankTabDocument());
+    const fileInputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]'));
+    expect(fileInputs).toHaveLength(2);
+    fileInputs.forEach(input => expect(input.hidden).toBe(true));
   });
 
   it('offers the instrument tunings and keeps a custom tuning selectable', () => {
