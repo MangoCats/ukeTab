@@ -1,6 +1,6 @@
 import * as alphaTab from '@coderline/alphatab';
 import { UkuleleTabDocument, Measure, BeatColumn, UkuleleNote, DurationType, TuningConfig, ChordMarker, InstrumentProfile } from '../types/ukulele';
-import { autoDetectChordFromBeatNotes, getDefaultChordPalette } from './musicTheory';
+import { autoDetectChordFromBeatNotes, getDefaultChordPalette, getStringNumbers } from './musicTheory';
 import { getInstrumentProfile } from '../instruments';
 
 /**
@@ -106,7 +106,7 @@ export function parseGuitarProToUkuleleTab(
         const isRest = gpBeat.isRest || !gpBeat.notes || gpBeat.notes.length === 0;
 
         const ukeNotes: UkuleleNote[] = [];
-        const assignedStrings = new Set<1 | 2 | 3 | 4>();
+        const assignedStrings = new Set<number>();
         let hasTiedNote = false;
 
         if (!isRest && gpBeat.notes.length > 0) {
@@ -126,8 +126,8 @@ export function parseGuitarProToUkuleleTab(
             }
 
             // Solve optimal Ukulele string & fret
-            const targetStrings: (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
-            let bestString: (1 | 2 | 3 | 4) | null = null;
+            const targetStrings = getStringNumbers(tuning.pitches.length);
+            let bestString: number | null = null;
             let bestFret = 999;
 
             for (const s of targetStrings) {

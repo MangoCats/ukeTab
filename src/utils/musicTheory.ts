@@ -21,17 +21,25 @@ export function getEffectiveChordPalette(palette?: ChordMarker[], profile: Instr
 }
 
 /**
- * Extracts 4-string fret array [S4, S3, S2, S1] from note objects if all 4 strings have notes defined.
+ * Returns string numbers [1, 2, ..., N] for an instrument or tuning with N strings.
  */
-export function extract4StringFrets(notes: UkuleleNote[]): [number, number, number, number] | null {
-  const activeNotes = notes.filter(n => !n.isGhost);
-  const s1 = activeNotes.find(n => n.string === 1);
-  const s2 = activeNotes.find(n => n.string === 2);
-  const s3 = activeNotes.find(n => n.string === 3);
-  const s4 = activeNotes.find(n => n.string === 4);
+export function getStringNumbers(stringCount: number): number[] {
+  return Array.from({ length: stringCount }, (_, i) => i + 1);
+}
 
-  if (!s1 || !s2 || !s3 || !s4) return null;
-  return [s4.fret, s3.fret, s2.fret, s1.fret];
+/**
+ * Extracts chord fret array [SN, ..., S2, S1] from note objects if every string has a note defined.
+ */
+export function extractChordFrets(notes: UkuleleNote[], stringCount: number): number[] | null {
+  const activeNotes = notes.filter(n => !n.isGhost);
+  const frets: number[] = [];
+
+  for (let s = stringCount; s >= 1; s--) {
+    const note = activeNotes.find(n => n.string === s);
+    if (!note) return null;
+    frets.push(note.fret);
+  }
+  return frets;
 }
 
 export function getChordPreset(name: string, profile: InstrumentProfile = UKULELE_PROFILE): ChordMarker | null {
@@ -54,16 +62,16 @@ export function getChordPreset(name: string, profile: InstrumentProfile = UKULEL
 
   return {
     name: libraryKey || normalized,
-    frets: [...frets] as [number, number, number, number],
+    frets: [...frets],
     baseFret
   };
 }
 
 /**
- * Searches the library for any existing chord names that match the given 4-string fret pattern [S4, S3, S2, S1].
+ * Searches the library for any existing chord names that match the given fret pattern [SN, ..., S1].
  */
 export function findExistingChordsByFrets(
-  frets: [number, number, number, number],
+  frets: number[],
   customLibrary: ChordFretLibrary = {},
   profile: InstrumentProfile = UKULELE_PROFILE
 ): string[] {
@@ -71,12 +79,7 @@ export function findExistingChordsByFrets(
   const matches: string[] = [];
 
   Object.entries(combinedLibrary).forEach(([chordName, chordFrets]) => {
-    if (
-      chordFrets[0] === frets[0] &&
-      chordFrets[1] === frets[1] &&
-      chordFrets[2] === frets[2] &&
-      chordFrets[3] === frets[3]
-    ) {
+    if (chordFrets.length === frets.length && chordFrets.every((f, i) => f === frets[i])) {
       if (!matches.includes(chordName)) {
         matches.push(chordName);
       }
@@ -87,14 +90,14 @@ export function findExistingChordsByFrets(
 }
 
 /**
- * Automatically detects a matching chord from the defined library when all 4 strings have fingerings defined (including 0 for open).
+ * Automatically detects a matching chord from the defined library when all strings have fingerings defined (including 0 for open).
  */
 export function autoDetectChordFromBeatNotes(
   notes: UkuleleNote[],
   customPalette: ChordMarker[] = [],
   profile: InstrumentProfile = UKULELE_PROFILE
 ): ChordMarker | null {
-  const frets = extract4StringFrets(notes);
+  const frets = extractChordFrets(notes, profile.stringCount);
   if (!frets) return null;
 
   const customLibrary: ChordFretLibrary = {};
@@ -114,7 +117,7 @@ export function autoDetectChordFromBeatNotes(
 
 export function createChordMarker(
   name: string,
-  frets?: [number, number, number, number],
+  frets?: number[],
   baseFret?: number,
   profile: InstrumentProfile = UKULELE_PROFILE
 ): ChordMarker {
@@ -136,7 +139,7 @@ export function createChordMarker(
 
   return {
     name,
-    frets: [0, 0, 0, 0],
+    frets: Array(profile.stringCount).fill(0),
     baseFret: 1
   };
 }
@@ -149,7 +152,7 @@ export function midiToNoteName(midi: number): string {
   return `${name}${octave}`;
 }
 
-export function calculatePitch(stringIndex: 1 | 2 | 3 | 4, fret: number, tuning: TuningConfig): number {
+export function calculatePitch(stringIndex: number, fret: number, tuning: TuningConfig): number {
   if (fret < 0) return -1;
   return tuning.pitches[stringIndex - 1] + fret;
 }
@@ -190,7 +193,7 @@ export function getAlternateFretSuggestions(
     if (activeNote.fret < 0) return; // Muted X notes do not suggest alternate frets
     const pitch = calculatePitch(activeNote.string, activeNote.fret, tuning);
 
-    ([1, 2, 3, 4] as const).forEach(targetString => {
+    getStringNumbers(tuning.pitches.length).forEach(targetString => {
       if (!assignedStrings.has(targetString)) {
         const candidateFret = pitch - tuning.pitches[targetString - 1];
         if (candidateFret >= 0 && candidateFret <= maxFretLimit) {

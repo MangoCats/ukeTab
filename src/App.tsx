@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UkuleleTabDocument, DurationType, UkuleleNote, Measure, BeatColumn, ChordMarker, DURATION_KEY_MAP } from './types/ukulele';
 import { SAMPLE_TAB_DOCUMENT, createBlankTabDocument } from './utils/sampleData';
-import { transposePitches, getBeatDurationMs, getEffectiveChordPalette, autoDetectChordFromBeatNotes, extract4StringFrets } from './utils/musicTheory';
+import { transposePitches, getBeatDurationMs, getEffectiveChordPalette, autoDetectChordFromBeatNotes, extractChordFrets } from './utils/musicTheory';
 import { playBeatChord, playMetronomeClick } from './utils/audioSynth';
 import { getInstrumentProfile } from './instruments';
 import { TabRenderer } from './components/TabRenderer';
@@ -18,7 +18,7 @@ export const App: React.FC = () => {
   }));
 
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>('b1-1');
-  const [selectedString, setSelectedString] = useState<1 | 2 | 3 | 4>(1);
+  const [selectedString, setSelectedString] = useState<number>(1);
   const [activeDuration, setActiveDuration] = useState<DurationType>('1/4');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playingBeatId, setPlayingBeatId] = useState<string | null>(null);
@@ -176,13 +176,13 @@ export const App: React.FC = () => {
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedString(prev => (prev > 1 ? (prev - 1) as 1 | 2 | 3 | 4 : 1));
+        setSelectedString(prev => Math.max(1, prev - 1));
         return;
       }
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedString(prev => (prev < 4 ? (prev + 1) as 1 | 2 | 3 | 4 : 4));
+        setSelectedString(prev => Math.min(document.tuning.pitches.length, prev + 1));
         return;
       }
 
@@ -224,7 +224,7 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedBeatId, selectedString, document]);
 
-  const handleSelectBeat = (measureIndex: number, beatId: string, stringIndex?: 1 | 2 | 3 | 4) => {
+  const handleSelectBeat = (measureIndex: number, beatId: string, stringIndex?: number) => {
     setSelectedBeatId(beatId);
     if (stringIndex) {
       setSelectedString(stringIndex);
@@ -249,7 +249,7 @@ export const App: React.FC = () => {
     }));
   };
 
-  const handleAddNote = (beatId: string, stringIndex: 1 | 2 | 3 | 4, fret: number) => {
+  const handleAddNote = (beatId: string, stringIndex: number, fret: number) => {
     setDocument(prev => ({
       ...prev,
       measures: prev.measures.map(m => ({
@@ -282,11 +282,11 @@ export const App: React.FC = () => {
     }));
   };
 
-  const handleSetFret = (beatId: string, stringIndex: 1 | 2 | 3 | 4, fret: number) => {
+  const handleSetFret = (beatId: string, stringIndex: number, fret: number) => {
     handleAddNote(beatId, stringIndex, fret);
   };
 
-  const handleRemoveNote = (beatId: string, stringIndex: 1 | 2 | 3 | 4) => {
+  const handleRemoveNote = (beatId: string, stringIndex: number) => {
     setDocument(prev => ({
       ...prev,
       measures: prev.measures.map(m => ({
@@ -299,7 +299,7 @@ export const App: React.FC = () => {
           return {
             ...b,
             notes: updatedNotes,
-            chord: autoChord || (updatedNotes.length < 4 ? undefined : b.chord)
+            chord: autoChord || (updatedNotes.length < prev.tuning.pitches.length ? undefined : b.chord)
           };
         })
       }))
@@ -608,19 +608,20 @@ export const App: React.FC = () => {
     });
     const firstBeat = importedDoc.measures[0]?.beats[0]?.id || null;
     setSelectedBeatId(firstBeat);
+    setSelectedString(prev => Math.min(prev, importedDoc.tuning.pitches.length));
   };
 
   const handleExportPdf = () => {
     window.print();
   };
 
-  // Calculate initial 4-string frets for selected beat if all 4 strings are defined
-  let selectedBeatInitialFrets: [number, number, number, number] | null = null;
+  // Calculate initial chord frets for selected beat if every string is defined
+  let selectedBeatInitialFrets: number[] | null = null;
   if (selectedBeatId) {
     for (const m of document.measures) {
       const b = m.beats.find(beat => beat.id === selectedBeatId);
       if (b) {
-        selectedBeatInitialFrets = extract4StringFrets(b.notes);
+        selectedBeatInitialFrets = extractChordFrets(b.notes, document.tuning.pitches.length);
         break;
       }
     }
@@ -636,6 +637,7 @@ export const App: React.FC = () => {
         onUpdatePalette={handleUpdateChordPalette}
         initialFrets={selectedBeatInitialFrets}
         profile={getInstrumentProfile(document.instrument)}
+        tuning={document.tuning}
       />
 
       {/* Duplicate Measure Range Modal */}

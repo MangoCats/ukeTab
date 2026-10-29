@@ -10,7 +10,7 @@ import {
   createChordMarker,
   findExistingChordsByFrets,
   autoDetectChordFromBeatNotes,
-  extract4StringFrets,
+  extractChordFrets,
   getDefaultChordPalette,
   getEffectiveChordPalette
 } from './musicTheory';
@@ -161,13 +161,13 @@ describe('musicTheory: Chord Palette, Detection & 4-String Extraction', () => {
       { id: 'n4', string: 4, fret: 0 }  // G4 string -> Fret 0
     ];
     // C major = [0, 0, 0, 3] (S4, S3, S2, S1)
-    expect(extract4StringFrets(completeNotes)).toEqual([0, 0, 0, 3]);
+    expect(extractChordFrets(completeNotes, 4)).toEqual([0, 0, 0, 3]);
 
     const partialNotes: UkuleleNote[] = [
       { id: 'n1', string: 1, fret: 3 },
       { id: 'n2', string: 2, fret: 0 }
     ];
-    expect(extract4StringFrets(partialNotes)).toBeNull();
+    expect(extractChordFrets(partialNotes, 4)).toBeNull();
   });
 
   it('automatically detects standard chords from 4-string notes', () => {

@@ -17,6 +17,7 @@ interface ChordDiagramProps {
 export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   notes,
   chord,
+  tuning,
   chordName: chordNameProp,
   width = 50,
   height = 72,
@@ -26,30 +27,37 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   isSvgInline = false
 }) => {
   let chordName = chordNameProp || chord?.name;
-  let fretsPerString: Record<1 | 2 | 3 | 4, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
+
+  if (!chord && !(notes && notes.length)) {
+    return null;
+  }
+
+  const stringCount = chord
+    ? chord.frets.length
+    : tuning?.pitches.length ?? Math.max(4, ...notes!.map(n => n.string));
+
+  // fretsPerString[s] = fret on string s (1..N); -1 = muted / unplayed
+  const fretsPerString: number[] = Array(stringCount + 1).fill(-1);
 
   if (chord) {
-    // chord.frets is [String 4 (G), String 3 (C), String 2 (E), String 1 (A)]
-    fretsPerString[4] = chord.frets[0];
-    fretsPerString[3] = chord.frets[1];
-    fretsPerString[2] = chord.frets[2];
-    fretsPerString[1] = chord.frets[3];
-  } else if (notes && notes.length) {
-    notes.forEach(n => {
-      fretsPerString[n.string] = n.fret;
+    // chord.frets is bottom line first [String N, ..., String 1]
+    chord.frets.forEach((fret, i) => {
+      fretsPerString[stringCount - i] = fret;
     });
   } else {
-    return null;
+    notes!.forEach(n => {
+      fretsPerString[n.string] = n.fret;
+    });
   }
 
   const numFrets = 4;
   const topMargin = 26; // Expanded whitespace between 60% larger chord title and nut line / open circles
   const sideMargin = 9;
-  const stringSpacing = (width - sideMargin * 2) / 3;
+  const stringSpacing = (width - sideMargin * 2) / (stringCount - 1);
   const fretSpacing = (height - topMargin - 5) / numFrets;
 
   // Compute base fret
-  const activeFrets = Object.values(fretsPerString).filter(f => f > 0);
+  const activeFrets = fretsPerString.filter(f => f > 0);
   const maxFret = activeFrets.length ? Math.max(...activeFrets) : 0;
   const minFret = activeFrets.length ? Math.min(...activeFrets) : 1;
   const baseFret = chord?.baseFret || (maxFret > 4 ? minFret : 1);
@@ -116,8 +124,8 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
         );
       })}
 
-      {/* 4 String Lines (String 4 G left to String 1 A right) */}
-      {([4, 3, 2, 1] as const).map((s, colIdx) => {
+      {/* Vertical String Lines (String N, lowest line on the staff, at left to String 1 at right) */}
+      {Array.from({ length: stringCount }, (_, i) => stringCount - i).map((s, colIdx) => {
         const x = sideMargin + colIdx * stringSpacing;
         const fretVal = fretsPerString[s];
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChordMarker, InstrumentProfile } from '../types/ukulele';
-import { getChordPreset, createChordMarker, findExistingChordsByFrets } from '../utils/musicTheory';
+import { ChordMarker, InstrumentProfile, TuningConfig } from '../types/ukulele';
+import { getChordPreset, createChordMarker, findExistingChordsByFrets, getStringNumbers } from '../utils/musicTheory';
 import { getInstrumentProfile } from '../instruments';
 import { ChordDiagram } from './ChordDiagram';
 import { Music, Check, Plus, AlertTriangle, X, Sparkles } from 'lucide-react';
@@ -10,8 +10,9 @@ interface ChordPaletteModalProps {
   onClose: () => void;
   activePalette: ChordMarker[];
   onUpdatePalette: (newPalette: ChordMarker[]) => void;
-  initialFrets?: [number, number, number, number] | null;
+  initialFrets?: number[] | null;
   profile?: InstrumentProfile; // Defaults to the default instrument (ukulele)
+  tuning?: TuningConfig;       // Labels the string selectors; defaults to the profile's default tuning
 }
 
 export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
@@ -20,25 +21,20 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
   activePalette,
   onUpdatePalette,
   initialFrets,
-  profile = getInstrumentProfile()
+  profile = getInstrumentProfile(),
+  tuning = profile.defaultTuning
 }) => {
   const [activeTab, setActiveTab] = useState<'select' | 'create'>('select');
 
   // Creator state
   const [newChordName, setNewChordName] = useState<string>('');
-  const [s4Fret, setS4Fret] = useState<number>(0);
-  const [s3Fret, setS3Fret] = useState<number>(0);
-  const [s2Fret, setS2Fret] = useState<number>(0);
-  const [s1Fret, setS1Fret] = useState<number>(0);
+  const [currentFrets, setCurrentFrets] = useState<number[]>(() => Array(profile.stringCount).fill(0)); // [SN, ..., S1]
 
   // Sync initialFrets whenever the modal is opened
   useEffect(() => {
     if (isOpen) {
       if (initialFrets) {
-        setS4Fret(initialFrets[0]);
-        setS3Fret(initialFrets[1]);
-        setS2Fret(initialFrets[2]);
-        setS1Fret(initialFrets[3]);
+        setCurrentFrets([...initialFrets]);
 
         // Check if this pattern is already defined in library
         const matches = findExistingChordsByFrets(initialFrets, {}, profile);
@@ -49,6 +45,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
           setActiveTab('select');
         }
       } else {
+        setCurrentFrets(prev => (prev.length === profile.stringCount ? prev : Array(profile.stringCount).fill(0)));
         setActiveTab('select');
       }
     }
@@ -56,7 +53,10 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentFrets: [number, number, number, number] = [s4Fret, s3Fret, s2Fret, s1Fret];
+  const stringCount = profile.stringCount;
+  const setStringFret = (fretIdx: number, fret: number) => {
+    setCurrentFrets(prev => prev.map((f, i) => (i === fretIdx ? fret : f)));
+  };
   const duplicateMatches = findExistingChordsByFrets(currentFrets, {}, profile);
 
   const activeNames = new Set(activePalette.map(c => c.name.toLowerCase()));
@@ -204,69 +204,31 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
 
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-slate-300">
-                    Fret Placement [Strings 4, 3, 2, 1]:
+                    Fret Placement [Strings {getStringNumbers(stringCount).reverse().join(', ')}]:
                   </label>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-slate-400 text-[11px]">S4 (g/G):</span>
-                      <select
-                        value={s4Fret}
-                        onChange={(e) => setS4Fret(parseInt(e.target.value, 10))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-mono font-bold outline-none mt-0.5"
-                      >
-                        <option value={-1}>X (Muted)</option>
-                        <option value={0}>0 (Open)</option>
-                        {Array.from({ length: 15 }, (_, i) => i + 1).map(f => (
-                          <option key={f} value={f}>Fret {f}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {currentFrets.map((fretVal, fretIdx) => {
+                      const strNum = stringCount - fretIdx;
+                      const openNoteName = (tuning.stringsDisplay[strNum - 1] || '').replace(/\d+$/, '');
 
-                    <div>
-                      <span className="text-slate-400 text-[11px]">S3 (C):</span>
-                      <select
-                        value={s3Fret}
-                        onChange={(e) => setS3Fret(parseInt(e.target.value, 10))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-mono font-bold outline-none mt-0.5"
-                      >
-                        <option value={-1}>X (Muted)</option>
-                        <option value={0}>0 (Open)</option>
-                        {Array.from({ length: 15 }, (_, i) => i + 1).map(f => (
-                          <option key={f} value={f}>Fret {f}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 text-[11px]">S2 (E):</span>
-                      <select
-                        value={s2Fret}
-                        onChange={(e) => setS2Fret(parseInt(e.target.value, 10))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-mono font-bold outline-none mt-0.5"
-                      >
-                        <option value={-1}>X (Muted)</option>
-                        <option value={0}>0 (Open)</option>
-                        {Array.from({ length: 15 }, (_, i) => i + 1).map(f => (
-                          <option key={f} value={f}>Fret {f}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 text-[11px]">S1 (A):</span>
-                      <select
-                        value={s1Fret}
-                        onChange={(e) => setS1Fret(parseInt(e.target.value, 10))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-mono font-bold outline-none mt-0.5"
-                      >
-                        <option value={-1}>X (Muted)</option>
-                        <option value={0}>0 (Open)</option>
-                        {Array.from({ length: 15 }, (_, i) => i + 1).map(f => (
-                          <option key={f} value={f}>Fret {f}</option>
-                        ))}
-                      </select>
-                    </div>
+                      return (
+                        <div key={`s${strNum}`}>
+                          <span className="text-slate-400 text-[11px]">S{strNum}{openNoteName && ` (${openNoteName})`}:</span>
+                          <select
+                            value={fretVal}
+                            onChange={(e) => setStringFret(fretIdx, parseInt(e.target.value, 10))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-mono font-bold outline-none mt-0.5"
+                          >
+                            <option value={-1}>X (Muted)</option>
+                            <option value={0}>0 (Open)</option>
+                            {Array.from({ length: 15 }, (_, i) => i + 1).map(f => (
+                              <option key={f} value={f}>Fret {f}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -278,7 +240,7 @@ export const ChordPaletteModal: React.FC<ChordPaletteModalProps> = ({
                       <span>Existing Fingering Pattern Found</span>
                     </div>
                     <p className="text-[11.5px] leading-relaxed text-slate-300">
-                      This fingering pattern <code className="bg-slate-950 px-1.5 py-0.5 rounded font-mono text-amber-300">[{s4Fret}, {s3Fret}, {s2Fret}, {s1Fret}]</code> is already defined in the library as <strong className="text-amber-300">{duplicateMatches.join(', ')}</strong>.
+                      This fingering pattern <code className="bg-slate-950 px-1.5 py-0.5 rounded font-mono text-amber-300">[{currentFrets.join(', ')}]</code> is already defined in the library as <strong className="text-amber-300">{duplicateMatches.join(', ')}</strong>.
                     </p>
                     <p className="text-[11px] text-slate-400">
                       You can still save it under your custom name (e.g. <em>"{newChordName || 'MyChord'}"</em>)!

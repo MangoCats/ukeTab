@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { UkuleleTabDocument, UkuleleNote, ChordMarker } from '../types/ukulele';
-import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette } from '../utils/musicTheory';
+import { calculatePitch, midiToNoteName, getAlternateFretSuggestions, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
 import { getInstrumentProfile } from '../instruments';
 import { Music, Hash, Trash2, AlignLeft, Sparkles, PlusCircle, Settings2, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface InspectorPanelProps {
   document: UkuleleTabDocument;
   selectedBeatId: string | null;
-  selectedString: (1 | 2 | 3 | 4) | null;
+  selectedString: number | null;
   onUpdateBeatLyric: (beatId: string, lyric: string) => void;
-  onSetFret: (beatId: string, stringIndex: 1 | 2 | 3 | 4, fret: number) => void;
-  onDeleteNote: (beatId: string, stringIndex: 1 | 2 | 3 | 4) => void;
+  onSetFret: (beatId: string, stringIndex: number, fret: number) => void;
+  onDeleteNote: (beatId: string, stringIndex: number) => void;
   onInsertBeat: (afterBeatId: string) => void;
   onInsertRest?: (afterBeatId: string) => void;
   onToggleRest?: (beatId: string) => void;
@@ -42,6 +42,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const { tuning, measures, layout, chordPalette } = document;
   const profile = getInstrumentProfile(document.instrument);
+  const stringCount = tuning.pitches.length;
   const maxFretLimit = layout.maxFretLimit ?? profile.defaultMaxFretLimit;
   const fretButtonList = [-1, ...Array.from({ length: maxFretLimit + 1 }, (_, i) => i)];
 
@@ -295,9 +296,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-slate-400 font-medium">Strings [S4, S3, S2, S1]:</span>
-                  {([0, 1, 2, 3] as const).map(strIdx => {
-                    const strNum = (4 - strIdx) as 1 | 2 | 3 | 4;
+                  <span className="text-slate-400 font-medium">Strings [{getStringNumbers(stringCount).reverse().map(s => `S${s}`).join(', ')}]:</span>
+                  {Array.from({ length: stringCount }, (_, strIdx) => strIdx).map(strIdx => {
+                    const strNum = stringCount - strIdx;
                     const currentFret = effectiveChord ? effectiveChord.frets[strIdx] : 0;
 
                     return (
@@ -307,7 +308,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                           value={currentFret}
                           onChange={(e) => {
                             if (onSetBeatChord) {
-                              const newFrets = [...effectiveChord.frets] as [number, number, number, number];
+                              const newFrets = [...effectiveChord.frets];
                               newFrets[strIdx] = parseInt(e.target.value, 10);
                               onSetBeatChord(selectedBeat.id, createChordMarker(effectiveChord.name, newFrets, undefined, profile));
                             }
@@ -334,7 +335,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                   <Hash className="w-3.5 h-3.5 text-amber-400" />
-                  {selectedString ? `String ${selectedString} (${stringName})` : 'Select String (1..4)'}:
+                  {selectedString ? `String ${selectedString} (${stringName})` : `Select String (1..${stringCount})`}:
                 </span>
                 {selectedString && activeNote && (
                   <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
@@ -380,7 +381,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 italic">Click a string (1..4) on the tab staff to select frets 0–{maxFretLimit}.</p>
+                <p className="text-xs text-slate-500 italic">Click a string (1..{stringCount}) on the tab staff to select frets 0–{maxFretLimit}.</p>
               )}
             </div>
 

@@ -52,7 +52,7 @@ export type DurationType = '1/1' | '1/2' | '1/4' | '1/8' | '1/16' | '1/32';
 
 export interface UkuleleNote {
   id: string;
-  string: 1 | 2 | 3 | 4; // 1 = A4 (Top), 4 = G4 (Bottom)
+  string: number;        // 1 = Top line (A4 on ukulele) .. N = Bottom line (N = tuning string count)
   fret: number;          // 0 = Open, 1..20 = Fretted
   isGhost?: boolean;     // Rendered for alternate fret suggestions
   isTied?: boolean;      // Continued / sustained note without re-strumming
@@ -60,7 +60,7 @@ export interface UkuleleNote {
 
 export interface ChordMarker {
   name: string; // e.g. "Am", "E7", "G", "C", "F", "Dm"
-  frets: [number, number, number, number]; // Strings [4, 3, 2, 1]: -1 = Muted X, 0 = Open O, 1..20 = Fretted Dot
+  frets: number[]; // One per string, bottom line first [N, ..., 1]: -1 = Muted X, 0 = Open O, 1..20 = Fretted Dot
   baseFret?: number; // Optional base fret offset (default 1)
 }
 
@@ -86,7 +86,7 @@ export interface Measure {
 export interface TuningConfig {
   key: TuningPresetKey;
   name: string;
-  pitches: number[]; // MIDI note numbers for strings [1, 2, 3, 4]
+  pitches: number[]; // MIDI note numbers for strings [1, ..., N]; length sets the staff's string count
   stringsDisplay: string[];
 }
 
@@ -132,6 +132,7 @@ export interface InstrumentProfile {
 
 - `getInstrumentProfile(document.instrument)` resolves a document's profile. `instrument` is optional; `.uketab` files saved before it existed resolve to ukulele.
 - Chord helpers (`getChordPreset`, `findExistingChordsByFrets`, `autoDetectChordFromBeatNotes`, `createChordMarker`, `getDefaultChordPalette`, `getEffectiveChordPalette`), the Guitar Pro importer, `createBlankTabDocument` and `playBeatChord` take an optional profile argument defaulting to ukulele.
+- The number of strings comes from the tuning (`tuning.pitches.length`). Staff lines, string labels, note cells, rest placement (the two middle lines), time signature placement (centred on the staff), chord diagrams, chord detection and the Guitar Pro string solver all follow it.
 - `TUNING_PRESETS`, `UKULELE_CHORD_LIBRARY` and `DEFAULT_COMPOSITION_CHORD_NAMES` remain exported from `musicTheory.ts` as aliases of the ukulele profile data.
 
 ---

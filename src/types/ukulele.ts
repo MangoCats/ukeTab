@@ -18,7 +18,7 @@ export const DURATION_KEY_MAP: Record<string, DurationType> = {
 
 export interface UkuleleNote {
   id: string;
-  string: 1 | 2 | 3 | 4; // 1 = Top line (A4 default), 4 = Bottom line (G4 default)
+  string: number;        // 1 = Top line (highest string, A4 on ukulele) .. N = Bottom line (N = tuning string count)
   fret: number;          // 0 = Open, 1..20 = Fretted
   isGhost?: boolean;     // Visual alternate fret suggestion flag
   isTied?: boolean;      // Continued / sustained note from previous beat without re-strumming
@@ -26,7 +26,7 @@ export interface UkuleleNote {
 
 export interface ChordMarker {
   name: string; // e.g. "Am", "E7", "G", "C", "F", "Dm"
-  frets: [number, number, number, number]; // Strings [4, 3, 2, 1]: -1 = Muted/Unplayed X, 0 = Open O, 1..20 = Fretted Dot
+  frets: number[]; // One entry per string, bottom line first [N, ..., 2, 1]: -1 = Muted/Unplayed X, 0 = Open O, 1..20 = Fretted Dot
   baseFret?: number; // Optional base fret offset (default 1)
 }
 
@@ -54,13 +54,13 @@ export type TuningPresetKey = 'gCEA' | 'GCEA' | 'DGBE' | 'aDF#B' | 'custom';
 export interface TuningConfig {
   key: TuningPresetKey;
   name: string;
-  pitches: number[];         // MIDI note values for strings 1, 2, 3, 4
+  pitches: number[];         // MIDI note values for strings 1..N; its length is the staff's string count
   stringsDisplay: string[];  // Label names e.g. ['A4', 'E4', 'C4', 'g4']
 }
 
 export type InstrumentId = 'ukulele';
 
-export type ChordFretLibrary = Record<string, [number, number, number, number]>; // Chord name -> frets [String 4, String 3, String 2, String 1]
+export type ChordFretLibrary = Record<string, number[]>; // Chord name -> frets, bottom line first [String N, ..., String 1]
 
 export interface SynthVoice {
   oscillatorType: OscillatorType;

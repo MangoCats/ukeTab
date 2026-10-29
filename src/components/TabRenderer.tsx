@@ -1,6 +1,6 @@
 import React from 'react';
 import { UkuleleTabDocument, UkuleleNote, DurationType, Measure, ChordMarker, DURATION_OPTIONS } from '../types/ukulele';
-import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette } from '../utils/musicTheory';
+import { getAlternateFretSuggestions, getChordPreset, createChordMarker, getEffectiveChordPalette, getStringNumbers } from '../utils/musicTheory';
 import { ChordDiagram } from './ChordDiagram';
 import { getInstrumentProfile } from '../instruments';
 import { Trash2, PlusCircle, Music, X } from 'lucide-react';
@@ -8,11 +8,11 @@ import { Trash2, PlusCircle, Music, X } from 'lucide-react';
 interface TabRendererProps {
   document: UkuleleTabDocument;
   selectedBeatId: string | null;
-  selectedString: (1 | 2 | 3 | 4) | null;
+  selectedString: number | null;
   playingBeatId: string | null;
-  onSelectBeat: (measureIndex: number, beatId: string, stringIndex?: 1 | 2 | 3 | 4) => void;
-  onAddNote: (beatId: string, stringIndex: 1 | 2 | 3 | 4, fret: number) => void;
-  onRemoveNote: (beatId: string, stringIndex: 1 | 2 | 3 | 4) => void;
+  onSelectBeat: (measureIndex: number, beatId: string, stringIndex?: number) => void;
+  onAddNote: (beatId: string, stringIndex: number, fret: number) => void;
+  onRemoveNote: (beatId: string, stringIndex: number) => void;
   onInsertBeat: (afterBeatId: string) => void;
   onInsertRest?: (afterBeatId: string) => void;
   onToggleRest?: (beatId: string) => void;
@@ -46,6 +46,8 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
 }) => {
   const { tuning, layout, measures, chordPalette } = document;
   const profile = getInstrumentProfile(document.instrument);
+  const stringCount = tuning.pitches.length;
+  const stringNumbers = getStringNumbers(stringCount);
   const zoom = layout.zoomScale;
   const stemsBelow = layout.stemsPlacement === 'below';
   const maxFretLimit = layout.maxFretLimit ?? profile.defaultMaxFretLimit;
@@ -94,7 +96,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   const topMargin = (stemsBelow ? 42 * zoom : 60 * zoom) + chordSpace;
   const bottomMargin = stemsBelow ? 50 * zoom : 28 * zoom;
 
-  const getStringY = (stringIndex: 1 | 2 | 3 | 4) => {
+  const getStringY = (stringIndex: number) => {
     return topMargin + (stringIndex - 1) * lineSpacing;
   };
 
@@ -102,14 +104,15 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     const z = zoom;
     const duration = beat.duration || '1/4';
     const isDotted = !!beat.isDotted;
-    const string2Y = getStringY(2);
-    const string3Y = getStringY(3);
+    // The two lines either side of the staff middle (Lines 2 & 3 on a 4-line staff)
+    const upperMiddleY = getStringY(Math.floor(stringCount / 2));
+    const lowerMiddleY = getStringY(Math.floor(stringCount / 2) + 1);
 
     // Traditional rest placement:
-    // Whole rest ('1/1'): hangs directly below String 2 (Line 2)
-    // Half rest ('1/2'): sits directly on top of String 3 (Line 3)
-    // Quarter, 8th, 16th rests: centered on String 3 (Line 3)
-    const restY = duration === '1/1' ? string2Y : string3Y;
+    // Whole rest ('1/1'): hangs directly below the upper middle line
+    // Half rest ('1/2'): sits directly on top of the lower middle line
+    // Quarter, 8th, 16th rests: centered on the lower middle line
+    const restY = duration === '1/1' ? upperMiddleY : lowerMiddleY;
 
     // Dot Y offset aligned with each rest shape
     const dotY = duration === '1/1' ? 3 * z : duration === '1/2' ? -3 * z : duration === '1/4' ? 0 : -2 * z;
@@ -117,7 +120,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
     return (
       <g transform={`translate(${beatX}, ${restY})`} className="rest-symbol text-sky-400">
         {duration === '1/1' && (
-          /* Whole Rest: Solid rectangle hanging below String 2 (Line 2) */
+          /* Whole Rest: Solid rectangle hanging below the upper middle line */
           <rect
             x={-6 * z}
             y={0}
@@ -214,10 +217,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
   };
 
   const string1Y = getStringY(1);
-  const string2Y = getStringY(2);
-  const string3Y = getStringY(3);
-  const string4Y = getStringY(4);
-  const staffHeight = string4Y - string1Y;
+  const lastStringY = getStringY(stringCount);
+  const staffHeight = lastStringY - string1Y;
+  const staffMidY = (string1Y + lastStringY) / 2;
   const measureSvgHeight = topMargin + staffHeight + bottomMargin;
 
   return (
@@ -258,7 +260,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                 if (nextBeat && (nextBeat.duration === '1/8' || nextBeat.duration === '1/16')) {
                   const x1 = beatsStartX + bIdx * beatWidth;
                   const x2 = beatsStartX + (bIdx + 1) * beatWidth;
-                  const beamY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
+                  const beamY = stemsBelow ? lastStringY + 36 * zoom : string1Y - 36 * zoom;
 
                   beamedBeatIndices.add(bIdx);
                   beamedBeatIndices.add(bIdx + 1);
@@ -269,7 +271,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
             });
 
             // Step 2: Compute Level 2 secondary beams (full beams and fractional beamlets for 1/16th notes)
-            const beamY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
+            const beamY = stemsBelow ? lastStringY + 36 * zoom : string1Y - 36 * zoom;
             const level2Y = stemsBelow ? beamY - 6 * zoom : beamY + 6 * zoom;
             const stubLength = 16 * zoom;
 
@@ -311,9 +313,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                   className="select-none overflow-visible bg-slate-950/80"
                   style={{ overflow: 'visible' }}
                 >
-                  {/* 4 Continuous Horizontal Ukulele Staff Lines Across Measure */}
+                  {/* Continuous Horizontal Staff Lines (one per string) Across Measure */}
                   <g stroke="#64748b" strokeWidth={1.5 * zoom}>
-                    {([1, 2, 3, 4] as const).map(s => (
+                    {stringNumbers.map(s => (
                       <line
                         key={`line-${s}`}
                         x1={0}
@@ -327,7 +329,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                   {/* Clef Header / String Tuning Labels (First Measure) */}
                   {isFirstMeasure && (
                     <g>
-                      {([1, 2, 3, 4] as const).map(s => (
+                      {stringNumbers.map(s => (
                         <text
                           key={`hdr-${s}`}
                           x={14 * zoom}
@@ -346,7 +348,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                         x1={clefWidth - 12}
                         y1={string1Y}
                         x2={clefWidth - 12}
-                        y2={string4Y}
+                        y2={lastStringY}
                         stroke="#ffffff"
                         strokeWidth={3 * zoom}
                       />
@@ -354,7 +356,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                         x1={clefWidth - 7}
                         y1={string1Y}
                         x2={clefWidth - 7}
-                        y2={string4Y}
+                        y2={lastStringY}
                         stroke="#64748b"
                         strokeWidth={1.5 * zoom}
                       />
@@ -367,7 +369,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                       {/* Line Cutout Masks so staff lines do not strike through time signature numbers */}
                       <rect
                         x={clefWidth + 4 * zoom}
-                        y={string1Y + 2 * zoom}
+                        y={staffMidY - 34 * zoom}
                         width={24 * zoom}
                         height={28 * zoom}
                         fill="#020617"
@@ -376,7 +378,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                       />
                       <rect
                         x={clefWidth + 4 * zoom}
-                        y={string3Y - 2 * zoom}
+                        y={staffMidY + 10 * zoom}
                         width={24 * zoom}
                         height={28 * zoom}
                         fill="#020617"
@@ -385,7 +387,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                       />
                       <text
                         x={clefWidth + 16 * zoom}
-                        y={string1Y + 24 * zoom}
+                        y={staffMidY - 12 * zoom}
                         textAnchor="middle"
                         fill="#f59e0b"
                         fontFamily="'Outfit', 'Times New Roman', Georgia, serif"
@@ -398,7 +400,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                       </text>
                       <text
                         x={clefWidth + 16 * zoom}
-                        y={string4Y + 2 * zoom}
+                        y={staffMidY + 38 * zoom}
                         textAnchor="middle"
                         fill="#f59e0b"
                         fontFamily="'Outfit', 'Times New Roman', Georgia, serif"
@@ -441,7 +443,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     x1={measureSvgWidth}
                     y1={string1Y}
                     x2={measureSvgWidth}
-                    y2={string4Y}
+                    y2={lastStringY}
                     stroke="#64748b"
                     strokeWidth={1.5 * zoom}
                   />
@@ -450,7 +452,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                       x1={measureSvgWidth - 4}
                       y1={string1Y}
                       x2={measureSvgWidth - 4}
-                      y2={string4Y}
+                      y2={lastStringY}
                       stroke="#ffffff"
                       strokeWidth={3 * zoom}
                     />
@@ -482,9 +484,9 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                     const displayChord = (beat.chord && typeof beat.chord === 'object') ? beat.chord : undefined;
 
                     const stemX = beatX;
-                    const stemStartY = stemsBelow ? string4Y + 6 * zoom : string1Y - 6 * zoom;
-                    const stemEndY = stemsBelow ? string4Y + 36 * zoom : string1Y - 36 * zoom;
-                    const lyricY = stemsBelow ? stemEndY + 24 * zoom : string4Y + 25 * zoom;
+                    const stemStartY = stemsBelow ? lastStringY + 6 * zoom : string1Y - 6 * zoom;
+                    const stemEndY = stemsBelow ? lastStringY + 36 * zoom : string1Y - 36 * zoom;
+                    const lyricY = stemsBelow ? stemEndY + 24 * zoom : lastStringY + 25 * zoom;
                     const isBeamed = beamedBeatIndices.has(bIdx);
 
                     return (
@@ -527,7 +529,7 @@ export const TabRenderer: React.FC<TabRendererProps> = ({
                           renderRestSymbol(beat, beatX)
                         ) : (
                           /* Standard Fret Numbers & Line Cutouts */
-                          ([1, 2, 3, 4] as const).map(s => {
+                          stringNumbers.map(s => {
                             const noteOnString = activeNotes.find(n => n.string === s);
                             const ghostOnString = ghostNotes.find(n => n.string === s);
                             const stringY = getStringY(s);

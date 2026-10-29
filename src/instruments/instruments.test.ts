@@ -52,7 +52,7 @@ describe('instruments: Chord Helpers Use the Given Profile', () => {
     expect(findExistingChordsByFrets([1, 1, 1, 1], {}, TEST_PROFILE)).toEqual(['X']);
     expect(findExistingChordsByFrets([0, 0, 0, 3], {}, TEST_PROFILE)).toEqual([]);
 
-    const notes = [1, 2, 3, 4].map(s => ({ id: `n${s}`, string: s as 1 | 2 | 3 | 4, fret: 1 }));
+    const notes = [1, 2, 3, 4].map(s => ({ id: `n${s}`, string: s, fret: 1 }));
     expect(autoDetectChordFromBeatNotes(notes, [], TEST_PROFILE)?.name).toBe('X');
   });
 
