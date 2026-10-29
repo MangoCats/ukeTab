@@ -1,138 +1,364 @@
-# UkeTab Technical Specification & Architectural Manual
+# UkeTab Product Specification
 
-## 1. Product Overview & Core Purpose
-**UkeTab** is a modern interactive web application for creating, editing, listening to, and exporting 4-line Ukulele tablature.
-It features standard stringed instrument notation with fret numbers on staff lines, traditional rhythm stems/flags/beams, lyrics, Web Audio synthesis, continuous staff system engraving, clean PDF export, ukulele chord diagrams, Guitar Pro import (`.gp`, `.gp3`–`.gp5`, `.gpx`), tied/continued note sustain, and configurable fingering aids.
+This document specifies what UkeTab does, as seen by its user. How it is built is described in the [Software Architecture Document](SOFTWARE_ARCHITECTURE.md). Where the two overlap, both describe the same behaviour; the source code is the final reference.
 
----
+## 1. Purpose & Scope
 
-## 2. Visual Notation & Rendering Specs
+UkeTab is a browser application for writing, editing, playing back, printing and importing fretted-instrument tablature. It supports three instruments:
 
-### Staff & Continuous System Layout
-- **Staff Lines**: Exactly 4 horizontal lines.
-- **Default High-G ($gCEA$) String Ordering**:
-  - String 1 (Top Line): $A_4$ (440 Hz)
-  - String 2 (2nd Line): $E_4$ (329.63 Hz)
-  - String 3 (3rd Line): $C_4$ (261.63 Hz)
-  - String 4 (Bottom Line): $g_4$ (392.00 Hz) High-G re-entrant tuning.
-- **Continuous System Staff Engraving**:
-  - String tuning labels (`A4`, `E4`, `C4`, `g4`) and time signatures are rendered **ONCE per system row** at the far-left clef header.
-  - Measures flow continuously across the system row separated by single vertical barlines without repeated string labels or whitespace gaps.
-- **Zoom-Proportional & Margin-Overrun Dynamic Row-Wrapping**:
-  - Automatically wraps measures onto a new system row when the row width exceeds the printable page boundary (`820px`).
-  - Adapts to active zoom presets (75% Compact, 100% Standard, 150% Large).
+| Instrument | Strings | Staff lines |
+|---|---|---|
+| Ukulele | 4 | 4 |
+| Guitar | 6 | 6 |
+| Bass | 4 | 4 |
 
-### Ukulele Chord Diagram Charts Above Tabs
-- **Independent Placement**: Ukulele chord diagrams (chord name label + 4-string fingering grid) can be assigned to any beat column directly above String 1 ($A_4$). They operate independently of tab fret numbers underneath (can sit above single notes, full chords, rests, or lyrics).
-- **Standard Fingering Chart Format**:
-  - **4 Vertical String Lines**: Strings 4, 3, 2, 1 (left-to-right).
-  - **Nut Line & Frets**: Thick nut line for `baseFret = 1`; base fret offset text (e.g. `3fr`) for higher positions.
-  - **Filled Circles (●)**: Finger placement on frets.
-  - **Open Circles (○)**: Played open strings (fret 0).
-  - **✕**: Muted / unplayed strings (-1).
-  - **Chord Title**: Prominently rendered above diagram (e.g. `Am`, `E7`, `G`, `D`, `F`, `C`, `Dm`).
-- **Chord Library & Custom Editor**: Built-in library of standard Ukulele chords + custom chord name and 4-string fret assignment.
-- **1-Click Auto-Assignment**: Selecting any 4-string beat automatically detects and assigns the matching chord from the defined library.
-- **Print & PDF Support**: Renders in high-contrast crisp black lines, text, and dots in PDF export.
+A tab shows fret numbers on staff lines, rhythm stems/flags/beams, rests, lyrics and chord diagrams. It can be played through a built-in synthesizer, saved and reopened as a `.uketab` file, imported from Guitar Pro files, and printed or saved as PDF through the browser's print dialog.
 
-### Fret Number Representation & Tied Notes
-- Fret numbers (`0` through `20`) are rendered directly on staff lines inside solid pitch-black line cutout boxes (`#020617`).
-- Fret digits are rendered in high-contrast white (`#ffffff`) or sky-blue when active.
-- **Tied / Continued Notes**: Notes that ring out across beat boundaries without re-strumming render as parenthesized fret numbers e.g. `(12)` with a cyan tie arch `⁀` connecting from the previous beat.
-
-### Unified Max Fret Limit Control
-- **User-Selectable Fret Limit (`maxFretLimit`)**:
-  - Default Limit: **Fret 12**
-  - User Options: `Fret 7`, `Fret 10`, `Fret 12 (Default)`, `Fret 15`, `Fret 20`.
-  - Applies to **both**:
-    1. **Fret Selection Button List**: Inline popover toolbar and Inspector panel render fret buttons `0` through `maxFretLimit`.
-    2. **Alternate Fret Helper**: Equivalent pitch suggestions (parenthesized ghost frets `(3)`) are filtered up to `maxFretLimit`.
-
-### Rhythm Notation & Time Signatures
-- **Traditional Vertically Stacked Time Signature ($\mathbf{\frac{4}{4}}$)**:
-  - Numerator sits centered over upper staff lines; denominator sits centered over lower staff lines in bold serif typography (`font-weight: 800`, `26px`) with background masking to prevent staff lines from cutting through numbers.
-- **Rhythm Stems, Flags & Beams**:
-  - Default to below staff lines, user-configurable to above staff.
-  - **Whole Note (`1/1`)**: Open ring indicator.
-  - **Half Note (`1/2`)**: Open circle stem base (hollow with white fill in print mode).
-  - **Quarter Note (`1/4`)**: Plain vertical stem `|`.
-  - **Eighth Note (`1/8`)**: Single curved flag `|/` or horizontal primary beam `|__|`.
-  - **Sixteenth Note (`1/16`)**: Double flag `|//`, full double beam `||=||`, or fractional secondary beam stubs (`|/--|`) when mixed adjacent to 1/8th notes.
-  - **Dotted Notes**: Cleanly positioned dot indicator placed beside the top of the vertical stem near the staff to prevent flag interference (amber on web screen, pure black `#000000` in PDF/print output).
-
-### Guitar Pro Import Engine (`.gp`, `.gp3`–`.gp5`, `.gpx`)
-- **Pristine Single-Note & Polyphonic Import**: Decodes Guitar Pro binary files using `@coderline/alphatab`. Preserves exact track selection, measure barlines, time signatures, note durations, dotted notes, tied/continued notes, and song headers (Title, Artist, Tempo).
-- **High-G Ukulele Re-voicing**: Automatically re-voices guitar pitch streams ($E_2$–$E_6$) onto 4-string High-G Ukulele staff lines.
+On startup the application shows the built-in ukulele sample song "Conjunction Junction".
 
 ---
 
-## 3. High-Contrast PDF Print & Export Engine
-- **Large Song Title Header**: Displays a prominent `18pt` title caption, italicized artist subtitle, and tuning/tempo metadata centered at the top of the PDF.
-- **Dynamic Multi-Page Footer**: Displays a clean footer in `9pt` font positioned 1/2" (`0.5in`) above the bottom edge of each printed page showing `"{Title} X of Y"` (where `{Title}` is the dynamic song title, `X` is the current page number via `counter(page)`, and `Y` is the total page count via `counter(pages)`).
-- **Right-Justified Measure Layout**: Measure rows wrap dynamically to fit page width and are right-justified flush against the right page margin, placing excess whitespace on the left.
-- **Pure Black-on-White Non-Color-Based Engraving**: All notation symbols (dots, flags, stems, beams, time signature digits, chord diagrams, and rests) render in pure `#000000` black on `#ffffff` white background with zero dependency on color.
-- **Strict UI Stripping**: All web editing controls, toolbars, popovers, selection highlight rings, and red **✕** deletion badges are 100% hidden in print mode (`no-print`).
+## 2. Terminology
+
+- **String number**: strings are numbered from the **top staff line (String 1)** to the **bottom staff line (String N)**, where N is the instrument's string count. String order follows the tuning (for example ukulele High-G: String 1 = A4, String 4 = g4).
+- **Fret value**: `-1` = muted string, shown as `X`; `0` = open string; `1` and above = fretted.
+- **Beat column**: one rhythmic event in a measure. It has one duration and holds zero or more notes (at most one per string), an optional chord diagram and an optional lyric.
+- **Rest**: a beat column marked as a rest. It holds no notes.
+- **Chord marker**: a named fingering (one fret value per string) drawn as a chord diagram above a beat column.
+- **Chord palette**: the list of chord markers offered for quick assignment in a document.
+- **Chord library**: the built-in chord shapes of an instrument.
+- **Instrument profile**: the instrument-specific settings described in Section 3.
 
 ---
 
-## 4. Data Storage & Schema (.uketab)
+## 3. Instruments
 
-Tabs are stored as JSON files (`.uketab`):
+Each document belongs to exactly one instrument, chosen when the document is created (**New Tab**) or imported (**Open Guitar Pro**). It cannot be changed afterwards. Documents saved before instruments existed have no instrument field and open as ukulele.
+
+### 3.1 Tunings
+
+The **Tuning** menu lists the instrument's presets in the order below; the first is the default for new documents. Labels are listed String 1 (top line) first.
+
+| Instrument | Tuning (menu name) | String labels, top to bottom |
+|---|---|---|
+| Ukulele | Standard High-G (gCEA) | A4 E4 C4 g4 |
+| Ukulele | Linear Low-G (GCEA) | A4 E4 C4 G3 |
+| Ukulele | Baritone (DGBE) | E4 B3 G3 D3 |
+| Ukulele | Soprano D-Tuning (aDF#B) | B4 F#4 D4 a4 |
+| Guitar | Standard (EADGBE) | E4 B3 G3 D3 A2 E2 |
+| Guitar | Drop D (DADGBE) | E4 B3 G3 D3 A2 D2 |
+| Guitar | Half-Step Down (Eb) | Eb4 Bb3 Gb3 Db3 Ab2 Eb2 |
+| Guitar | Open G (DGDGBD) | D4 B3 G3 D3 G2 D2 |
+| Guitar | Open D (DADF#AD) | D4 A3 F#3 D3 A2 D2 |
+| Guitar | DADGAD | D4 A3 G3 D3 A2 D2 |
+| Bass | Standard (EADG) | G2 D2 A1 E1 |
+| Bass | Drop D (DADG) | G2 D2 A1 D1 |
+| Bass | Half-Step Down (Eb) | Gb2 Db2 Ab1 Eb1 |
+| Bass | BEAD | D2 A1 E1 B0 |
+
+A lowercase label (`g4`, `a4`) marks a re-entrant string that is higher than the string above it.
+
+A Guitar Pro import can also produce a **custom tuning** that is not a preset (Section 9.2). It is shown as an extra entry at the end of the Tuning menu, named after its notes from lowest to highest string, e.g. `Custom (C2 A2 D3 G3 B3 E4)`.
+
+Selecting a different tuning changes only the open-string pitches. **Fret numbers are kept**, so the sounding pitches change; the tab is not re-fingered or transposed.
+
+### 3.2 Chord Libraries & Default Palettes
+
+| Instrument | Library | Default chord palette |
+|---|---|---|
+| Ukulele | 56 names in gCEA fingering (major, minor, 7, m7, maj7, sus4, add9 and others; `C7m`, `E7m` etc. are aliases of `m7` chords) | C G Am F Em Dm D E7 E7m |
+| Guitar | 47 shapes in standard tuning: open chords, E-shape and A-shape barre chords, power chords (E5 A5 D5 G5) | G C D Em Am E A Dm F |
+| Bass | 8 root-fifth / root-fifth-octave double stops in standard tuning (E5 F5 G5 A5 Bb5 B5 C5 D5) | E5 A5 D5 G5 C5 |
+
+Library shapes are fret patterns for the instrument's default tuning. They are offered and matched unchanged in every tuning, so in an alternate tuning a shape's name may not match the chord that actually sounds.
+
+### 3.3 Other Instrument Settings
+
+| Setting | Ukulele | Guitar | Bass |
+|---|---|---|---|
+| Default Max Fret Limit | 12 | 12 | 12 |
+| Playback voice | triangle-wave pluck, 0.6 s | sawtooth pluck, 1.2 s | sawtooth pluck, 1.4 s |
+| Guitar Pro import | re-fits all notes onto the ukulele | keeps a matching 6-string track's fingering | keeps a matching 4-string bass track's fingering |
+
+---
+
+## 4. Tab Display
+
+### 4.1 Staff & Measures
+- The staff has one horizontal line per string, 24 px apart at 100% zoom.
+- **First measure of the document only**: string labels (from the tuning) at the far left, a heavy double barline, and the time signature of the first measure. No other measure shows string labels or a time signature, including measures that start a new row. Time signatures of later measures are stored but not displayed.
+- Each measure ends with a single barline. The last measure of the document also has a heavy final barline.
+- On screen, each measure shows a small `M{n}` measure-number badge (not printed).
+- Measure width is proportional to its number of beat columns: 62 px per column plus 15 px padding on each side, plus 60 px string-label header and 32 px time signature on the first measure. All sizes scale with zoom.
+- **Row wrapping**: measures are laid out left to right and wrap to a new row when the next measure does not fit the available width. A measure is never split across rows or pages.
+- **Zoom**: 75%, 100% (default), 150% scales the whole tab.
+
+### 4.2 Time Signature
+- Drawn as two stacked bold numbers (26 px at 100% zoom, weight 800) centred vertically on the staff, with background masks so staff lines do not cross the digits.
+
+### 4.3 Fret Numbers
+- Each note is drawn as its fret number centred on its string line, on a mask so the line does not cross the digits. Muted notes are drawn as `X`.
+- On-screen colours: white (normal), red (`X`), sky-blue (selected string of the selected beat, or tied), amber (beat currently playing).
+- **Tied (continued) notes**: a note is shown as tied if the note is marked tied or its beat column is marked tied (Tie). A tied note is drawn in parentheses, e.g. `(12)` or `(X)`, with a sky-blue arc from the previous column.
+
+### 4.4 Alternate Fret Suggestions (Ghost Notes)
+- When a beat column is selected, every string without a note in that column shows any fret on that string that plays the same pitch as a note already in the column, if the fret is between 0 and the Max Fret Limit. Suggestions are shown in purple parentheses, e.g. `(3)`.
+- Clicking a suggestion adds that note. The original note stays.
+- Suggestions are also listed in the Inspector (Section 5.3). They are never printed or played.
+
+### 4.5 Rhythm Notation
+Stems are drawn below the staff by default; **Stems** toggles them above. For each non-rest beat column:
+
+| Duration | Symbol |
+|---|---|
+| Whole (`1/1`) | Open ring, no stem |
+| Half (`1/2`) | Stem ending in a hollow circle |
+| Quarter (`1/4`) | Plain stem |
+| Eighth (`1/8`) | Stem with one flag, or a beam (below) |
+| Sixteenth (`1/16`) | Stem with two flags, or beams (below) |
+| Thirty-second (`1/32`) | Plain stem (no flags; this duration only arises from Guitar Pro import) |
+
+- **Dotted**: a dot beside the stem near the staff. A dotted rest has a dot beside the rest symbol.
+- **Beams**: within a measure, every two adjacent beat columns whose durations are both `1/8` or `1/16` are joined by a primary beam. Rest columns are included, and beams are not split at beat boundaries. Adjacent beamed `1/16` columns are also joined by a secondary beam. A beamed `1/16` with no beamed `1/16` neighbour gets a short secondary stub (16 px) pointing toward its previous beamed neighbour, or toward its next one if there is no previous one. Beamed columns do not draw flags.
+- **Triplets**: the triplet flag changes playback timing only (Section 6). No bracket or "3" is drawn.
+- **On screen**, a small badge under each stem shows the duration, e.g. `1/8.` for a dotted eighth (not printed).
+
+### 4.6 Rests
+The two lines either side of the staff middle are called the upper and lower middle lines (lines 2 and 3 on a 4-line staff, lines 3 and 4 on a 6-line staff).
+
+| Rest | Placement |
+|---|---|
+| Whole | Block hanging below the upper middle line |
+| Half | Block sitting on the lower middle line |
+| Quarter, eighth, sixteenth | Traditional symbol centred on the lower middle line |
+| Thirty-second | No symbol drawn |
+
+### 4.7 Lyrics
+Each beat column may carry one lyric syllable, centred under the column. It sits below the stems when stems are below, or below the staff when stems are above.
+
+### 4.8 Chord Diagrams
+- A beat column with a chord marker shows a chord diagram above the staff, centred on the column. When any beat in the document has a chord, extra space above the staff is reserved on every measure.
+- Diagram layout: chord name on top; one vertical line per string, String N on the left to String 1 on the right; a 4-fret window; a filled dot per fretted string; `○` above open strings; `✕` above muted strings.
+- **Base fret**: the chord's stored base fret, or, if none is stored, the lowest fretted value when any fret exceeds 4, otherwise 1. Base fret 1 draws a thick nut line. A higher base fret draws a thin top line and an `Nfr` label (e.g. `6fr`) at the left.
+- Diagram width is 50 px for 4 strings and 5 px wider per additional string (60 px for guitar).
+- A "Selected Beat Shape" panel above the tab shows a diagram of the selected beat's notes (screen only).
+
+---
+
+## 5. Editing
+
+### 5.1 Selecting & Entering Notes
+- Clicking a string at a beat column selects that beat and string. If the string has no note there, a note is added immediately: the suggested alternate fret shown there, if any, otherwise fret 0.
+- Entering a note (by click, keyboard, popover or inspector) sets the beat's duration to the **active duration** and clears its rest flag. Any existing note on that string is replaced.
+- The active duration is set by the duration keyboard shortcuts (Section 5.5). It starts as `1/4`.
+- **Chord auto-detection**: when every string of a beat column has a note (muted `X` counts), the column's fret pattern is looked up in the instrument's chord library together with the document's chord palette. If the matching chord name is in the palette, the palette's chord is used. A match is assigned as the column's chord:
+  - when a note is added, unless the chord was explicitly cleared;
+  - when the column is selected, if it has never had a chord set;
+  - when a note is removed and the new pattern matches.
+
+  If a note is removed and the pattern no longer matches while fewer notes than strings remain, the chord is unset.
+
+### 5.2 Floating Beat Popover (screen only)
+Shown above the selected beat column:
+- Duration buttons `1`, `1/2`, `1/4`, `1/8`, `1/16` and a **Dot** toggle. These change the selected beat only, not the active duration.
+- **+ Beat** (insert a beat after it), **Del Beat**, and close (deselect).
+- **Chord** dropdown: `(None)` clears the chord; the other entries are the palette chords, plus the beat's current chord if it is not in the palette.
+- **Fret** buttons `X`, `0` … Max Fret Limit for the selected string, and a delete-note button.
+
+### 5.3 Inspector Panel (screen only)
+Fixed at the bottom of the window. It can be collapsed, and is closed by deselecting.
+- Buttons: **+ Beat**, **+ Rest**, **Toggle Rest**, **Triplet (3:2)**, **Tie (Sustain)**, **Delete Beat**, **Close**. There is also a **Lyric** text field.
+- **Chord section** (`{Instrument} Chord Diagram`): palette chord buttons; **Manage Palette / Create Chord**; **Clear Chord**. A chord name field and one fret selector per string (`X`, `0`, `1`–`15`, listed String N first) edit the beat's chord marker; changing a fret recalculates its base fret.
+- **String section**: fret pad `X`, `0` … Max Fret Limit for the selected string, **Clear Note**, and the selected note's pitch (e.g. `Fret 3 (G4)`).
+- **Alternate Frets** list: clicking one adds that note (Section 4.4).
+
+### 5.4 Toolbar & Header
+- **Title** and **Artist / Arranger** text fields.
+- **Play / Pause**; **Metronome** toggle.
+- **Chord Palette & Editor** (also **Manage Chord Palette** in the header): opens the chord palette window (Section 5.7).
+- **New Tab**: a menu of instruments ("New Guitar Tab · 6 strings", …), with the current instrument first. After confirmation, it replaces the document with a blank one for that instrument: title `Untitled {Instrument} Tab`, default tuning, tempo 120, the default palette, and one 4/4 measure of four empty quarter beats.
+- **Open .uketab**, **Open Guitar Pro** (a menu of instruments to import as), **Save .uketab**, **Export PDF** (Section 9).
+- **+ Beat**: insert a beat after the selected beat. **Add Measure**: append a 4/4 measure of four empty quarter beats. **Duplicate Measures**: copy measures *start*–*end* (1-based, clamped to the song) and append the copies to the end of the song.
+- Settings row:
+  - **Tuning** (Section 3.1).
+  - **Stems** (below / above).
+  - **Zoom** (75% / 100% / 150%).
+  - **Max Fret Limit** (7, 10, 12, 15, 20).
+  - **Transpose** −1 / +1 semitone (Section 7).
+  - **Tempo** (40–240 BPM).
+  - **Speed** (0.5×, 0.75×, 1.0×, 1.25×).
+- **Shortcuts & Guide** (header): toggles a short help panel.
+- The **Max Fret Limit** sets the highest fret offered by the popover and inspector fret buttons, and the highest alternate-fret suggestion. It does not limit keyboard entry, the chord fret selectors, or imports.
+
+### 5.5 Keyboard Shortcuts
+Shortcuts are ignored while typing in a text field or menu. Most require a selected beat.
+
+| Key | Action |
+|---|---|
+| `0`–`9` | Set the fret on the selected string. A second digit within 600 ms makes a two-digit fret if the result is ≤ 20 (e.g. `1` then `2` = 12). |
+| `x` or `m` | Muted note (`X`) on the selected string |
+| `Backspace`, `Delete` | Remove the note on the selected string |
+| `w` `h` `q` `e` `s` | Set the active duration and the selected beat to whole, half, quarter, eighth, sixteenth |
+| `.` | Toggle dotted |
+| `r` | Toggle rest (making a beat a rest removes its notes) |
+| `t` | Toggle triplet |
+| `l` | Toggle tie |
+| `+` or `Shift+Enter` | Insert a beat after the selected beat |
+| `←` / `→` | Previous / next beat column, across measures |
+| `↑` / `↓` | Previous / next string (stops at String 1 / String N) |
+| `Space` | Play / pause (no selection needed) |
+
+### 5.6 Beat & Measure Operations
+- **Insert beat / Insert rest**: adds an empty beat (or rest) with the active duration directly after the selected beat in the same measure, and selects it.
+- **Delete beat**: removes the selected beat. Deleting the only beat of a measure removes the measure. Deleting the only beat of the only measure replaces it with one empty quarter beat. Measures are renumbered after removal.
+
+### 5.7 Chord Palette Window
+- **Select tab**: every chord in the instrument's library is shown with its diagram. Clicking a chord adds it to, or removes it from, the document's palette.
+- **Create tab**: chord name, one fret selector per string (`X`, `0`, `1`–`15`), and a live diagram preview. A notice warns when the same fret pattern already exists in the library. Saving adds the chord to the palette, replacing any palette chord with the same name.
+- Opening the window while the selected beat has a note on every string pre-fills the Create tab with that pattern. If that pattern is not in the library, the window opens on the Create tab.
+- Custom chords are stored only in the document's palette. A document whose palette is empty uses the instrument's default palette.
+
+---
+
+## 6. Playback
+- Playback starts at the selected beat (or the first beat) and runs to the end of the song. Changing the document while playing restarts playback from the selected beat.
+- Each beat column lasts `(60000 / tempo) × d × 1.5 (if dotted) × 2/3 (if triplet) ÷ speed` milliseconds, where d = 4, 2, 1, 0.5, 0.25, 0.125 for `1/1` … `1/32`.
+- All notes of a column sound together, using the instrument's voice (Section 3.3). Every note decays over the voice's fixed length, regardless of the beat's duration. Muted notes sound as a short click. Rests are silent.
+- A column marked **Tie** is silent: its notes continue from the previous column.
+- **Metronome**: a click on every beat column, accented on the first column of each measure.
+- The playing column is highlighted and its fret numbers turn amber.
+
+---
+
+## 7. Transposition
+- **Transpose −1 / +1** shifts every non-muted note of the song by one semitone **on the same string** (fret −1 / +1).
+- Frets are clamped to 0–20, so notes that would go past either limit change pitch. Muted notes are unchanged.
+- Chord markers (names and diagrams) and the chord palette are **not** transposed.
+
+---
+
+## 8. Document Data & `.uketab` File Format
+
+A `.uketab` file is the document saved as JSON (2-space indented). The file name is the title in lower case with spaces replaced by `_`, plus `.uketab`.
+
 ```json
 {
-  "id": "tab-001",
-  "title": "Three Is a Magic Number",
-  "artist": "Bob Dorough",
-  "tempo": 112,
-  "keySignature": "G",
+  "id": "tab-blank-1730000000000",
+  "title": "Untitled Guitar Tab",
+  "artist": "",
+  "instrument": "guitar",
+  "tempo": 120,
+  "keySignature": "C",
   "tuning": {
-    "key": "gCEA",
-    "name": "Standard High-G (gCEA)",
-    "pitches": [69, 64, 60, 67],
-    "stringsDisplay": ["A4", "E4", "C4", "g4"]
+    "key": "EADGBE",
+    "name": "Standard (EADGBE)",
+    "pitches": [64, 59, 55, 50, 45, 40],
+    "stringsDisplay": ["E4", "B3", "G3", "D3", "A2", "E2"]
   },
-  "layout": {
-    "stemsPlacement": "below",
-    "zoomScale": 1.0,
-    "measuresPerSystem": 4,
-    "maxFretLimit": 12
-  },
+  "layout": { "stemsPlacement": "below", "zoomScale": 1, "measuresPerSystem": 4, "maxFretLimit": 12 },
   "chordPalette": [
-    { "name": "C", "frets": [0, 0, 0, 3], "baseFret": 1 },
-    { "name": "G", "frets": [0, 2, 3, 2], "baseFret": 1 }
+    { "name": "G", "frets": [3, 2, 0, 0, 0, 3], "baseFret": 1 }
   ],
-  "measures": []
+  "measures": [
+    {
+      "id": "m-1", "index": 1, "timeSignature": [4, 4],
+      "beats": [
+        { "id": "b-1", "duration": "1/4", "notes": [{ "id": "n-1", "string": 6, "fret": 3 }], "chord": null, "lyric": "Hey" },
+        { "id": "b-2", "duration": "1/8", "isDotted": true, "notes": [] },
+        { "id": "b-3", "duration": "1/16", "isRest": true, "notes": [] }
+      ]
+    }
+  ]
 }
 ```
 
+| Field | Meaning |
+|---|---|
+| `instrument` | `"ukulele"`, `"guitar"` or `"bass"`. Optional; missing means ukulele. |
+| `tuning.key` | Preset key from Section 3.1 (`gCEA`, `GCEA`, `DGBE`, `aDF#B`, `EADGBE`, `DADGBE`, `EbAbDbGbBbEb`, `DGDGBD`, `DADF#AD`, `DADGAD`, `EADG`, `DADG`, `EbAbDbGb`, `BEAD`) or `"custom"` |
+| `tuning.pitches` | MIDI note number of each open string, String 1 first. Its length is the number of staff lines. |
+| `tuning.stringsDisplay` | String labels, String 1 first |
+| `tempo` | Beats (quarter notes) per minute |
+| `keySignature` | Stored only; not displayed or used |
+| `layout.stemsPlacement` | `"below"` or `"above"` |
+| `layout.zoomScale` | `0.75`, `1` or `1.5` |
+| `layout.measuresPerSystem` | Stored only; wrapping depends on available width |
+| `layout.maxFretLimit` | 7, 10, 12, 15 or 20 |
+| `chordPalette[].frets` | One fret value per string, **bottom line first** (String N … String 1) |
+| `chordPalette[].baseFret` | First fret of the diagram window (optional) |
+| `measures[].index` | 1-based measure number |
+| `measures[].timeSignature` | `[beats, beat unit]`. Only the first measure's is displayed. It does not affect playback. |
+| `beats[].duration` | `"1/1"`, `"1/2"`, `"1/4"`, `"1/8"`, `"1/16"` or `"1/32"` |
+| `beats[].isDotted` / `isTriplet` / `isRest` / `isTied` | Optional flags (Sections 4–6) |
+| `beats[].notes[]` | `{ id, string, fret, isTied? }`: string 1…N, fret per Section 2 |
+| `beats[].chord` | Chord marker, `null` (explicitly cleared), or absent (never set) |
+| `beats[].lyric` | Optional syllable |
+
+**Opening a file**: the file must be JSON with a `title` and a `measures` array; otherwise it is rejected with an alert. A missing `instrument` becomes `"ukulele"`, and an empty or missing `chordPalette` becomes the instrument's default palette. The opened document replaces the current one and its first beat is selected.
+
 ---
 
-## 5. Automated Testing & Quality Assurance
+## 9. Import & Export
 
-### Test Runner & Engine
-- **Framework**: [Vitest](https://vitest.dev/) native Vite-powered unit test runner.
-- **Execution Speed**: Sub-second execution with direct TypeScript transpilation and zero Babel overhead.
+### 9.1 Save / Open `.uketab`
+See Section 8.
 
-### Test Suites & Coverage
-1. **Music Theory & Mathematical Engine (`src/utils/musicTheory.test.ts`)**:
-   - Multi-tuning pitch calculations (`calculatePitch`) across High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), and Soprano D ($aDF\#B$).
-   - Pitch transposition and semitone shifting with $0 \le \text{fret} \le 20$ bounds clamping.
-   - Beat duration calculations (`getBeatDurationMs`) across all note values (`1/1`–`1/32`), dotted multipliers ($1.5\times$), triplets ($\frac{2}{3}\times$), and speed multipliers.
-   - Alternate fret ghost notes solver with `maxFretLimit` filtering.
-   - Chord palette resolution (`getDefaultChordPalette`, `getEffectiveChordPalette`), chord detection (`autoDetectChordFromBeatNotes`), and chord fret extraction across all strings (`extractChordFrets`).
-2. **Guitar Pro Import Parser (`src/utils/guitarProImporter.test.ts`)**:
-   - AlphaTab duration code mappings (`convertGpDuration`).
-   - Clean lyric syllable hyphenation and whitespace handling (`cleanGpLyric`).
-3. **Tab Domain Types & Constants (`src/types/tab.test.ts`)**:
-   - Validation of `DURATION_OPTIONS` and keyboard shortcut mappings `DURATION_KEY_MAP`.
-4. **Sample Tab Documents & Generator (`src/utils/sampleData.test.ts`)**:
-   - Validation of default sample tab files and blank tab document generation.
+### 9.2 Guitar Pro Import (`.gp`, `.gp3`, `.gp4`, `.gp5`, `.gpx`)
+**Open Guitar Pro** first asks which instrument to import as, then opens a file picker. The imported song replaces the current document.
 
-### Running Automated Tests
-```bash
-# Run all unit test suites once
-npm test
+**Song data**:
+- Title: from the file, otherwise the file name with its extension removed and `-`/`_` replaced by spaces.
+- Artist: from the file, otherwise `Guitar Pro Import`.
+- Tempo: rounded, otherwise 120.
+- Key: `C`. Stems below, zoom 100%, the instrument's default Max Fret Limit and default chord palette.
 
-# Run test runner in live watch mode during development
-npm run test:watch
-```
+**Track choice**:
+- **Guitar and bass**: a track is *matching* if it has the instrument's string count and its lowest open string is within an octave of the instrument's default lowest string (E2 for guitar, E1 for bass). A 4-string ukulele track therefore never matches bass. The first matching track whose name contains the instrument's keyword is used (guitar: "guitar" or "acoustic"; bass: "bass"), otherwise the first matching track.
+- If no track matches, or for ukulele: the first track whose name contains a keyword is used (ukulele: "guitar", "ukulele" or "acoustic"), otherwise the first track.
+- Only the first staff and first voice of the chosen track are imported.
+
+**Notes, matching track (guitar, bass)**:
+- The track's tuning is kept: the matching preset if the pitches are identical, otherwise a custom tuning (Section 3.1).
+- Every note keeps its string and fret.
+- A capo is added to the fret numbers, so a fret 3 note under a capo at fret 2 is written as fret 5; the sounding pitch is unchanged.
+- Dead notes become muted `X`.
+
+**Notes, all other cases (always for ukulele)**:
+- The document uses the instrument's default tuning.
+- Each note's sounding pitch is moved by whole octaves into the instrument's range: ukulele C4–C6, guitar E2–E6, bass E1–G3.
+- The note is placed on the unused string that gives the lowest fret between 0 and the import fret limit (ukulele 15, guitar and bass 24).
+- If no string fits, it goes on the first unused string with its fret clamped into that range.
+- A beat cannot hold more notes than the instrument has strings; extra notes are dropped.
+
+**Rhythm, ties & lyrics**:
+- Each Guitar Pro bar becomes one measure with that bar's time signature.
+- Durations map to `1/1` … `1/32`; any number of dots becomes a single dot. Tuplets are not imported (notes keep their written duration).
+- An empty beat becomes a rest. An empty bar becomes one quarter rest per beat of its time signature.
+- A note that continues a tie is marked tied, and its whole beat column is marked tied, so the column does not re-sound in playback.
+- Lyrics from all tracks are matched to beats by measure and time position; the first lyric found for a position is used.
+- Each beat is checked for an automatic chord match (Section 5.1).
+
+### 9.3 Print & PDF Export
+**Export PDF** opens the browser's print dialog; choosing "Save as PDF" produces a PDF. In print:
+- **Page**: margins 0.5 in top, 0.75 in bottom, 0.25 in left, 0.5 in right.
+- **Header**: song title (18 pt, bold), artist (10 pt, italic, if set), and `Tuning: {tuning name} ({labels joined by -}) • Tempo: {tempo} BPM` (8.5 pt), with a rule below.
+- **Footer**: `{Title} {page} of {pages}` in 9 pt, centred in the bottom margin.
+- **Rows**: measure rows are right-aligned to the right margin, with a 0.5 in left inset and 0.15 in between rows. A measure is never split across pages.
+- **Text sizes**: fret numbers 18 pt on white masks, lyrics 14 pt, chord names 20.8 px.
+- **Colour**: all notation (lines, digits, stems, flags, beams, dots, rests, ties, time signature, chord diagrams) is black on white; half-note circles are hollow.
+- **Not printed**: toolbar, inspector, popover, buttons, ghost notes, selection and playhead highlights, delete badges, duration badges and measure-number badges.
+
+---
+
+## 10. Known Limitations
+- Only the first measure shows string labels and a time signature; time signature changes are not displayed and there is no control to edit a measure's time signature.
+- Triplets are not marked on the staff. `1/32` notes have no flags and `1/32` rests have no symbol. Beams also join rest columns and are not grouped by beat.
+- Chord shapes are not adjusted for alternate tunings, and chord names are not transposed.
+- There is no capo setting; imported capos are folded into fret numbers.
+- A document's instrument cannot be changed after creation.
+- Playback note length is fixed per instrument and does not follow the written duration.
+
+---
+
+## 11. Quality Assurance
+Automated tests (Vitest) cover music theory, instrument profiles, chord shapes, the Guitar Pro importer and the main UI components. The test inventory is in the [Software Architecture Document](SOFTWARE_ARCHITECTURE.md#10-automated-testing). Run them with `npm test` (once) or `npm run test:watch` (watch mode).

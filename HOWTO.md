@@ -21,7 +21,7 @@ Once started, open your web browser and navigate to:
 
 Before setting up UkeTab, ensure you have the following installed on your operating system:
 
-1. **Node.js**: Version **18.0.0** or higher (LTS recommended).
+1. **Node.js**: **22.x (22.22.2 or later)**, **24.x (24.15.0 or later)**, or **26 or later**. This range is set by the test environment (jsdom 30, Vitest 4). The dev server and production build alone (Vite 5) also run on Node 18 or Node 20 and later.
    - Check version: `node -v`
    - Download: [nodejs.org](https://nodejs.org/)
 2. **npm** (Node Package Manager): Version **9.0.0** or higher (included with Node.js).

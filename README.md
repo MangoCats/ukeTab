@@ -1,86 +1,77 @@
 # UkeTab 🪕
 
-> **Interactive Ukulele Tab Chart Creator, Renderer, and Web Studio**
+> **Interactive Ukulele, Guitar & Bass Tab Creator, Player and Printer**
 
-UkeTab is a modern web application designed for Ukulele players, teachers, and arrangers. It enables seamless creation, editing, visualization, audio playback, file import/export, and clean PDF print generation of Ukulele tablature with traditional rhythm stems, ukulele chord diagram charts, and synced lyrics.
-
----
-
-## 🛠️ Quick Start & Setup
-
-For step-by-step instructions on setting up your environment, running the development server (`npm run dev`), and building for production (`npm run build`), see:
-👉 **[HOWTO.md](file:///c:/Users/Mango%20Cat/Dev/UkeTab/HOWTO.md)**
+UkeTab is a browser application for writing, editing, playing back, printing and importing tablature for **ukulele (4 strings), guitar (6 strings) and bass (4 strings)**, with rhythm notation, chord diagrams and lyrics.
 
 ---
 
-## ✨ Key Features
+## 🛠️ Quick Start
 
-- 🎼 **4-Line Ukulele Staff**: Engineered specifically for Ukulele with High-G ($gCEA$), Low-G ($GCEA$), Baritone ($DGBE$), Soprano D ($aDF\#B$), and custom tunings.
-- 🎸 **6-String Guitar Mode**: Choose Ukulele, Guitar or Bass from **New Tab** or **Open Guitar Pro**. Guitar tabs use a 6-line staff with Standard, Drop D, Half-Step Down, Open G, Open D and DADGAD tunings, a guitar chord library (open, E-shape and A-shape barre, and power chords), 6-string chord diagrams, and Guitar Pro import that keeps the source tuning, strings and frets (capo folded into fret numbers, dead notes as `X`).
-- 🎸 **4-String Bass Mode**: 4-line bass staff with Standard (EADG), Drop D, Half-Step Down and BEAD tunings, root-fifth-octave double-stop shapes, a bass synth voice, and Guitar Pro import that keeps a bass track's own fingering.
-- 🪕 **Ukulele Chord Diagram Charts Above Tabs**: Render 4-line fingering grids with filled dots (frets), open circles `○` (open strings), `✕` (muted strings), base fret indicators (e.g. `3fr`), and chord name labels (`Am`, `E7`, `G`, `D`, `F`, `C`, `Dm`) positioned directly above tabs in both web editor and PDF export.
-- 🎼 **Continuous System Engraving**: Staff lines run continuously across measures with 1 clef string header and 1 time signature per system row.
-- ⏱️ **Traditional Vertically Stacked Time Signatures**: Numerator stacked over denominator ($\mathbf{\frac{4}{4}}$) in bold classical serif typography with background masking over staff lines.
-- ⏱️ **Traditional Rhythm Stems, Flags & Beams**: Stem lines, single flags (`1/8`), double flags (`1/16`), horizontal primary/secondary beams, fractional secondary beam stubs (beamlets for 1/16th notes), dotted notes, rests, triplets, and ties displayed directly on the staff.
-- ➕ **In-Measure Beat Event Editing**: Insert new note events / beat columns anywhere inside a measure using **`+ Insert Beat`** or keyboard shortcut **`+`**.
-- 🎤 **Synchronized Lyrics**: Dedicated lyric track aligned column-by-column with note stems.
-- 🖥️ **WYSIWYG Interactive Editor**: Floating context action bar directly over selected notes, touch inspector pad with chord presets, and full keyboard shortcuts (`0-9`, `←/→/↑/↓`, `w/h/q/e/s`, `.`, `r`, `t`, `l`, `+`, `Backspace`).
-- 🔊 **Audio Playback & Metronome**: Built-in Web Audio synthesizer with real-time playhead tracking, metronome clicks, and speed multiplier (`0.5x`–`1.25x`).
-- 🪕 **Unified Max Fret Limit & Alternate Fret Helper**: Configurable limit (`maxFretLimit`, default 12, user selectable 7..20) applying to both the fret selection button list and equivalent pitch ghost notes `(3)`.
-- 🔄 **Key & Tuning Transposition**: 1-click transposition across keys (+/- semitones) and string tunings with automatic tab recalculation.
-- 📄 **Clean PDF Print Export Engine**:
-  - Displays a clean Song Title Header, artist subtitle, and tuning/tempo metadata.
-  - Multi-page `9pt` footer positioned 1/2" above the page bottom showing `"{Title} X of Y"`.
-  - Right-justifies measure rows against the right page margin.
-  - Pure black-on-white non-color-based engraving for dots, flags, stems, beams, and chord diagrams.
-  - Automatically strips all web UI controls, toolbars, selection rings, and red **✕** deletion badges in PDF mode.
-- 📂 **Digital Storage & File Import**:
-  - Save and Open `.uketab` JSON files and Guitar Pro files (`.gp`, `.gp3`–`.gp5`, `.gpx`).
-- 🧪 **Automated Unit Testing**: Fast, comprehensive test suites covering music theory mathematical solvers, duration calculations, pitch transpositions, chord detection, and Guitar Pro parser utilities.
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
+
+Full setup, test and build instructions: **[HOWTO.md](HOWTO.md)**.
+
+---
+
+## ✨ Features
+
+- 🎸 **Three instruments**: choose Ukulele, Guitar or Bass from **New Tab** or **Open Guitar Pro**. Each has its own tunings, chord library, default chord palette and playback voice.
+  - Ukulele: High-G (gCEA), Low-G (GCEA), Baritone (DGBE), Soprano D (aDF#B).
+  - Guitar: Standard, Drop D, Half-Step Down, Open G, Open D, DADGAD; open, barre and power chords.
+  - Bass: Standard (EADG), Drop D, Half-Step Down, BEAD; root-fifth double stops.
+- 🎼 **Tab staff**: one line per string, fret numbers on the lines, muted strings as `X`, string labels and time signature at the start of the song, measures that wrap to the page width, zoom 75% / 100% / 150%.
+- ⏱️ **Rhythm notation**: whole to sixteenth notes with stems (below or above the staff), flags, beams with sixteenth-note stubs, dotted notes, traditional rest symbols, and tied notes shown as `(n)` with an arc. Triplets affect playback timing.
+- 🎵 **Chord diagrams** above any beat, with base-fret labels (e.g. `6fr`). Chords are detected automatically when every string has a note. A per-song chord palette can be edited and extended with custom chords.
+- 🖥️ **Editing**: click a string to enter a note; a popover above the selected beat and an inspector panel at the bottom; full keyboard control (`0`–`9` frets, `x` muted, `w h q e s` durations, `.` dot, `r` rest, `t` triplet, `l` tie, `+` insert beat, arrows, `Backspace`, `Space`).
+- 🪄 **Alternate fret helper**: suggests the same pitch on other strings, up to a configurable Max Fret Limit (7, 10, 12, 15, 20).
+- 🔊 **Playback**: Web Audio synthesizer with a per-instrument voice, metronome, playhead highlight and speed 0.5×–1.25×.
+- 🔄 **Transpose** the whole song ±1 semitone at a time.
+- 📂 **Files**: save and open `.uketab` (JSON); import Guitar Pro `.gp`, `.gp3`–`.gp5`, `.gpx`. Guitar and bass imports keep the source tuning and fingering; ukulele imports re-fit the notes onto 4 strings.
+- 📄 **Print / PDF**: black-on-white output with a title header, `{Title} X of Y` page footer and right-aligned measure rows, without editor controls.
+- 🧪 **Automated tests** for music theory, instruments, chord shapes, Guitar Pro import and UI components.
 
 ---
 
 ## 📚 Documentation
 
-- [📖 Execution & Setup Guide (HOWTO.md)](file:///c:/Users/Mango%20Cat/Dev/UkeTab/HOWTO.md): Environment setup, running locally, automated testing, building, and previewing.
-- [📋 Project & Notation Specification](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/PROJECT_SPECIFICATION.md): Comprehensive guide to visual tab specs, rhythm notation standards, data schemas, alternate fret algorithms, automated testing QA, and rendering rules.
-- [🏗️ Software Architecture Document](file:///c:/Users/Mango%20Cat/Dev/UkeTab/docs/SOFTWARE_ARCHITECTURE.md): Technical architecture, data models, SVG rendering pipeline, Web Audio synthesis, testing architecture, and export subsystems.
+- [HOWTO.md](HOWTO.md): prerequisites, install, run, test, build and preview.
+- [Product Specification](docs/PROJECT_SPECIFICATION.md): complete user-visible behaviour, including instruments, notation, editing, playback, file format, import, print and known limitations.
+- [Software Architecture](docs/SOFTWARE_ARCHITECTURE.md): source layout, data model, instrument profiles, algorithms, rendering, audio, import/export internals and the test inventory.
 
 ---
 
 ## 🚀 Technology Stack
 
-- **Frontend**: React 18, TypeScript, HTML5 SVG Vector Engine
-- **Audio**: Web Audio API Synthesizer & Metronome
-- **Print & PDF Engine**: Browser High-DPI Vector Printing Engine
-- **Test Runner**: Vitest Native Vite Test Runner
-- **Build System**: Vite
+- **Frontend**: React 18, TypeScript, hand-written SVG notation
+- **Audio**: Web Audio API
+- **Guitar Pro parsing**: `@coderline/alphatab`
+- **Print / PDF**: browser print with CSS print rules
+- **Build & tests**: Vite, Vitest (jsdom)
 
 ---
 
-## 💻 Quick Commands
+## 💻 Commands
 
 ```bash
-# Start local development server (http://localhost:3000)
-npm run dev
-
-# Run all automated unit test suites
-npm test
-
-# Run tests in live watch mode
-npm run test:watch
-
-# Compile TypeScript and create production build
-npm run build
+npm run dev         # Development server (http://localhost:3000)
+npm test            # Run all tests once
+npm run test:watch  # Run tests in watch mode
+npm run build       # Type-check and build to dist/
+npm run preview     # Serve the production build
 ```
 
 ---
 
-## 🗺️ Project Roadmap
+## 🗺️ Roadmap
 
-- [x] Phase 1: Project Definition & Notation Specifications
-- [x] Phase 2: Core Domain Model & SVG Vector Renderer Prototype
-- [x] Phase 3: Interactive WYSIWYG Editor & Audio Playback Engine
-- [x] Phase 4: Transposition Engine & Alternate Fret Helper
-- [x] Phase 5: PDF Generator with Zoom Scaling, Ukulele Chord Diagrams & Storage (.uketab)
-- [x] Phase 6: Automated Testing Suite (Vitest) & High-Contrast Print Notation
+- [x] Phase 1: Project definition & notation specification
+- [x] Phase 2: Core domain model & SVG renderer
+- [x] Phase 3: Interactive editor & audio playback
+- [x] Phase 4: Transposition & alternate fret helper
+- [x] Phase 5: PDF output, chord diagrams & `.uketab` storage
+- [x] Phase 6: Automated test suite & high-contrast print notation
+- [x] Phase 7: Instrument profiles, 6-string guitar and 4-string bass modes

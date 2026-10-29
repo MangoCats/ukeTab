@@ -19,7 +19,7 @@ export const DURATION_KEY_MAP: Record<string, DurationType> = {
 export interface TabNote {
   id: string;
   string: number;        // 1 = Top line (highest string, A4 on ukulele) .. N = Bottom line (N = tuning string count)
-  fret: number;          // 0 = Open, 1..20 = Fretted
+  fret: number;          // -1 = Muted (X), 0 = Open, 1+ = Fretted (editor input up to 20; Guitar Pro import up to the profile's importMaxFret)
   isGhost?: boolean;     // Visual alternate fret suggestion flag
   isTied?: boolean;      // Continued / sustained note from previous beat without re-strumming
 }
@@ -38,7 +38,7 @@ export interface BeatColumn {
   isRest?: boolean;
   isTied?: boolean; // When true, sustains into the next beat without re-strumming (Continued Note)
   notes: TabNote[];
-  chord?: ChordMarker | null; // Optional Ukulele Chord Diagram attached above beat (null = explicitly cleared None)
+  chord?: ChordMarker | null; // Chord diagram drawn above the beat (undefined = never set, may be auto-detected; null = explicitly cleared)
   lyric?: string;
 }
 
@@ -93,7 +93,7 @@ export interface InstrumentProfile {
 export interface LayoutOptions {
   stemsPlacement: 'below' | 'above'; // Default: 'below'
   zoomScale: number;                 // 0.75 (Compact), 1.0 (Standard), 1.5 (Large)
-  measuresPerSystem: number;         // Default: 4
+  measuresPerSystem: number;         // Default: 4 (stored only; row wrapping is driven by available width)
   maxFretLimit: number;              // Default: 12 (user selectable 7..20)
 }
 
@@ -103,7 +103,7 @@ export interface TabDocument {
   artist: string;
   instrument?: InstrumentId; // Absent in older .uketab files, which are always ukulele
   tempo: number;
-  keySignature: string;
+  keySignature: string;     // Stored only; not displayed or used by any engine
   tuning: TuningConfig;
   layout: LayoutOptions;
   measures: Measure[];
